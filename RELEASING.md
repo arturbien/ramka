@@ -85,14 +85,17 @@ pnpm sbom         # write packages/ramka/sbom.cdx.json (needs a real version)
 ```
 
 The script validates the parts a scanner keys off — spec version, serial number,
-purls, licenses, and a dependency graph whose refs all resolve. To check the
-output against the official schema instead:
+purls, third-party licenses, and a dependency graph whose refs all resolve. The
+package's own license is whatever `package.json` declares, so the document
+follows that decision rather than asserting one. To check the output against the
+official schema instead:
 
 ```bash
 schema=https://raw.githubusercontent.com/CycloneDX/specification/master/schema
 for f in bom-1.6.schema.json spdx.schema.json jsf-0.82.schema.json; do
   curl -sSfLO "$schema/$f"
 done
+npm install --no-save ajv-cli ajv-formats
 npx ajv-cli validate --spec=draft7 --strict=false -c ajv-formats \
   -s bom-1.6.schema.json -r spdx.schema.json -r jsf-0.82.schema.json \
   -d packages/ramka/sbom.cdx.json
