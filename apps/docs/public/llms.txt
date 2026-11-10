@@ -42,7 +42,43 @@ Compose a fullscreen media lightbox from headless parts: view-transition morph b
 - [Film trailers](examples/lightbox/film-trailers.md): Movie posters morph into a fullscreen <video> that auto-plays on becoming active.
 - [3D models](examples/lightbox/3d-models.md): Three.js product grid with Lightbox.Slides — onBeforeOpen preheats GLBs before the morph; shared orbit with each trigger.
 
+## Svelte
+
+The same primitives for Svelte 5 as `@ramka/svelte`.
+
+- [Installation](docs/framework/svelte.md): Install @ramka/svelte and a minimal Root + Slides setup.
+- [Overview](docs/framework/svelte/lightbox.md): Accessible primitives for fullscreen media lightboxes: compound Svelte components in the style of Bits UI. Cosmetically unstyled: you own colors, chrome, and radius values. ramka owns state, focus, gestures, morphs, and the structural styles those mechanics need.
+- [State & lifecycle](docs/framework/svelte/lightbox/state-lifecycle.md): Control open state and the active index with bindings, `createHandle()`, or both, and know when callbacks fire. Part of [Lightbox](docs/framework/svelte/lightbox.md).
+- [Composition](docs/framework/svelte/lightbox/composition.md): Default to Slides + Zoom (swipe carousel with pinch zoom), size media to fill Content, then layer chrome. Part of [Lightbox](docs/framework/svelte/lightbox.md).
+- [SvelteKit images](docs/framework/svelte/lightbox/sveltekit-images.md): Use blurred placeholders (LQIP) with ramka. Lightbox-side blur depends on whether that item has a trigger image. Part of [Lightbox](docs/framework/svelte/lightbox.md).
+- [View transitions](docs/framework/svelte/lightbox/view-transitions.md): Morph open and close between a trigger and the active item with the browser View Transitions API. Part of [Lightbox](docs/framework/svelte/lightbox.md). Unsupported browsers, reduced motion, and low-end devices fall back to a plain fade.
+- [Gestures](docs/framework/svelte/lightbox/gestures.md): Pull-to-dismiss, zoom and pan, and keyboard ownership. Part of [Lightbox](docs/framework/svelte/lightbox.md). For the usual gallery chrome (pull, zoom, keyboard) see the [Default preset](docs/framework/svelte/presets/default.md).
+- [Zoom & a11y](docs/framework/svelte/lightbox/zoom.md): How ramka’s zoom and pan, on desktop and on touch, line up with mainstream image viewers, and how they map to WCAG 2.2. For the wiring and gesture ownership, see [Gestures](docs/framework/svelte/lightbox/gestures.md).
+- [RTL support](docs/framework/svelte/lightbox/rtl.md): Run the lightbox in a right-to-left reading direction: Arabic, Hebrew, Persian, Urdu. Part of [Lightbox](docs/framework/svelte/lightbox.md).
+- [Content Security Policy](docs/framework/svelte/lightbox/csp.md): Running the lightbox on pages with a strict `style-src`. Part of [Lightbox](docs/framework/svelte/lightbox.md).
+- [API reference](docs/framework/svelte/lightbox/api.md): Props, data attributes, and CSS variables for every [Lightbox](docs/framework/svelte/lightbox.md) part.
+
+## Svelte presets
+
+- [Default](docs/framework/svelte/presets/default.md): Docs-demo chrome as a copy-paste design-system Lightbox
+- [Twitter](docs/framework/svelte/presets/twitter.md): Split media + thread sidebar with translucent backdrop and edge nav
+- [Store](docs/framework/svelte/presets/store.md): Commerce viewer: thumbnail rail + buy panel with price, highlights, and CTA
+- [Editorial](docs/framework/svelte/presets/editorial.md): Newsroom article-figure viewer: near-black surface, caption + credit block
+- [Stories](docs/framework/svelte/presets/stories.md): Avatar tray that crossfades into 9:16 video with a scroll-driven 3D page-turn
+
+## Svelte examples
+
+- [Photos app](docs/framework/svelte/examples/lightbox/photos-app.md): macOS Photos–style square grid under a sticky, blurred toolbar with a fade gradient and "Library" title.
+- [Photos app (RTL)](docs/framework/svelte/examples/lightbox/photos-app-rtl.md): The same photos app mirrored for a right-to-left locale — dir="rtl" on Lightbox.Root mirrors navigation, the thumbnail strip, and the arrow keys.
+- [Infinite scroll](docs/framework/svelte/examples/lightbox/infinite-scroll.md): An endless feed where the lightbox paginates too — one photo array drives grid tiles and slides; the grid loads pages via an IntersectionObserver sentinel, and onValueChange fetches ahead inside the open viewer, appending slides to the native scroll-snap track with a minimal Previous/Next chrome (no thumbnails).
+- [URL-synced state](docs/framework/svelte/examples/lightbox/url-synced-state.md): Masonry wall wired to an optional [[id]] route and SvelteKit shallow routing: every photo is a shareable URL, deep links open the viewer on that slide, swiping rewrites the URL in place, and browser Back closes the viewer.
+- [Intercepted routes](docs/framework/svelte/examples/lightbox/intercepted-routes.md): The nextgram pattern with SvelteKit shallow routing: plain links whose clicks push the photo URL and open an already-open controlled lightbox over the grid. Back closes it, hard loads get a standalone photo page (one URL, two presentations).
+- [Text message](docs/framework/svelte/examples/lightbox/text-message.md): iMessage-style chat with a single morphTo="origin" trigger over a stack of attachments.
+- [Film trailers](docs/framework/svelte/examples/lightbox/film-trailers.md): Movie posters morph into a fullscreen <video> that auto-plays on becoming active.
+- [3D models](docs/framework/svelte/examples/lightbox/3d-models.md): Three.js product grid with Lightbox.Slides — onBeforeOpen preheats GLBs before the morph; shared orbit with each trigger.
+
 ## Optional
 
 - [Full documentation](llms-full.txt): every guide, API table, and code excerpt in one file
+- [Full Svelte documentation](docs/framework/svelte/llms-full.txt): every Svelte guide, API table, and code excerpt in one file
 - [GitHub](https://github.com/arturbien/ramka)
