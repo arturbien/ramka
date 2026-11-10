@@ -39,7 +39,6 @@ const outFile = path.join(docsRoot, 'app/_content/lightbox/excerpts/generated.ts
 const svelteSourcesDir = path.join(docsRoot, 'svelte/src/excerpts');
 const svelteOutFile = path.join(docsRoot, 'app/_content/svelte/excerpts/generated.ts');
 
-
 const TS_START_RE = /^\s*\/\/\s*@docs-excerpt-start\s+(\S+)\s*$/;
 const TS_END_RE = /^\s*\/\/\s*@docs-excerpt-end\s*$/;
 const TS_TITLE_RE = /^\s*\/\/\s*@docs-excerpt-title\s+(.+?)\s*$/;

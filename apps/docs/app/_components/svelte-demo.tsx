@@ -29,8 +29,9 @@ export function SvelteDemo({
     let cancelled = false;
     let cleanup: (() => void) | undefined;
     (import(/* webpackIgnore: true */ /* turbopackIgnore: true */ entry) as Promise<SvelteDemos>)
-      .then(({ mount }) => mount(id, target, JSON.parse(propsKey)))
+      .then(({ mount }) => (cancelled ? undefined : mount(id, target, JSON.parse(propsKey))))
       .then((unmount) => {
+        if (!unmount) return;
         if (cancelled) unmount();
         else cleanup = unmount;
       })

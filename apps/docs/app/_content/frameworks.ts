@@ -57,10 +57,7 @@ function mapHash(hash: string, to: Framework) {
   return `#${pair ? (to === 'svelte' ? pair[1] : pair[0]) : id}`;
 }
 
-/**
- * The same page in the other framework, keeping the hash (renamed where the APIs differ).
- * Nested example routes land on the example itself; unknown pages fall back to the framework root.
- */
+/** The same page in the other framework, keeping the hash; unknown pages fall back to the framework root. */
 export function counterpartHref(pathname: string, hash: string, to: Framework): string {
   const from = frameworkFromPath(pathname);
   if (from === to) return `${pathname}${hash}`;
