@@ -82,6 +82,11 @@ jobs:
       - name: Typecheck
         run: pnpm typecheck
 
+      # @ramka/svelte runs its component tests in vitest browser mode, which
+      # needs a real Chromium. The headless shell is all it launches.
+      - name: Install Chromium for @ramka/svelte
+        run: pnpm --filter @ramka/svelte exec playwright install --with-deps --only-shell chromium
+
       - name: Test
         run: pnpm test
 
