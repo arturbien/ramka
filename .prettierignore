@@ -2,6 +2,8 @@ node_modules
 dist
 .next
 .turbo
+.svelte-kit
+.vitest
 pnpm-lock.yaml
 
 # Generated LLM docs (apps/docs/scripts/generate-llms-txt.ts)
