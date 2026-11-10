@@ -1,0 +1,117 @@
+==> do.svelte
+<script lang="ts">
+  import { Lightbox } from '@ramka/svelte';
+
+  let { photo }: { photo: { src: string; lqip: string; width: number; height: number } } = $props();
+</script>
+
+<Lightbox.Root>
+  <Lightbox.Trigger index={0}>
+    {#snippet children({ imageRef })}
+      <img
+        {@attach imageRef}
+        src={photo.src}
+        alt="Mountain lake"
+        class="aspect-square size-full bg-cover object-cover"
+        style:background-image="url({photo.lqip})"
+      />
+    {/snippet}
+  </Lightbox.Trigger>
+
+  <Lightbox.Portal>
+    <Lightbox.Backdrop />
+    <Lightbox.Content>
+      <Lightbox.Slides>
+        <Lightbox.Slide>
+          <Lightbox.Item index={0}>
+            <Lightbox.Zoom>
+              <Lightbox.Media width={photo.width} height={photo.height}>
+                <img src={photo.src} alt="Mountain lake" sizes="100vw" fetchpriority="high" />
+              </Lightbox.Media>
+            </Lightbox.Zoom>
+          </Lightbox.Item>
+        </Lightbox.Slide>
+      </Lightbox.Slides>
+    </Lightbox.Content>
+  </Lightbox.Portal>
+</Lightbox.Root>
+
+==> dont.svelte
+<Lightbox.Media width={photo.width} height={photo.height}>
+  <img
+    src={photo.src}
+    alt="Mountain lake"
+    sizes="100vw"
+    class="bg-cover"
+    style:background-image="url({photo.lqip})"
+  />
+</Lightbox.Media>
+
+==> plusN.svelte
+<Lightbox.Root morphTo="closest">
+  {#each photos.slice(0, visible) as photo, i (photo.src)}
+    <Lightbox.Trigger index={i} crossfade={i === visible - 1 ? 'both' : undefined}>
+      {#snippet children({ imageRef })}
+        <img {@attach imageRef} src={photo.src} alt="" class="bg-cover" style:background-image="url({photo.lqip})" />
+      {/snippet}
+    </Lightbox.Trigger>
+  {/each}
+
+  <Lightbox.Portal>
+    <Lightbox.Backdrop />
+    <Lightbox.Content>
+      <Lightbox.Slides>
+        {#each photos as photo, i (photo.src)}
+          <Lightbox.Slide>
+            <Lightbox.Item index={i}>
+              <Lightbox.Zoom>
+                <Lightbox.Media width={photo.width} height={photo.height}>
+                  <img
+                    src={photo.src}
+                    alt=""
+                    sizes="100vw"
+                    class="bg-cover"
+                    style:background-image={i >= visible ? `url(${photo.lqip})` : undefined}
+                  />
+                </Lightbox.Media>
+              </Lightbox.Zoom>
+            </Lightbox.Item>
+          </Lightbox.Slide>
+        {/each}
+      </Lightbox.Slides>
+    </Lightbox.Content>
+  </Lightbox.Portal>
+</Lightbox.Root>
+
+==> nonImage.svelte
+<Lightbox.Root>
+  {#each team as person, i (person.name)}
+    <Lightbox.Trigger index={i} crossfade="both">
+      <span style:background={person.color}>{person.initials}</span>
+    </Lightbox.Trigger>
+  {/each}
+
+  <Lightbox.Portal>
+    <Lightbox.Backdrop />
+    <Lightbox.Content>
+      <Lightbox.Slides>
+        {#each team as person, i (person.name)}
+          <Lightbox.Slide>
+            <Lightbox.Item index={i}>
+              <Lightbox.Zoom>
+                <Lightbox.Media width={person.photo.width} height={person.photo.height}>
+                  <img
+                    src={person.photo.src}
+                    alt="Portrait of {person.name}"
+                    class="bg-cover"
+                    style:background-image="url({person.photo.lqip})"
+                  />
+                </Lightbox.Media>
+              </Lightbox.Zoom>
+            </Lightbox.Item>
+          </Lightbox.Slide>
+        {/each}
+      </Lightbox.Slides>
+    </Lightbox.Content>
+  </Lightbox.Portal>
+</Lightbox.Root>

@@ -6,6 +6,10 @@
  *   - data attributes from `*DataAttributes` enums
  *   - CSS variables from `*CssVars` enums (`@type` → Type column)
  *
+ * Both modes also check that the hand-written Svelte API tables
+ * (app/_content/svelte/api/parts.ts) list the same props as each component's
+ * `interface Props` in packages/svelte/src/lib/lightbox/*.svelte.
+ *
  *   pnpm --filter docs docs:api          # write
  *   pnpm --filter docs docs:api:check    # fail if stale
  */
@@ -34,6 +38,7 @@ import {
   type ExtractSpec,
 } from '../app/_content/lightbox/api/meta';
 import type { AttrRow, CssVarRow, PropRow } from '../app/_content/lightbox/api/types';
+import { svelteApiParts } from '../app/_content/svelte/api/parts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const docsRoot = path.resolve(__dirname, '..');
@@ -41,6 +46,7 @@ const repoRoot = path.resolve(docsRoot, '../..');
 const lightboxSrc = path.join(repoRoot, 'packages/ramka/src/lightbox');
 const ramkaTsconfig = path.join(repoRoot, 'packages/ramka/tsconfig.json');
 const outFile = path.join(docsRoot, 'app/_content/lightbox/api/generated.ts');
+const svelteLightboxSrc = path.join(repoRoot, 'packages/svelte/src/lib/lightbox');
 
 const TYPE_FORMAT =
   TypeFormatFlags.NoTruncation | TypeFormatFlags.UseAliasDefinedOutsideCurrentScope;
@@ -481,8 +487,34 @@ function collectMeta(): ApiPartMeta[] {
   ];
 }
 
+/** Prop names drift between `interface Props` in each Svelte part and its documented rows. */
+function svelteApiDrift(): string[] {
+  const scripts = new Project({ useInMemoryFileSystem: true });
+  const problems: string[] = [];
+  for (const part of svelteApiParts) {
+    const file = path.join(svelteLightboxSrc, `${part.name}.svelte`);
+    if (!fs.existsSync(file)) continue;
+    const script = fs.readFileSync(file, 'utf8').match(/<script lang="ts">([\s\S]*?)<\/script>/)?.[1];
+    const props = script && scripts.createSourceFile(`${part.name}.ts`, script).getInterface('Props');
+    if (!props) continue;
+    const actual = props.getProperties().map((prop) => prop.getName());
+    const documented = (part.props ?? []).map((row) => row.name).filter((name) => name !== '...rest');
+    const missing = actual.filter((name) => !documented.includes(name));
+    const extra = documented.filter((name) => !actual.includes(name));
+    if (missing.length) problems.push(`${part.name}: undocumented props ${missing.join(', ')}`);
+    if (extra.length) problems.push(`${part.name}: documented props not in interface Props: ${extra.join(', ')}`);
+  }
+  return problems;
+}
+
 function main() {
   const check = process.argv.includes('--check');
+  const drift = svelteApiDrift();
+  if (drift.length) {
+    console.error('Svelte API docs (app/_content/svelte/api/parts.ts) drifted from @ramka/svelte:');
+    for (const problem of drift) console.error(`  ${problem}`);
+    process.exit(1);
+  }
   const props: Record<string, PropRow[]> = {};
   const attributes: Record<string, AttrRow[]> = {};
   const cssVariables: Record<string, CssVarRow[]> = {};

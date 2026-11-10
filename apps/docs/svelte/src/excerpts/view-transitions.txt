@@ -1,0 +1,12 @@
+==> scrollTrigger.svelte
+<Lightbox.Root
+  scrollTriggerIntoView={[
+    { type: 'onChange', behavior: 'instant' },
+    { type: 'onOpenComplete', behavior: 'instant' }
+  ]}
+>
+  <!-- triggers + content -->
+</Lightbox.Root>
+
+==> preset.svelte
+<Lightbox.Root viewTransition="spring"><!-- … --></Lightbox.Root>

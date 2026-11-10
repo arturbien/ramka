@@ -1,0 +1,26 @@
+.lightbox-backdrop {
+  opacity: 0;
+  transition: opacity var(--lightbox-pull-snap-duration, var(--lightbox-vt-duration, 360ms))
+    var(--lightbox-pull-snap-easing, cubic-bezier(0.16, 1, 0.3, 1));
+}
+
+@starting-style {
+  .lightbox-backdrop[data-open] {
+    opacity: 0;
+  }
+}
+
+.lightbox-content {
+  opacity: 0;
+  transition: opacity var(--lightbox-vt-duration, 360ms) cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.lightbox-content[data-open] {
+  opacity: 1;
+}
+
+@starting-style {
+  .lightbox-content[data-open] {
+    opacity: 0;
+  }
+}

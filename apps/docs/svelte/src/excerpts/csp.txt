@@ -1,0 +1,35 @@
+==> hooks.ts
+import type { Handle } from '@sveltejs/kit';
+
+export const handle: Handle = async ({ event, resolve }) => {
+  const nonce = crypto.randomUUID();
+  event.locals.nonce = nonce;
+  const response = await resolve(event);
+  response.headers.set(
+    'Content-Security-Policy',
+    `default-src 'self'; style-src-elem 'self' 'nonce-${nonce}'; style-src-attr 'unsafe-inline';`
+  );
+  return response;
+};
+
+==> load.ts
+import type { LayoutServerLoad } from './$types';
+
+export const load: LayoutServerLoad = ({ locals }) => ({ nonce: locals.nonce });
+
+==> layout.svelte
+<script lang="ts">
+  import { Lightbox } from '@ramka/svelte';
+
+  let { data, children } = $props();
+</script>
+
+<Lightbox.CSPProvider nonce={data.nonce}>
+  {@render children()}
+</Lightbox.CSPProvider>
+
+==> header.txt
+Content-Security-Policy:
+  default-src 'self';
+  style-src-elem 'self' 'nonce-<generated-per-request>';
+  style-src-attr 'unsafe-inline';

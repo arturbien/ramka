@@ -7,7 +7,9 @@
  *
  * Writes public/llms.txt (index), public/llms-full.txt (corpus), and a
  * `.md` twin for every catalogued page so /docs/lightbox.md stays in sync
- * with /docs/lightbox.
+ * with /docs/lightbox. The Svelte docs under /docs/framework/svelte get their
+ * own twins, a section in llms.txt, and their own corpus at
+ * public/docs/framework/svelte/llms-full.txt.
  *
  *   pnpm --filter docs docs:llms          # write
  *   pnpm --filter docs docs:llms:check    # fail if stale
@@ -36,11 +38,22 @@ import type { AttrRow, CssVarRow, PropRow } from '../app/_content/lightbox/api/t
 import { lightboxApiHref, lightboxDocsPages, lightboxDocsPagerOrder } from '../app/_content/lightbox/docs-pages';
 import { lightboxExcerpts } from '../app/_content/lightbox/excerpts/generated';
 import { siteUrl } from '../app/_content/site';
+import {
+  svelteApiParts,
+  svelteContextApi,
+  svelteDocumentViewTransitionApi,
+  svelteImperativeApi,
+} from '../app/_content/svelte/api/parts';
+import { svelteApiHref, svelteBase, svelteDocsPages, svelteDocsPagerOrder } from '../app/_content/svelte/docs-pages';
+import { svelteExamples, svelteExamplesBase } from '../app/_content/svelte/examples';
+import { svelteExcerpts } from '../app/_content/svelte/excerpts/generated';
+import { sveltePresets } from '../app/_content/svelte/presets';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const docsRoot = path.resolve(__dirname, '..');
 const publicDir = path.join(docsRoot, 'public');
 const docsPagesDir = path.join(docsRoot, 'app/(docs)/docs');
+const svelteDocsDir = path.join(docsPagesDir, 'framework/svelte');
 
 const GENERATED_NOTE =
   'Generated from the HTML docs sources. Do not edit by hand — run `pnpm docs:llms`.';
@@ -225,6 +238,24 @@ function seedBindings(): Map<string, MdValue> {
   bindings.set('documentViewTransitionApi', partToValue(documentViewTransitionMeta));
   bindings.set('hooksApi', hooksApiMeta.map(partToValue));
   bindings.set('imperativeApi', imperativeApiMeta.map(partToValue));
+
+  const svelteExcerptValues: Record<string, MdValue> = {};
+  for (const [id, excerpt] of Object.entries(svelteExcerpts)) {
+    svelteExcerptValues[id] = { title: excerpt.title, code: excerpt.code, source: excerpt.source };
+  }
+  bindings.set('svelteExcerpts', svelteExcerptValues);
+  const sveltePages: Record<string, MdValue> = {};
+  for (const [key, page] of Object.entries(svelteDocsPages)) {
+    sveltePages[key] = { href: page.href, title: page.title };
+  }
+  bindings.set('svelteDocsPages', sveltePages);
+  bindings.set('svelteApiHref', { ...svelteApiHref });
+  bindings.set('svelteBase', svelteBase);
+  bindings.set('svelteExamplesBase', svelteExamplesBase);
+  bindings.set('svelteApiParts', svelteApiParts as unknown as MdValue);
+  bindings.set('svelteDocumentViewTransitionApi', svelteDocumentViewTransitionApi as unknown as MdValue);
+  bindings.set('svelteContextApi', svelteContextApi as unknown as MdValue);
+  bindings.set('svelteImperativeApi', svelteImperativeApi as unknown as MdValue);
   return bindings;
 }
 
@@ -783,6 +814,7 @@ function hrefToPublicFile(href: string): string {
 }
 
 function langFromName(name: string): string {
+  if (name.endsWith('.svelte')) return 'svelte';
   if (name.endsWith('.css')) return 'css';
   if (name.endsWith('.json')) return 'json';
   if (name.endsWith('.ts')) return 'ts';
@@ -843,7 +875,7 @@ function compositionPage(
   };
 }
 
-function buildIndex(pages: PageDoc[]): string {
+function buildIndex(pages: PageDoc[], sveltePages: PageDoc[]): string {
   const byHref = new Map(pages.map((page) => [page.href, page]));
   const link = (href: string, title: string, description?: string) => {
     const md = toMdHref(href);
@@ -857,6 +889,15 @@ function buildIndex(pages: PageDoc[]): string {
   const presets = lightboxPresets.map((page) => link(page.href, page.title, page.description));
   const examples = lightboxExamples.map((ex) =>
     link(`/examples/lightbox/${ex.slug}`, ex.title, ex.description),
+  );
+  const svelteByHref = new Map(sveltePages.map((page) => [page.href, page]));
+  const svelte = [
+    link(svelteBase, 'Installation', 'Install @ramka/svelte and a minimal Root + Slides setup.'),
+    ...svelteDocsPagerOrder.map((page) => link(page.href, page.title, svelteByHref.get(page.href)?.description)),
+  ];
+  const sveltePresetLinks = sveltePresets.map((page) => link(page.href, page.title, page.description));
+  const svelteExampleLinks = svelteExamples.map((ex) =>
+    link(`${svelteExamplesBase}/${ex.slug}`, ex.title, ex.description),
   );
 
   return normalizeMarkdown(
@@ -873,19 +914,27 @@ function buildIndex(pages: PageDoc[]): string {
       presets.join('\n'),
       '## Examples',
       examples.join('\n'),
+      '## Svelte',
+      'The same primitives for Svelte 5 as `@ramka/svelte`.',
+      svelte.join('\n'),
+      '## Svelte presets',
+      sveltePresetLinks.join('\n'),
+      '## Svelte examples',
+      svelteExampleLinks.join('\n'),
       '## Optional',
       [
         '- [Full documentation](llms-full.txt): every guide, API table, and code excerpt in one file',
+        '- [Full Svelte documentation](docs/framework/svelte/llms-full.txt): every Svelte guide, API table, and code excerpt in one file',
         '- [GitHub](https://github.com/arturbien/ramka)',
       ].join('\n'),
     ]),
   );
 }
 
-function buildFull(pages: PageDoc[]): string {
+function buildFull(pages: PageDoc[], heading = '# ramka', framework = 'React'): string {
   const parts = [
-    '# ramka',
-    '> Unstyled, accessible lightbox primitives for React — in the style of Radix UI and Base UI.',
+    heading,
+    `> Unstyled, accessible lightbox primitives for ${framework} — in the style of Radix UI and Base UI.`,
     GENERATED_NOTE,
     ...pages.map((page) => {
       const body = page.markdown.replace(/^# .+\n+/, '');
@@ -975,13 +1024,64 @@ function collectOutputs(): Map<string, string> {
     );
   }
 
+  const sveltePages = collectSveltePages(seeded);
+
   const outputs = new Map<string, string>();
-  outputs.set(path.join(publicDir, 'llms.txt'), buildIndex(pages));
+  outputs.set(path.join(publicDir, 'llms.txt'), buildIndex(pages, sveltePages));
   outputs.set(path.join(publicDir, 'llms-full.txt'), buildFull(pages));
-  for (const page of pages) {
+  outputs.set(
+    path.join(publicDir, 'docs/framework/svelte/llms-full.txt'),
+    buildFull(sveltePages, '# ramka for Svelte', 'Svelte'),
+  );
+  for (const page of [...pages, ...sveltePages]) {
     outputs.set(hrefToPublicFile(page.href), page.markdown);
   }
   return outputs;
+}
+
+function guidePage(href: string, title: string, file: string, seeded: Map<string, MdValue>): PageDoc {
+  const markdown = extractPageMarkdown(file, seeded);
+  const description = markdown
+    .split('\n')
+    .map((line) => line.trim())
+    .find((line) => line && !line.startsWith('#') && !line.startsWith('>') && !line.startsWith('```'));
+  return { href, title, description, markdown };
+}
+
+function collectSveltePages(seeded: Map<string, MdValue>): PageDoc[] {
+  const pages = [
+    guidePage(svelteBase, 'Installation', path.join(svelteDocsDir, 'page.tsx'), seeded),
+    ...svelteDocsPagerOrder.map((page) => {
+      const slug = page.href.slice(svelteDocsPages.overview.href.length);
+      const title = page === svelteDocsPages.overview ? 'Lightbox' : page.title;
+      return guidePage(page.href, title, path.join(svelteDocsDir, `lightbox${slug}/page.tsx`), seeded);
+    }),
+  ];
+  for (const preset of sveltePresets) {
+    const slug = preset.href.slice(`${svelteBase}/presets/`.length);
+    const pageFile = path.join(svelteDocsDir, `presets/${slug}/page.tsx`);
+    pages.push(compositionPage(preset.title, preset.description, preset.href, pageFile));
+  }
+  for (const example of svelteExamples) {
+    const routeDir = `app/(docs)/docs/framework/svelte/examples/lightbox/${example.slug}`;
+    const pageRel = example.slug === 'url-synced-state' ? `${routeDir}/[[...id]]/page.tsx` : `${routeDir}/page.tsx`;
+    const sourceDir = `svelte/src/lib/examples/${example.slug === 'photos-app-rtl' ? 'photos-app' : example.slug}`;
+    const sources = fs
+      .readdirSync(path.join(docsRoot, sourceDir))
+      .sort()
+      .map((name) => `${sourceDir}/${name}`);
+    pages.push(
+      compositionPage(
+        example.title,
+        example.description,
+        `${svelteExamplesBase}/${example.slug}`,
+        path.join(docsRoot, pageRel),
+        [pageRel, ...sources],
+        false,
+      ),
+    );
+  }
+  return pages;
 }
 
 function main() {
