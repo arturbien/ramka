@@ -13,3 +13,6 @@ apps/docs/public/docs.md
 apps/docs/public/docs/
 apps/docs/public/presets/
 apps/docs/public/examples/
+
+# Built by apps/docs/svelte/vite.config.mts
+apps/docs/public/svelte-demos/

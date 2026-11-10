@@ -3,7 +3,8 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
-import { navSections } from '../_content/nav';
+import { frameworkFromPath } from '../_content/frameworks';
+import { navSectionsFor } from '../_content/nav';
 import { cn } from '@/lib/utils';
 
 function isActive(pathname: string, href: string, match: 'exact' | 'prefix' = 'exact') {
@@ -51,6 +52,7 @@ function NavItem({
  */
 export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
+  const navSections = navSectionsFor(frameworkFromPath(pathname));
 
   return (
     <nav className="space-y-6">

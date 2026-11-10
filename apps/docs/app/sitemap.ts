@@ -1,6 +1,6 @@
 import type { MetadataRoute } from 'next';
 
-import { navSections } from './_content/nav';
+import { navSectionsFor } from './_content/nav';
 import { siteUrl } from './_content/site';
 
 /** Routes that have no sidebar entry: the landing page, articles, and the license pages. */
@@ -21,7 +21,7 @@ const unlistedRoutes = [
  * not pages anyone should land on from search.
  */
 export default function sitemap(): MetadataRoute.Sitemap {
-  const navRoutes = navSections
+  const navRoutes = [...navSectionsFor('react'), ...navSectionsFor('svelte')]
     .flatMap((section) => [...section.links, ...(section.groups?.flatMap((group) => group.links) ?? [])])
     .map((link) => link.href)
     .filter((href) => !href.startsWith('/debug') && !href.includes('#'));

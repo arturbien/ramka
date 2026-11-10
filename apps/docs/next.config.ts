@@ -22,6 +22,10 @@ const nextConfig: NextConfig = {
         destination: '/examples/lightbox/url-synced-state/:path*',
         permanent: true,
       },
+      { source: '/docs/framework/react', destination: '/docs', permanent: false },
+      { source: '/docs/framework/react/lightbox/:path*', destination: '/docs/lightbox/:path*', permanent: false },
+      { source: '/docs/framework/react/presets/:path*', destination: '/presets/:path*', permanent: false },
+      { source: '/docs/framework/react/examples/:path*', destination: '/examples/:path*', permanent: false },
     ];
   },
 };

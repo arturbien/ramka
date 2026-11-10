@@ -1,7 +1,18 @@
 import { createHighlighter, type BundledLanguage } from 'shiki';
 
 const themes = ['github-light', 'github-dark'] as const;
-const langs = ['tsx', 'typescript', 'jsx', 'javascript', 'bash', 'shellscript', 'json', 'css', 'html'] as const;
+const langs = [
+  'tsx',
+  'typescript',
+  'jsx',
+  'javascript',
+  'bash',
+  'shellscript',
+  'json',
+  'css',
+  'html',
+  'svelte',
+] as const;
 
 type Highlighter = Awaited<ReturnType<typeof createHighlighter>>;
 

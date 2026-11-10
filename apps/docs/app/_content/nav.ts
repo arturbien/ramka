@@ -1,7 +1,11 @@
 import { lightboxExamples, type ExampleLink } from '../_components/examples';
 import { lightboxPresets } from '../(docs)/presets/presets';
 import { debugPagesList } from './debug-pages';
+import type { Framework } from './frameworks';
 import { lightboxDocsPages } from './lightbox/docs-pages';
+import { svelteBase, svelteDocsPagerOrder } from './svelte/docs-pages';
+import { svelteExamples, svelteExamplesBase } from './svelte/examples';
+import { sveltePresets } from './svelte/presets';
 
 export interface NavLink {
   href: string;
@@ -73,3 +77,32 @@ export const navSections: NavSection[] =
   process.env.NODE_ENV === 'production'
     ? baseNavSections
     : [...baseNavSections, debugNavSection];
+
+const svelteNavSections: NavSection[] = [
+  {
+    title: 'Getting started',
+    links: [{ href: svelteBase, title: 'Installation' }],
+  },
+  {
+    title: 'Lightbox',
+    links: svelteDocsPagerOrder,
+  },
+  {
+    title: 'Presets',
+    links: sveltePresets,
+  },
+  {
+    title: 'Examples',
+    links: svelteExamples.map((ex) => ({
+      href: `${svelteExamplesBase}/${ex.slug}`,
+      title: ex.title,
+      description: ex.description,
+      match: 'prefix',
+    })),
+  },
+];
+
+/** Sidebar sections for one framework; React keeps the debug links outside production. */
+export function navSectionsFor(framework: Framework): NavSection[] {
+  return framework === 'svelte' ? svelteNavSections : navSections;
+}
