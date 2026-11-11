@@ -99,7 +99,7 @@ export function pullToDismiss(lb: LightboxModel) {
     }
 
     function onwheel(e: WheelEvent) {
-      if (e.ctrlKey || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+      if (e.deltaMode !== 0 || e.ctrlKey || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
       if (!lb.pulling && (blocked() || outside(e.target))) return;
       e.preventDefault();
       if (!lb.pulling && !begin()) return;
