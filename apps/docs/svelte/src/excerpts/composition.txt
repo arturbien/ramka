@@ -1,0 +1,19 @@
+==> stage.svelte
+<Lightbox.Content aria-label="Post">
+  <Lightbox.Stage class="media-pane">
+    <Lightbox.Close aria-label="Close" />
+    <Lightbox.Slides><!-- media --></Lightbox.Slides>
+    <Lightbox.Previous aria-label="Previous" />
+    <Lightbox.Next aria-label="Next" />
+  </Lightbox.Stage>
+  <aside><!-- thread / details --></aside>
+</Lightbox.Content>
+
+==> stageMorph.svelte
+<Lightbox.Stage>
+  {#snippet children({ morphRef })}
+    <div class="frame" {@attach morphRef}>
+      <Lightbox.Slides><!-- media --></Lightbox.Slides>
+    </div>
+  {/snippet}
+</Lightbox.Stage>

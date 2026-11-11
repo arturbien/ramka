@@ -12,6 +12,7 @@ import {
   DrawerTitle,
   DrawerTrigger,
 } from '@/components/ui/drawer';
+import { FrameworkSwitcher, FrameworkTagline } from './framework-switcher';
 import { SidebarNav } from './sidebar-nav';
 import { ThemeToggle } from './theme-toggle';
 
@@ -73,7 +74,10 @@ export function MobileNav() {
               <DrawerContent className="data-[swipe-axis=y]:[--drawer-content-max-height:85dvh]">
                 <DrawerHeader className="text-left">
                   <DrawerTitle>ramka</DrawerTitle>
-                  <DrawerDescription>The lightbox for React.</DrawerDescription>
+                  <DrawerDescription>
+                    <FrameworkTagline />
+                  </DrawerDescription>
+                  <FrameworkSwitcher className="mt-2" onNavigate={() => setOpen(false)} />
                 </DrawerHeader>
                 <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-6 pt-2">
                   <SidebarNav onNavigate={() => setOpen(false)} />

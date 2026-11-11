@@ -64,6 +64,7 @@ async function readText(relPath: string): Promise<string> {
 }
 
 function langFromName(name: string): CodeLang {
+  if (name.endsWith('.svelte')) return 'svelte';
   if (name.endsWith('.css')) return 'css';
   if (name.endsWith('.json')) return 'json';
   if (name.endsWith('.ts')) return 'typescript';

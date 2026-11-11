@@ -1,2 +1,4 @@
 .next
 next-env.d.ts.bak
+public/svelte/
+public/svelte-demos/

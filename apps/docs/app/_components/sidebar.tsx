@@ -1,5 +1,6 @@
 import Link from 'next/link';
 
+import { FrameworkSwitcher, FrameworkTagline } from './framework-switcher';
 import { SidebarNav } from './sidebar-nav';
 import { ThemeToggle } from './theme-toggle';
 
@@ -42,8 +43,9 @@ export function Sidebar() {
             </div>
           </div>
           <p className="mt-1.5 text-pretty text-[13px] leading-relaxed text-neutral-500 dark:text-neutral-400">
-            The lightbox for React.
+            <FrameworkTagline />
           </p>
+          <FrameworkSwitcher className="mt-3" />
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-2.5 pb-5 pt-1 scrollbar-thin">

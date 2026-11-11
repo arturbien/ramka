@@ -12,6 +12,12 @@
  *
  *   node scripts/download-images.mjs            # download missing + write modules
  *   node scripts/download-images.mjs --force    # re-download everything
+ *   node scripts/download-images.mjs --svelte   # derive the Svelte demo images
+ *
+ * The Svelte demos (svelte/) load plain URLs too. `--svelte` derives them
+ * from the checked-in assets into `public/svelte/` (gitignored): copies of the
+ * full images plus resized thumbnails and blur placeholders. It never touches
+ * the network, so `build` runs it.
  *
  * Sources & licenses:
  * - picsum.photos — serves Unsplash-licensed photography (free to download
@@ -34,6 +40,7 @@ const docsRoot = path.resolve(__dirname, '..');
 const assetsDir = path.join(docsRoot, 'app/_assets/photos');
 
 const FORCE = process.argv.includes('--force');
+const SVELTE = process.argv.includes('--svelte');
 
 /** @type {Map<string, string>} asset name -> remote URL */
 const downloads = new Map();
@@ -457,7 +464,73 @@ ${[...namedLines, ...arrayLines].join('\n')}
   console.log(`Wrote ${out} (${imports.size} image(s))`);
 }
 
+/* ── Svelte demo images ──────────────────────────────────────────────────── */
+
+const svelteDir = path.join(docsRoot, 'public/svelte');
+const nextImageAssetsDir = path.join(docsRoot, 'app/(docs)/docs/lightbox/_assets');
+
+/** @type {Array<{ from: string; to: string; resize?: { fit: number } | { cover: number } | { width: number } }>} */
+const svelteImages = [];
+
+function svelteImage(from, to, { thumb, lqip = false } = {}) {
+  svelteImages.push({ from, to: `${to}.jpg` });
+  if (thumb) svelteImages.push({ from, to: `${to}-thumb.jpg`, resize: thumb });
+  if (lqip) svelteImages.push({ from, to: `${to}-lqip.jpg`, resize: { width: 16 } });
+}
+
+for (const [name, file] of Object.entries({
+  ...Object.fromEntries(Object.values(docsLightbox).map((file) => [file.replace(/\.jpg$/, ''), file])),
+  ...Object.fromEntries(lb.map((file) => [file.replace(/\.jpg$/, ''), file])),
+})) {
+  svelteImage(path.join(assetsDir, file), `photos/${name}`, { thumb: { fit: 640 } });
+}
+for (const name of ['c', 'd', 'do', 'dont']) {
+  svelteImage(path.join(nextImageAssetsDir, `nextjs-image-${name}.jpg`), `photos/sveltekit-image-${name}`, {
+    thumb: { fit: 640 },
+    lqip: true,
+  });
+}
+photosApp.forEach((file) => {
+  svelteImages.push({ from: path.join(assetsDir, file), to: `examples/photos-app/full/${file}` });
+  svelteImages.push({ from: path.join(assetsDir, file), to: `examples/photos-app/thumb/${file}`, resize: { cover: 480 } });
+});
+for (const [example, files] of [
+  ['film-trailers', Object.values(filmTrailers)],
+  ['text-message', textMessage],
+  ['url-synced-state', urlSyncedState],
+]) {
+  for (const file of files) svelteImages.push({ from: path.join(assetsDir, file), to: `examples/${example}/${file}` });
+}
+
+async function deriveSvelteImages() {
+  const { default: sharp } = await import('sharp');
+  let written = 0;
+  for (const { from, to, resize } of svelteImages) {
+    const dest = path.join(svelteDir, to);
+    if (fs.existsSync(dest) && fs.statSync(dest).mtimeMs >= fs.statSync(from).mtimeMs) continue;
+    fs.mkdirSync(path.dirname(dest), { recursive: true });
+    if (!resize) {
+      fs.copyFileSync(from, dest);
+    } else {
+      const { width = 0, height = 0 } = await sharp(from).metadata();
+      const scale =
+        'width' in resize
+          ? resize.width / width
+          : 'fit' in resize
+            ? resize.fit / Math.max(width, height)
+            : resize.cover / Math.min(width, height);
+      await sharp(from)
+        .resize(Math.round(width * Math.min(scale, 1)))
+        .jpeg({ quality: 'width' in resize ? 70 : 80, mozjpeg: true })
+        .toFile(dest);
+    }
+    written++;
+  }
+  console.log(`Svelte demo images: wrote ${written}, ${svelteImages.length - written} up to date.`);
+}
+
 async function main() {
+  if (SVELTE) return deriveSvelteImages();
   await downloadAll();
   for (const mod of modules) writeModule(mod);
 }

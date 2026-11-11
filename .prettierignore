@@ -2,6 +2,8 @@ node_modules
 dist
 .next
 .turbo
+.svelte-kit
+.vitest
 pnpm-lock.yaml
 
 # Generated LLM docs (apps/docs/scripts/generate-llms-txt.ts)
@@ -11,3 +13,6 @@ apps/docs/public/docs.md
 apps/docs/public/docs/
 apps/docs/public/presets/
 apps/docs/public/examples/
+
+# Built by apps/docs/svelte/vite.config.mts
+apps/docs/public/svelte-demos/

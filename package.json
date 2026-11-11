@@ -11,7 +11,7 @@
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "test:e2e": "playwright test",
-    "test:e2e:build": "pnpm --filter @ramka/react build && pnpm --filter docs build",
+    "test:e2e:build": "pnpm --filter @ramka/react --filter @ramka/svelte build && pnpm --filter docs build",
     "typecheck:e2e": "tsc -p tsconfig.e2e.json",
     "clean": "turbo run clean && rm -rf node_modules",
     "format": "prettier --write \"**/*.{ts,tsx,md,json,css,mjs,cjs}\"",

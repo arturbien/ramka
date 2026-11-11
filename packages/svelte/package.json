@@ -1,0 +1,88 @@
+{
+  "name": "@ramka/svelte",
+  "version": "0.0.1",
+  "description": "Unstyled, accessible image gallery primitives for Svelte 5. A port of @ramka/react.",
+  "license": "MIT",
+  "author": "Enis Budancamanak",
+  "homepage": "https://ramka.dev",
+  "bugs": {
+    "url": "https://github.com/arturbien/ramka/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/arturbien/ramka.git",
+    "directory": "packages/svelte"
+  },
+  "sideEffects": false,
+  "type": "module",
+  "svelte": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "svelte": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./lightbox": {
+      "types": "./dist/lightbox/index.d.ts",
+      "svelte": "./dist/lightbox/index.js",
+      "default": "./dist/lightbox/index.js"
+    }
+  },
+  "imports": {
+    "#lib": "./src/lib/index.js",
+    "#lib/*": "./src/lib/*"
+  },
+  "files": [
+    "dist",
+    "!dist/**/*.test.*",
+    "CHANGELOG.md",
+    "LICENSE",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "svelte-kit sync && svelte-package && publint",
+    "dev": "svelte-package -w",
+    "prepare": "svelte-kit sync || echo ''",
+    "typecheck": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "lint": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "clean": "rm -rf dist .svelte-kit .turbo"
+  },
+  "peerDependencies": {
+    "svelte": "^5.40.0"
+  },
+  "dependencies": {
+    "esm-env": "^1.2.2"
+  },
+  "devDependencies": {
+    "@sveltejs/kit": "^3.0.0",
+    "@sveltejs/package": "^2.5.8",
+    "@sveltejs/vite-plugin-svelte": "^7.2.0",
+    "@vitest/browser-playwright": "^5.1.0",
+    "playwright": "1.62.1",
+    "publint": "^0.3.21",
+    "svelte": "^5.57.2",
+    "svelte-check": "^4.6.0",
+    "typescript": "^6.0.3",
+    "vite": "^8.3.0",
+    "vitest": "^5.1.0",
+    "vitest-browser-svelte": "^3.1.0"
+  },
+  "keywords": [
+    "svelte",
+    "image-gallery",
+    "gallery",
+    "carousel",
+    "lightbox",
+    "primitives",
+    "headless",
+    "unstyled",
+    "accessible"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  }
+}

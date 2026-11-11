@@ -10,6 +10,10 @@
  *   - File header `@docsExcerpt` / `@docsExcerptTitle` — whole file body
  *   - Regions `/* @docs-excerpt-start <id> *\/` … `/* @docs-excerpt-end *\/`
  *
+ * Svelte sources (svelte/src/excerpts/) → app/_content/svelte/excerpts/generated.ts:
+ *   - Each `.svelte` / `.css` file is one excerpt, id = kebab-case file name
+ *   - Each `.txt` file holds several, split on `==> name.ext` lines, id = `<file>-<name>`
+ *
  *   pnpm --filter docs docs:excerpts          # write
  *   pnpm --filter docs docs:excerpts:check    # fail if stale
  */
@@ -32,6 +36,8 @@ const docsRoot = path.resolve(__dirname, '..');
 const sourcesDir = path.join(docsRoot, 'app/_content/lightbox/excerpts/sources');
 const cssDemoDir = path.join(docsRoot, 'app/lightbox-demo');
 const outFile = path.join(docsRoot, 'app/_content/lightbox/excerpts/generated.ts');
+const svelteSourcesDir = path.join(docsRoot, 'svelte/src/excerpts');
+const svelteOutFile = path.join(docsRoot, 'app/_content/svelte/excerpts/generated.ts');
 
 const TS_START_RE = /^\s*\/\/\s*@docs-excerpt-start\s+(\S+)\s*$/;
 const TS_END_RE = /^\s*\/\/\s*@docs-excerpt-end\s*$/;
@@ -260,7 +266,38 @@ function collectFiles(dir: string, exts: string[]): string[] {
   return out.sort();
 }
 
-function serialize(excerpts: Excerpt[]): string {
+function kebabCase(name: string): string {
+  return name.replace(/([a-z0-9])([A-Z])/g, '$1-$2').toLowerCase();
+}
+
+function extractSvelteExcerpts(filePath: string, sourceText: string): Excerpt[] {
+  const rel = path.relative(docsRoot, filePath);
+  const name = path.basename(filePath);
+  const ext = path.extname(name);
+  const base = kebabCase(name.slice(0, -ext.length));
+  const text = sourceText.replace(/\r\n/g, '\n');
+  if (ext !== '.txt') {
+    return [{ id: base, title: name, code: `${text.replace(/^\n+|\n+$/g, '')}\n`, source: rel }];
+  }
+  return text
+    .split(/^==> /m)
+    .slice(1)
+    .map((part) => {
+      const [head = '', ...body] = part.split('\n');
+      const file = head.trim();
+      return {
+        id: `${base}-${kebabCase(file.split('.')[0]!)}`,
+        title: file,
+        code: `${body.join('\n').replace(/^\n+|\n+$/g, '')}\n`,
+        source: rel,
+      };
+    });
+}
+
+const lightboxNames = { value: 'lightboxExcerpts', type: 'LightboxExcerpt', id: 'LightboxExcerptId' };
+const svelteNames = { value: 'svelteExcerpts', type: 'SvelteExcerpt', id: 'SvelteExcerptId' };
+
+function serialize(excerpts: Excerpt[], names = lightboxNames): string {
   const sorted = [...excerpts].sort((a, b) => a.id.localeCompare(b.id));
   const ids = sorted.map((e) => e.id);
   const dup = ids.find((id, i) => ids.indexOf(id) !== i);
@@ -284,18 +321,18 @@ function serialize(excerpts: Excerpt[]): string {
  *   pnpm --filter docs docs:excerpts:check
  */
 
-export type LightboxExcerpt = {
+export type ${names.type} = {
   title: string;
   code: string;
   /** Path relative to apps/docs/. */
   source: string;
 };
 
-export const lightboxExcerpts = {
+export const ${names.value} = {
 ${entries}
-} as const satisfies Record<string, LightboxExcerpt>;
+} as const satisfies Record<string, ${names.type}>;
 
-export type LightboxExcerptId = keyof typeof lightboxExcerpts;
+export type ${names.id} = keyof typeof ${names.value};
 `;
 }
 
@@ -324,25 +361,38 @@ function main() {
     throw new Error('No @docsExcerpt tags or @docs-excerpt-start regions found');
   }
 
-  const next = serialize(excerpts);
+  const svelteExcerpts = collectFiles(svelteSourcesDir, ['.svelte', '.css', '.txt']).flatMap((file) =>
+    extractSvelteExcerpts(file, fs.readFileSync(file, 'utf8')),
+  );
+  if (svelteExcerpts.length === 0) {
+    throw new Error(`No Svelte excerpt sources in ${svelteSourcesDir}`);
+  }
+
+  const outputs = [
+    { file: outFile, next: serialize(excerpts), count: excerpts.length },
+    { file: svelteOutFile, next: serialize(svelteExcerpts, svelteNames), count: svelteExcerpts.length },
+  ];
   if (check) {
-    if (!fs.existsSync(outFile)) {
-      console.error(`Missing ${outFile}. Run: pnpm --filter docs docs:excerpts`);
-      process.exit(1);
+    for (const { file, next, count } of outputs) {
+      if (!fs.existsSync(file)) {
+        console.error(`Missing ${file}. Run: pnpm --filter docs docs:excerpts`);
+        process.exit(1);
+      }
+      if (fs.readFileSync(file, 'utf8') !== next) {
+        console.error(`Docs excerpts in ${path.relative(docsRoot, file)} are stale.`);
+        console.error('Run: pnpm --filter docs docs:excerpts');
+        process.exit(1);
+      }
+      console.log(`OK — ${count} excerpt(s) in ${path.relative(docsRoot, file)} up to date`);
     }
-    const prev = fs.readFileSync(outFile, 'utf8');
-    if (prev !== next) {
-      console.error('Lightbox docs excerpts are stale.');
-      console.error('Run: pnpm --filter docs docs:excerpts');
-      process.exit(1);
-    }
-    console.log(`OK — ${excerpts.length} excerpt(s) up to date`);
     return;
   }
 
-  fs.mkdirSync(path.dirname(outFile), { recursive: true });
-  fs.writeFileSync(outFile, next);
-  console.log(`Wrote ${path.relative(docsRoot, outFile)} (${excerpts.length} excerpt(s))`);
+  for (const { file, next, count } of outputs) {
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, next);
+    console.log(`Wrote ${path.relative(docsRoot, file)} (${count} excerpt(s))`);
+  }
 }
 
 main();
