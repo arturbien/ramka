@@ -166,4 +166,26 @@ describe('loader memoization after a failure', () => {
     expect(second).not.toBe(first);
     vi.doUnmock('./lightbox-zoom-runtime');
   });
+
+  it('keeps the same behaviour for the closeOnEmptyClick loader, and a retry can succeed', async () => {
+    vi.resetModules();
+    const chunk = { attempts: 0 };
+    vi.doMock('./lightbox-empty-click-runtime', async (importOriginal) => {
+      chunk.attempts += 1;
+      if (chunk.attempts === 1) throw new Error('Loading chunk lightbox-empty-click-runtime failed');
+      return importOriginal();
+    });
+    const { loadEmptyClickRuntime, getEmptyClickRuntimeSync } = await import('./lightbox-empty-click-loader');
+
+    const first = loadEmptyClickRuntime();
+    await expect(first).rejects.toThrow();
+    expect(getEmptyClickRuntimeSync()).toBeNull();
+
+    const second = loadEmptyClickRuntime();
+    expect(second).not.toBe(first);
+    const runtime = await second;
+    expect(typeof runtime.EmptyClickClose).toBe('function');
+    expect(getEmptyClickRuntimeSync()).toBe(runtime);
+    vi.doUnmock('./lightbox-empty-click-runtime');
+  });
 });

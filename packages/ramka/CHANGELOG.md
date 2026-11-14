@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `Lightbox.Content closeOnEmptyClick` (default `false`): close on a primary
+  click or tap in empty viewer space — the slide, Stage, or letterbox around
+  the media — for layouts where Slides covers Content and the scrim / Backdrop
+  click can never fire (the Default preset and other full-bleed skins). Media,
+  interactive or focusable controls (including `pointer-events: none` ones a
+  click passed through, such as disabled buttons), Caption, Counter,
+  thumbnails and `[data-ramka-no-pull]` keep their click, as do side panels
+  outside Stage. It never closes when a gesture claimed the press (a swipe or
+  fling between slides, pull, pan, pinch, a pointer that moved past the 10px
+  tap slop), while zoomed, or while a morph is in flight, and a Content
+  `onClick` that calls `event.preventDefault()` cancels the close. The close
+  fires on the first click, so with it on double-tap zoom only works on the
+  media itself. The logic is a separate chunk that loads only when Content
+  mounts with the prop on (#99).
+
 ## [0.0.2] - 2026-11-09
 
 ### Added

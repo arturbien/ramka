@@ -5,12 +5,14 @@ import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Command, Minus, Plus } from 
 import { Kbd, KbdGroup, KbdIcon } from '@/components/ui/kbd';
 
 import { CodeBlock } from '../../../../_components/code-block';
+import { DocsDemo } from '../../../../_components/docs-demo';
 import { DocsLink } from '../../../../_components/docs-link';
 import { DocsPager } from '../../../../_components/docs-pager';
 import { DocsSection, DocsShell, type DocsTocItem } from '../../../../_components/docs-shell';
 import { PropSectionTitle } from '../../../../_components/prop-section-title';
 import { lightboxApiHref, lightboxDocsPages } from '../../../../_content/lightbox/docs-pages';
 import { lightboxExcerpts } from '../../../../_content/lightbox/excerpts/generated';
+import { CloseOnEmptyClickDemo } from '../gestures-demos';
 
 export const metadata: Metadata = {
   title: 'Gestures and pull to dismiss',
@@ -20,6 +22,7 @@ export const metadata: Metadata = {
 
 const toc: DocsTocItem[] = [
   { id: 'pull', title: 'Pull-to-dismiss' },
+  { id: 'empty-click', title: 'Close on empty click' },
   { id: 'zoom', title: 'Zoom' },
   { id: 'keyboard', title: 'Keyboard & focus' },
   { id: 'matrix', title: 'Interaction matrix' },
@@ -91,6 +94,58 @@ export default function LightboxGesturesPage() {
           title={lightboxExcerpts['pull-progress-css'].title}
           lang="css"
         />
+      </DocsSection>
+
+      <DocsSection
+        id="empty-click"
+        title={
+          <PropSectionTitle
+            partHref={lightboxApiHref.content}
+            part="Content"
+            prop="closeOnEmptyClick"
+            sectionId="empty-click"
+          />
+        }
+      >
+        <p>
+          A click on Content itself always closes, like a native <code className="text-xs">&lt;dialog&gt;</code>{' '}
+          backdrop. But when Slides fills the viewport (the Default preset, and any full-bleed layout) the slides cover
+          Content and <DocsLink href={lightboxApiHref.backdrop}>Backdrop</DocsLink>, so a click beside the image never
+          reaches either. <code className="text-xs">closeOnEmptyClick</code> (off by default) also closes on a primary
+          click or tap in empty viewer space: the slide, Stage, and the letterbox around the media.
+        </p>
+        <ul className="list-disc space-y-2 pl-5">
+          <li>
+            Media keeps its click (the <DocsLink href={lightboxApiHref.media}>Media</DocsLink> box, or a bare{' '}
+            <code className="text-xs">img</code> / <code className="text-xs">video</code> /{' '}
+            <code className="text-xs">canvas</code>), as do buttons, links, inputs, anything focusable, Caption,
+            Counter, thumbnails, and <code className="text-xs">[data-ramka-no-pull]</code> (mark custom chrome such as
+            toolbar backgrounds with it). That holds even for <code className="text-xs">pointer-events: none</code>{' '}
+            controls such as a disabled button the click passed through. The check is by painted box, so chrome clipped
+            out of view, chrome at <code className="text-xs">opacity: 0</code>, or a{' '}
+            <code className="text-xs">pointer-events: none</code> overlay drawn at the click point also keeps the viewer
+            open. With Stage, side panels outside Stage never close.
+          </li>
+          <li>
+            Never closes when a gesture owned the press: a swipe or fling between slides, a pull, a pan, a pinch, a
+            pointer that moved more than 10px, or while zoomed (<code className="text-xs">data-zoomed</code>). The press
+            must also start on empty space, so a drag from the image to the letterbox doesn&apos;t count.
+          </li>
+          <li>
+            Content&apos;s <code className="text-xs">onClick</code> runs first, so calling{' '}
+            <code className="text-xs">event.preventDefault()</code> there cancels the close for that click.
+          </li>
+          <li>
+            Closes on the first click, without waiting for a possible second one. With it on, double-tap zoom only works
+            on the media itself; with it off, a double-tap anywhere inside Zoom (letterbox included) zooms.
+          </li>
+        </ul>
+        <DocsDemo
+          code={lightboxExcerpts['close-on-empty-click'].code}
+          title={lightboxExcerpts['close-on-empty-click'].title}
+        >
+          <CloseOnEmptyClickDemo />
+        </DocsDemo>
       </DocsSection>
 
       <DocsSection id="zoom" title="Zoom">

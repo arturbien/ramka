@@ -12,6 +12,7 @@ import {
   wheelAxis,
 } from './pull-math';
 import { LightboxContentCssVars } from './lightbox-css-vars';
+import { INTERACTIVE_TARGET_SELECTORS } from './interactive-targets';
 import type { InitializedRef } from '../react-compat';
 
 const useLayoutEffect = typeof window !== 'undefined' ? React.useLayoutEffect : React.useEffect;
@@ -45,26 +46,7 @@ const VELOCITY_SAMPLES = 5;
  * Close / Prev / Next / links / form controls keep their native press.
  * Authors can mark custom chrome with `data-ramka-no-pull`.
  */
-const PULL_IGNORED_TARGET_SELECTOR = [
-  'a[href]',
-  'button',
-  'input',
-  'select',
-  'textarea',
-  'label',
-  'summary',
-  '[contenteditable]:not([contenteditable="false"])',
-  '[role="button"]',
-  '[role="link"]',
-  '[role="menuitem"]',
-  '[role="option"]',
-  '[role="switch"]',
-  '[role="tab"]',
-  '[role="checkbox"]',
-  '[role="radio"]',
-  '[role="slider"]',
-  '[data-ramka-no-pull]',
-].join(',');
+const PULL_IGNORED_TARGET_SELECTOR = INTERACTIVE_TARGET_SELECTORS.join(',');
 
 function isPullIgnoredTarget(target: Element): boolean {
   return Boolean(target.closest(PULL_IGNORED_TARGET_SELECTOR));

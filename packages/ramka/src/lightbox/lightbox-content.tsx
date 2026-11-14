@@ -14,6 +14,8 @@ import {
 } from './lightbox-pull-loader';
 import { inertWhen } from '../react-compat';
 import { useContentKeyboard } from './use-content-keyboard';
+import { getEmptyClickRuntimeSync, loadEmptyClickRuntime, type EmptyClickRuntime } from './lightbox-empty-click-loader';
+import type { EmptyClickController } from './use-empty-click-close';
 import { useNativePinchGuard } from './use-native-pinch-guard';
 import { useTouchScrollContainment } from './use-touch-scroll-containment';
 import { mergeProps } from '../render/merge-props';
@@ -87,11 +89,27 @@ interface LightboxContentProps extends React.ComponentPropsWithRef<'div'> {
    * @default true
    */
   pullToClose?: boolean;
+  /**
+   * Close on a primary click or tap in empty viewer space — the slide, Stage,
+   * or letterbox around the media — not only on Content itself. Media,
+   * interactive or focusable controls, Caption, Counter, thumbnails and
+   * `[data-ramka-no-pull]` keep their click, as do side panels outside Stage.
+   * Never closes when a gesture claimed the press (swipe, pull, pan, pinch)
+   * or while zoomed, and an `onClick` that calls `event.preventDefault()`
+   * cancels the close. Anything ignored that is painted at the click point
+   * also keeps it open — including `pointer-events: none` chrome (a disabled
+   * button) and chrome hidden with `opacity: 0` or clipped out of view, which
+   * err toward not closing. Closes on the first click, so double-tap zoom only
+   * works on the media itself while this is on. The logic loads as a separate
+   * chunk when Content first mounts with this on.
+   * @default false
+   */
+  closeOnEmptyClick?: boolean;
 }
 
 const LightboxContent = React.forwardRef<HTMLDivElement, LightboxContentProps>(
   function LightboxContent(props, forwardedRef) {
-    const { className, children, pullToClose = true, style, ...rest } = props;
+    const { className, children, pullToClose = true, closeOnEmptyClick = false, style, ...rest } = props;
 
     const {
       open,
@@ -283,21 +301,61 @@ const LightboxContent = React.forwardRef<HTMLDivElement, LightboxContentProps>(
     // drag from the image onto chrome (caption, strip, sidebar, …) fires
     // `click` on Content with target === currentTarget and would otherwise
     // false-dismiss.
+    //
+    // `closeOnEmptyClick` widens this to empty viewer space (slide, Stage,
+    // letterbox) for layouts where Slides covers Content and the scrim is
+    // unreachable. Its engine is a lazy chunk (lightbox-empty-click-runtime)
+    // that publishes a controller here; with the prop off nothing loads and
+    // no listeners are attached.
     const dismissPressOnScrimRef = React.useRef(false);
+    const emptyClickRef = React.useRef<EmptyClickController | null>(null);
+    // Whether the current click sequence's first (`detail` 1) click landed in
+    // Content. Kept here, not in the lazy chunk, so it is right even for clicks
+    // that arrive before the chunk loads. Reset on open: the double-click that
+    // opened the viewer started on the Trigger.
+    const clickSequenceInsideRef = React.useRef(false);
+    React.useEffect(() => {
+      clickSequenceInsideRef.current = false;
+    }, [open]);
+    const [EmptyClickRuntime, setEmptyClickRuntime] = React.useState<EmptyClickRuntime['EmptyClickClose'] | null>(
+      () => getEmptyClickRuntimeSync()?.EmptyClickClose ?? null,
+    );
+    React.useEffect(() => {
+      if (!closeOnEmptyClick || EmptyClickRuntime) return;
+      let cancelled = false;
+      void loadEmptyClickRuntime().then(
+        (runtime) => {
+          if (!cancelled) setEmptyClickRuntime(() => runtime.EmptyClickClose);
+        },
+        (error: unknown) => {
+          // Additive like pull-to-dismiss — Close, Escape and the scrim still work.
+          if (process.env.NODE_ENV !== 'production') {
+            console.warn('Lightbox: the closeOnEmptyClick runtime failed to load.', error);
+          }
+        },
+      );
+      return () => {
+        cancelled = true;
+      };
+    }, [closeOnEmptyClick, EmptyClickRuntime]);
     const handlePointerDown = React.useCallback((event: React.PointerEvent) => {
       dismissPressOnScrimRef.current = event.target === event.currentTarget;
     }, []);
     const handleClick = React.useCallback(
       (event: React.MouseEvent) => {
+        // Always consume the tracked press, even when this click won't close.
+        if (event.detail <= 1) clickSequenceInsideRef.current = true;
+        const emptyClickCloses =
+          emptyClickRef.current?.shouldClose(event.nativeEvent, clickSequenceInsideRef.current) ?? false;
         if (!mounted) return;
         const startedOnScrim = dismissPressOnScrimRef.current;
         dismissPressOnScrimRef.current = false;
-        if (startedOnScrim && event.target === event.currentTarget) {
+        if ((startedOnScrim && event.target === event.currentTarget) || (open && emptyClickCloses)) {
           // Background (scrim) click is a pointer interaction → no focus ring.
           setOpen(false, { focusVisible: false });
         }
       },
-      [mounted, setOpen],
+      [mounted, open, setOpen],
     );
 
     // Focus guard handlers — redirect Tab past the edges back into the content.
@@ -423,6 +481,16 @@ const LightboxContent = React.forwardRef<HTMLDivElement, LightboxContentProps>(
             onClose={stableSetOpen}
             // Suppress the pull gesture while a Lightbox.Slides swipe/fling is running.
             isScrollingRef={navigationLockedRef}
+          />
+        ) : null}
+        {closeOnEmptyClick && mounted && EmptyClickRuntime ? (
+          <EmptyClickRuntime
+            open={open}
+            contentRef={contentRef}
+            stageElementRef={stageElementRef}
+            activeZoomRef={activeZoomRef}
+            isScrollingRef={navigationLockedRef}
+            controllerRef={emptyClickRef}
           />
         ) : null}
         {!parked ? (

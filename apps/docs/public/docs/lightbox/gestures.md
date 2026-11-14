@@ -178,6 +178,44 @@ html.dark .lightbox-demo-backdrop-light {
 }
 ```
 
+## Content closeOnEmptyClick
+
+A click on Content itself always closes, like a native `<dialog>` backdrop. But when Slides fills the viewport (the Default preset, and any full-bleed layout) the slides cover Content and [Backdrop](docs/lightbox/api.md#api-backdrop), so a click beside the image never reaches either. `closeOnEmptyClick` (off by default) also closes on a primary click or tap in empty viewer space: the slide, Stage, and the letterbox around the media.
+
+- Media keeps its click (the [Media](docs/lightbox/api.md#api-media) box, or a bare `img` / `video` / `canvas`), as do buttons, links, inputs, anything focusable, Caption, Counter, thumbnails, and `[data-ramka-no-pull]` (mark custom chrome such as toolbar backgrounds with it). That holds even for `pointer-events: none` controls such as a disabled button the click passed through. The check is by painted box, so chrome clipped out of view, chrome at `opacity: 0`, or a `pointer-events: none` overlay drawn at the click point also keeps the viewer open. With Stage, side panels outside Stage never close.
+- Never closes when a gesture owned the press: a swipe or fling between slides, a pull, a pan, a pinch, a pointer that moved more than 10px, or while zoomed (`data-zoomed`). The press must also start on empty space, so a drag from the image to the letterbox doesn't count.
+- Content's `onClick` runs first, so calling `event.preventDefault()` there cancels the close for that click.
+- Closes on the first click, without waiting for a possible second one. With it on, double-tap zoom only works on the media itself; with it off, a double-tap anywhere inside Zoom (letterbox included) zooms.
+
+```tsx Close on empty click
+import * as Lightbox from '@ramka/react/lightbox';
+
+<Lightbox.Root>
+  <Lightbox.Portal>
+    <Lightbox.Backdrop />
+    <Lightbox.Content closeOnEmptyClick>
+      {/* Custom chrome: mark the row so clicks between buttons don't close */}
+      <div data-ramka-no-pull="">
+        <Lightbox.ZoomOut aria-label="Zoom out" />
+        <Lightbox.ZoomIn aria-label="Zoom in" />
+        <Lightbox.Close aria-label="Close" />
+      </div>
+      <Lightbox.Slides>
+        <Lightbox.Slide>
+          <Lightbox.Item index={0}>
+            <Lightbox.Zoom>
+              <Lightbox.Media>
+                <img src={src} alt={alt} />
+              </Lightbox.Media>
+            </Lightbox.Zoom>
+          </Lightbox.Item>
+        </Lightbox.Slide>
+      </Lightbox.Slides>
+    </Lightbox.Content>
+  </Lightbox.Portal>
+</Lightbox.Root>
+```
+
 ## Zoom
 
 Wrap media in [Zoom](docs/lightbox/api.md#api-zoom) (inside Item, typically inside Slide). Prefer [Media](docs/lightbox/api.md#api-media) inside Zoom so pan / maxZoom use the sized content box. Supports pinch, pan, double-tap, ctrl/meta+wheel (or `scrollToZoom`), and keyboard pan when focused.
