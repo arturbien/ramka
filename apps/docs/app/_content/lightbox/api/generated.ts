@@ -171,6 +171,12 @@ export const generatedProps: Record<string, PropRow[]> = {
       default: "true",
       description: "Enable pull-to-close on touch and trackpad wheel. Starts from anywhere in Stage (or Content when Stage is omitted), except interactive controls. Publishes `data-pulling`, `data-pull-snapping`, `data-pull-dismissing`, and `--lightbox-pull-progress` while active. The engine loads when Content first mounts with this on — pass `false` to skip that download.",
     },
+    {
+      name: "closeOnEmptyClick",
+      type: "boolean",
+      default: "false",
+      description: "Close on a primary click or tap in empty viewer space — the slide, Stage, or letterbox around the media — not only on Content itself. Media, interactive or focusable controls, Caption, Counter, thumbnails and `[data-ramka-no-pull]` keep their click, as do side panels outside Stage. Never closes when a gesture claimed the press (swipe, pull, pan, pinch) or while zoomed, and an `onClick` that calls `event.preventDefault()` cancels the close. Anything ignored that is painted at the click point also keeps it open — including `pointer-events: none` chrome (a disabled button) and chrome hidden with `opacity: 0` or clipped out of view, which err toward not closing. Closes on the first click, so double-tap zoom only works on the media itself while this is on. The logic loads as a separate chunk when Content first mounts with this on.",
+    },
   ],
   "api-stage": [
     {

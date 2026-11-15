@@ -54,10 +54,11 @@ if (typeof globalThis !== 'undefined' && !globalThis.ResizeObserver) {
   };
 }
 
-// Zoom and pull-to-close are lazy-loaded in production. Tests drive those
-// engines on the first render, so warm the caches here (does not affect
-// the published bundle).
+// Zoom, pull-to-close and closeOnEmptyClick are lazy-loaded in production.
+// Tests drive those engines on the first render, so warm the caches here
+// (does not affect the published bundle).
 const { loadZoomRuntime } = await import('./lightbox/lightbox-zoom-loader');
 const { loadPullRuntime } = await import('./lightbox/lightbox-pull-loader');
-await Promise.all([loadZoomRuntime(), loadPullRuntime()]);
+const { loadEmptyClickRuntime } = await import('./lightbox/lightbox-empty-click-loader');
+await Promise.all([loadZoomRuntime(), loadPullRuntime(), loadEmptyClickRuntime()]);
 
