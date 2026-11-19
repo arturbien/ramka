@@ -4,7 +4,7 @@ import * as React from 'react';
 import { flushSync } from 'react-dom';
 import Image, { type StaticImageData } from 'next/image';
 import * as Lightbox from '@ramka/react/lightbox';
-import { useLightboxTriggerContext } from '@ramka/react';
+import { useLightboxContext, useLightboxTriggerContext } from '@ramka/react';
 import {
   ChevronLeft,
   ChevronRight,
@@ -343,13 +343,22 @@ export function LightboxGallery({
     });
   }, []);
   // Viewport visibility only — linked layout/sync live in Lightbox.ThumbnailStrip.
-  const thumbClass =
-    thumbnails === 'always'
-      ? 'pointer-events-auto lightbox-demo-thumbnail-strip'
-      : 'pointer-events-auto hidden md:block lightbox-demo-thumbnail-strip';
+  const stripVisibility = thumbnails === 'always' ? '' : 'hidden md:block';
 
   // No strip → solo layout: tighter bottom band with the placard centered in it.
   const showStrip = thumbnails !== 'never' && items.length > 1;
+  // Docked inside Slides so wheel and trackpad swipes over the strip scroll
+  // the slides. WebKit ignores `position: sticky` in right-to-left scrollers,
+  // so RTL keeps the strip in the bottom band instead.
+  const { dir } = useLightboxContext();
+  const dockStrip = showStrip && dir !== 'rtl';
+  // A docked strip overlays the band, which only reserves its row:
+  // 5.125rem of strip + 0.75rem gap above the 1rem edge inset.
+  const chromeBottomPadding = !dockStrip
+    ? 'gap-3 pb-[calc(1rem+env(safe-area-inset-bottom,0px))]'
+    : thumbnails === 'always'
+      ? 'pb-[calc(6.875rem+env(safe-area-inset-bottom,0px))]'
+      : 'pb-[calc(1rem+env(safe-area-inset-bottom,0px))] md:pb-[calc(6.875rem+env(safe-area-inset-bottom,0px))]';
 
   const backdropTone = backdrop === 'solid' ? 'bg-white dark:bg-black' : 'lightbox-demo-backdrop-light';
   const snug = slidesLayout === 'snug';
@@ -469,6 +478,14 @@ export function LightboxGallery({
               </Lightbox.Slide>
             );
           })}
+          {dockStrip ? (
+            // Pinned to the scrollport by `thumbnail-strip-scroll-link.css`.
+            <div
+              className={`lightbox-demo-strip-dock lightbox-demo-chrome-hide lightbox-demo-zoom-hide ${stripVisibility}`}
+            >
+              <GalleryThumbnailStrip items={items} className="pointer-events-auto lightbox-demo-thumbnail-strip" />
+            </div>
+          ) : null}
         </Lightbox.Slides>
 
         {overlay}
@@ -553,7 +570,7 @@ export function LightboxGallery({
         </TooltipProvider>
 
         <div
-          className={`lightbox-demo-chrome-bottom lightbox-demo-chrome-hide${showStrip ? '' : ' lightbox-demo-chrome-bottom-solo'} pointer-events-none absolute inset-x-0 bottom-0 z-30 flex flex-col items-center gap-3 px-3 pb-[calc(1rem+env(safe-area-inset-bottom,0px))]`}
+          className={`lightbox-demo-chrome-bottom lightbox-demo-chrome-hide${showStrip ? '' : ' lightbox-demo-chrome-bottom-solo'} pointer-events-none absolute inset-x-0 bottom-0 z-30 flex flex-col items-center px-3 ${chromeBottomPadding}`}
         >
           {/*
             Caption under the media, placard-style, on every breakpoint. The
@@ -572,7 +589,12 @@ export function LightboxGallery({
               </Lightbox.Counter>
             ) : null}
           </div>
-          {showStrip ? <GalleryThumbnailStrip items={items} className={thumbClass} /> : null}
+          {showStrip && !dockStrip ? (
+            <GalleryThumbnailStrip
+              items={items}
+              className={`pointer-events-auto lightbox-demo-thumbnail-strip ${stripVisibility}`}
+            />
+          ) : null}
         </div>
       </Lightbox.Content>
     </Lightbox.Portal>
