@@ -515,15 +515,6 @@ describe('Lightbox.ThumbnailStrip', () => {
 
     render(<Gallery count={5} />);
     const slides = screen.getByTestId('slides');
-    // Stage VT stays pointer-only: keyboard nav must not start it.
-    const startViewTransition = vi.fn((cb: () => void) => {
-      cb();
-      return { finished: Promise.resolve() };
-    });
-    Object.defineProperty(slides, 'startViewTransition', {
-      configurable: true,
-      value: startViewTransition,
-    });
     setupSlidesGeometry(slides, 5);
     const root = screen.getByTestId('thumbnail-strip');
     const track = screen.getByTestId('thumbnail-strip-track');
@@ -550,10 +541,9 @@ describe('Lightbox.ThumbnailStrip', () => {
     expect(link!.anim.cancel).toHaveBeenCalled();
     expect(elementAnimate).toHaveBeenCalled();
     expect(scrubPlay).toHaveBeenCalled();
-    expect(startViewTransition).not.toHaveBeenCalled();
   });
 
-  it('tablist arrow keys scrub the strip without the Slides view transition', async () => {
+  it('tablist arrow keys scrub the strip', async () => {
     enableScrollTimeline();
 
     const scrubPlay = vi.fn();
@@ -576,14 +566,6 @@ describe('Lightbox.ThumbnailStrip', () => {
 
     render(<Gallery count={5} />);
     const slides = screen.getByTestId('slides');
-    const startViewTransition = vi.fn((cb: () => void) => {
-      cb();
-      return { finished: Promise.resolve() };
-    });
-    Object.defineProperty(slides, 'startViewTransition', {
-      configurable: true,
-      value: startViewTransition,
-    });
     setupSlidesGeometry(slides, 5);
     const root = screen.getByTestId('thumbnail-strip');
     const track = screen.getByTestId('thumbnail-strip-track');
@@ -606,7 +588,6 @@ describe('Lightbox.ThumbnailStrip', () => {
     expect(screen.getByTestId('thumb-1')).toHaveAttribute('data-active');
     expect(elementAnimate).toHaveBeenCalled();
     expect(scrubPlay).toHaveBeenCalled();
-    expect(startViewTransition).not.toHaveBeenCalled();
   });
 
   it('Next button scrubs the thumbnail strip', async () => {
@@ -700,11 +681,7 @@ describe('Lightbox.ThumbnailStrip', () => {
                 </LightboxSlide>
               ))}
             </LightboxSlides>
-            <LightboxThumbnailStrip
-              data-testid="thumbnail-strip"
-              selectViewTransition={false}
-              wrapSelectCommit={wrapSelectCommit}
-            >
+            <LightboxThumbnailStrip data-testid="thumbnail-strip" wrapSelectCommit={wrapSelectCommit}>
               <LightboxThumbnailStripTrack data-testid="thumbnail-strip-track" aria-label="Thumbs">
                 {Array.from({ length: 3 }, (_, i) => (
                   <LightboxThumbnail key={i} index={i} data-testid={`thumb-${i}`}>
@@ -729,54 +706,7 @@ describe('Lightbox.ThumbnailStrip', () => {
     expect(screen.getByTestId('thumb-2')).toHaveAttribute('data-active');
   });
 
-  it('selectViewTransition starts an element-scoped transition on Slides', async () => {
-    const startViewTransition = vi.fn((cb: () => void) => {
-      cb();
-      return { finished: Promise.resolve() };
-    });
-
-    render(
-      <LightboxRoot defaultOpen>
-        <LightboxTrigger index={0}>open</LightboxTrigger>
-        <LightboxPortal>
-          <LightboxContent aria-label="vt select test">
-            <LightboxSlides data-testid="slides" aria-label="Slides">
-              {Array.from({ length: 3 }, (_, i) => (
-                <LightboxSlide key={i}>
-                  <LightboxItem index={i}>item {i}</LightboxItem>
-                </LightboxSlide>
-              ))}
-            </LightboxSlides>
-            <LightboxThumbnailStrip data-testid="thumbnail-strip">
-              <LightboxThumbnailStripTrack data-testid="thumbnail-strip-track" aria-label="Thumbs">
-                {Array.from({ length: 3 }, (_, i) => (
-                  <LightboxThumbnail key={i} index={i} data-testid={`thumb-${i}`}>
-                    t{i}
-                  </LightboxThumbnail>
-                ))}
-              </LightboxThumbnailStripTrack>
-            </LightboxThumbnailStrip>
-          </LightboxContent>
-        </LightboxPortal>
-      </LightboxRoot>,
-    );
-
-    const slides = screen.getByTestId('slides');
-    Object.defineProperty(slides, 'startViewTransition', {
-      configurable: true,
-      value: startViewTransition,
-    });
-    setupSlidesGeometry(slides, 3);
-    const track = screen.getByTestId('thumbnail-strip-track');
-    setupThumbGeometry(track, 3);
-    endScroll(slides);
-
-    fireEvent.click(screen.getByTestId('thumb-2'));
-    expect(startViewTransition).toHaveBeenCalledOnce();
-    expect(screen.getByTestId('thumb-2')).toHaveAttribute('data-active');
-  });
-
-  it('selectViewTransition={false} skips the Slides view transition', async () => {
+  it('thumbnail click commits without a Slides view transition', async () => {
     const startViewTransition = vi.fn((cb: () => void) => {
       cb();
       return { finished: Promise.resolve() };
@@ -794,7 +724,7 @@ describe('Lightbox.ThumbnailStrip', () => {
                 </LightboxSlide>
               ))}
             </LightboxSlides>
-            <LightboxThumbnailStrip data-testid="thumbnail-strip" selectViewTransition={false}>
+            <LightboxThumbnailStrip data-testid="thumbnail-strip">
               <LightboxThumbnailStripTrack data-testid="thumbnail-strip-track" aria-label="Thumbs">
                 {Array.from({ length: 3 }, (_, i) => (
                   <LightboxThumbnail key={i} index={i} data-testid={`thumb-${i}`}>

@@ -611,7 +611,4 @@ export const galleryPhotos: GalleryPhoto[] = (
 :is(.dark, [data-theme='dark']) .lightbox-demo-thumbnail-strip-indicator {
   border-color: #fff;
 }
-
-/* Thumb-jump slides crossfade CSS is injected by the library — tune with
-   `--lightbox-select-vt-*` on Slides (or a parent). */
 ```

@@ -399,12 +399,6 @@ export default function LightboxViewTransitionsPage() {
             transition so it can&apos;t be captured mid-flight), so the live trigger never shows doubled
             under the morphing snapshot.
           </li>
-          <li>
-            <strong className="font-medium text-neutral-800 dark:text-neutral-200">Thumb-jump crossfade</strong>{' '}
-            — the element-scoped Slides transition started by ThumbnailStrip&apos;s{' '}
-            <code className="text-xs">selectViewTransition</code>, tunable via{' '}
-            <code className="text-xs">--lightbox-select-vt-duration/easing</code> on Slides.
-          </li>
         </ul>
         <p>
           Everything except name isolation is gated under{' '}

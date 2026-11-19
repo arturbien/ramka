@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+
+- `Lightbox.ThumbnailStrip`'s `selectViewTransition` prop and the
+  `--lightbox-select-vt-duration` / `--lightbox-select-vt-easing` CSS
+  variables. Clicking a thumbnail no longer runs a view transition on
+  `Lightbox.Slides`; the slides jump and the strip scrubs, the same as keyboard
+  and Previous / Next navigation.
+
 ### Fixed
 
 - `Lightbox.Slides` no longer lands on another slide when the window is

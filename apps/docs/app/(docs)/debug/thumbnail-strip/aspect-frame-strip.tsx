@@ -448,7 +448,6 @@ export function AspectFrameStrip({
 
   /**
    * WAAPI transform scrub on the nine-slice pieces around the index commit.
-   * Slides view transition is baked into ThumbnailStrip (`selectViewTransition`).
    */
   const wrapThumbSelectCommit = React.useCallback(
     (commit: () => void, _slides: HTMLElement | null, index: number) => {

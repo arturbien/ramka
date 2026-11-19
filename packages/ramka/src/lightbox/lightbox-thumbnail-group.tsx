@@ -92,14 +92,10 @@ const LightboxThumbnailGroup = React.forwardRef<HTMLDivElement, LightboxThumbnai
         // currently-focused tab. A swipe moves `activeIndex` without moving focus,
         // so roving off `document.activeElement` would compute from a stale tab.
         // Inside ThumbnailStrip, reuse its scrub path so arrow keys match
-        // pointer motion — but keep the stage commit instant (no Slides view
-        // transition), consistent with all other keyboard navigation.
+        // pointer motion.
         if (nextIndex === activeIndex) return;
         if (thumbnailStrip) {
-          thumbnailStrip.selectIndex(nextIndex, {
-            source: 'thumbnail',
-            stageViewTransition: false,
-          });
+          thumbnailStrip.selectIndex(nextIndex, { source: 'thumbnail' });
         } else {
           setActiveIndex(nextIndex, 'thumbnail');
         }
