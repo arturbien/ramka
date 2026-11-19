@@ -47,9 +47,11 @@ export function useAnimatedItemRemoval({
   const activeIndexRef = React.useRef(activeIndex);
   const autoRecoverRef = React.useRef(autoRecover);
 
-  itemsRef.current = items;
-  activeIndexRef.current = activeIndex;
-  autoRecoverRef.current = autoRecover;
+  React.useLayoutEffect(() => {
+    itemsRef.current = items;
+    activeIndexRef.current = activeIndex;
+    autoRecoverRef.current = autoRecover;
+  });
 
   const clearPending = React.useCallback(() => {
     timersRef.current.forEach((id) => window.clearTimeout(id));

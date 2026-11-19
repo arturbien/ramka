@@ -342,7 +342,9 @@ function useThreeCanvas(
 ) {
   const controlsRef = React.useRef<TrackballControls | null>(null);
   const autoRotateRef = React.useRef(autoRotate);
-  autoRotateRef.current = autoRotate;
+  React.useLayoutEffect(() => {
+    autoRotateRef.current = autoRotate;
+  });
 
   React.useLayoutEffect(() => {
     const host = hostRef.current;

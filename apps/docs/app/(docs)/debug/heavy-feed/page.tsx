@@ -543,6 +543,9 @@ export default function HeavyFeedDebugPage() {
   const [measured, setMeasured] = React.useState<number | null>(null);
 
   React.useEffect(() => {
+    // The URL is only readable on the client; reading it during render would
+    // make hydration disagree with the server HTML.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setConfig(parseConfig(window.location.search));
     setReady(true);
   }, []);
