@@ -12,6 +12,7 @@ import {
   measureSlidesGeometry,
   slideIndexFromInlinePosition,
   slideInlinePositionForIndex,
+  slidesGeometryEqual,
   SLIDE_SELECTOR,
 } from './lightbox-slides-geometry';
 import { readInlineScroll, writeInlineScroll } from './lightbox-direction';
@@ -208,8 +209,9 @@ const LightboxSlides = React.forwardRef<HTMLDivElement, LightboxSlidesProps>(
     const resizingRef = React.useRef(false);
     /**
      * Viewport client size when `geometryRef` was last measured. A size that
-     * no longer matches means the geometry describes a layout that is gone —
-     * see `refitIfResized` in the scroll effect.
+     * no longer matches means the geometry may describe a layout that is gone
+     * — see `refitIfResized`. A matching size proves nothing: content-sized
+     * slides can change width while the viewport keeps its size.
      */
     const measuredSizeRef = React.useRef({ width: 0, height: 0 });
     /** Bumps on every resize pass so superseded re-snap rAF tails no-op. */
@@ -401,7 +403,9 @@ const LightboxSlides = React.forwardRef<HTMLDivElement, LightboxSlidesProps>(
 
     // Re-measure after a viewport resize and, when the slides moved, re-pin
     // the active slide so it stays centered (a fractional scrollLeft would
-    // otherwise drift, and the stale one would read as another slide).
+    // otherwise drift, and the stale one would read as another slide). Runs
+    // from the ResizeObserver, and from the scroll handlers through
+    // `refitIfResized` when they see the resize first.
     //
     // ResizeObserver fires an initial callback on `observe()` with the current
     // size. In a real browser we already measured the same values in the
@@ -415,17 +419,7 @@ const LightboxSlides = React.forwardRef<HTMLDivElement, LightboxSlidesProps>(
       if (!viewport) return;
       const prev = geometryRef.current;
       measure(viewport);
-      const next = geometryRef.current;
-      if (
-        prev &&
-        next.base === prev.base &&
-        next.step === prev.step &&
-        next.count === prev.count &&
-        next.offsets.length === prev.offsets.length &&
-        next.offsets.every((offset, i) => offset === prev.offsets[i])
-      ) {
-        return;
-      }
+      if (prev && slidesGeometryEqual(prev, geometryRef.current)) return;
 
       // Hold scroll→index updates: layout leaves scrollLeft in stale px while
       // slide widths (% / cqw) change, so nearest-index math picks the wrong
@@ -451,6 +445,23 @@ const LightboxSlides = React.forwardRef<HTMLDivElement, LightboxSlidesProps>(
         });
       });
     }, [measure, scrollToIndex, notifySlidesViewport, navigationLockedRef]);
+
+    // A window resize lays the slides out again, and the browser scrolls to
+    // keep the snapped slide in place. In Chromium, Safari and Firefox that
+    // scroll and its `scrollend` can reach the scroll handlers before the
+    // ResizeObserver callback, while `geometryRef` still describes the old
+    // layout and the new position reads as another slide. Each scroll entry
+    // point calls this first: when the viewport size no longer matches the
+    // last measurement it runs the observer's `refit` early, and the
+    // observer's later pass finds nothing changed.
+    const refitIfResized = React.useCallback(() => {
+      const viewport = viewportRef.current;
+      if (!viewport) return;
+      const size = measuredSizeRef.current;
+      if (viewport.clientWidth !== size.width || viewport.clientHeight !== size.height) {
+        refit();
+      }
+    }, [refit]);
 
     // Measure on mount / item-count change, and refit on viewport resize.
     React.useLayoutEffect(() => {
@@ -510,19 +521,6 @@ const LightboxSlides = React.forwardRef<HTMLDivElement, LightboxSlidesProps>(
       // scroll — and then nothing emits `scrollend`.
       let sawScrollSinceLock = false;
       let frame = 0;
-      // A window resize lays the slides out again, and the browser scrolls to
-      // keep the snapped slide in place. That scroll and its `scrollend` are
-      // delivered before ResizeObserver callbacks run in the same frame, so
-      // they reach us while `geometryRef` still describes the old layout, and
-      // the new position read against it is another slide. Catch up here with
-      // the observer's own refit, which re-pins the active slide and sets
-      // `resizingRef`; the observer's later pass then finds nothing changed.
-      const refitIfResized = () => {
-        const size = measuredSizeRef.current;
-        if (viewport.clientWidth !== size.width || viewport.clientHeight !== size.height) {
-          refit();
-        }
-      };
       const settle = () => {
         if (frame !== 0) {
           cancelAnimationFrame(frame);
@@ -754,7 +752,7 @@ const LightboxSlides = React.forwardRef<HTMLDivElement, LightboxSlidesProps>(
         viewport.removeEventListener('touchend', onTouchEnd, true);
         viewport.removeEventListener('touchcancel', onTouchEnd, true);
       };
-    }, [indexFromScroll, setActiveIndex, navigationLockedRef, activeZoomRef, refit, dir]);
+    }, [indexFromScroll, setActiveIndex, navigationLockedRef, activeZoomRef, refitIfResized, dir]);
 
     const state = React.useMemo<LightboxSlidesState>(
       () => ({ activeIndex, direction }),

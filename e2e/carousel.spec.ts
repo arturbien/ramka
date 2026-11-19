@@ -85,56 +85,65 @@ test.describe('carousel', () => {
  * A real window resize. Viewport emulation (`page.setViewportSize`) does not
  * reproduce this: the browser's own re-centring `scroll` and `scrollend` after
  * the relayout have to reach the scroller before its ResizeObserver runs, which
- * is the order the HTML rendering steps give them in a real window.
+ * is what Chromium does in a real window.
+ *
+ * The landing page's slides are sized from the viewport height (aspect-fit,
+ * neighbours peeking in), so a height change moves every offset: that layout
+ * drifted furthest.
  */
-test('carousel keeps the active slide while the window is resized', async ({
-  browser,
-  browserName,
-}) => {
-  test.skip(browserName !== 'chromium', 'resizes the window through the DevTools protocol');
+for (const { name, url, index } of [
+  { name: 'full-width slides', url: PHOTOS_APP, index: 20 },
+  { name: 'aspect-fit slides', url: '/', index: 9 },
+]) {
+  test(`carousel keeps the active slide while the window is resized (${name})`, async ({
+    browser,
+    browserName,
+  }) => {
+    test.skip(browserName !== 'chromium', 'resizes the window through the DevTools protocol');
 
-  // No emulated viewport: the page is sized by its window. The runner merges
-  // the project's device preset in, so its scale factor is unset explicitly.
-  const context = await browser.newContext({ viewport: null, deviceScaleFactor: undefined });
-  try {
-    const page = await context.newPage();
-    const cdp = await context.newCDPSession(page);
-    const { windowId } = await cdp.send('Browser.getWindowForTarget');
-    const resizeTo = (width: number, height: number) =>
-      cdp.send('Browser.setWindowBounds', { windowId, bounds: { width, height } });
-    await resizeTo(1280, 800);
+    // No emulated viewport: the page is sized by its window. The runner merges
+    // the project's device preset in, so its scale factor is unset explicitly.
+    const context = await browser.newContext({ viewport: null, deviceScaleFactor: undefined });
+    try {
+      const page = await context.newPage();
+      const cdp = await context.newCDPSession(page);
+      const { windowId } = await cdp.send('Browser.getWindowForTarget');
+      const resizeTo = (width: number, height: number) =>
+        cdp.send('Browser.setWindowBounds', { windowId, bounds: { width, height } });
+      await resizeTo(1280, 800);
 
-    await page.goto(PHOTOS_APP);
-    await openLightbox(page, 20);
-    const slides = page.locator('[data-ramka-slides]');
-    await expect(slides).toHaveAttribute('data-active-index', '20');
+      await page.goto(url);
+      await openLightbox(page, index);
+      const slides = page.locator('[data-ramka-slides]');
+      await expect(slides).toHaveAttribute('data-active-index', String(index));
 
-    // Every index the carousel passes through, not just where it ends up.
-    await slides.evaluate((element) => {
-      const seen: string[] = [];
-      (window as unknown as { activeIndexes: string[] }).activeIndexes = seen;
-      new MutationObserver(() => seen.push(element.dataset.activeIndex ?? '')).observe(element, {
-        attributeFilter: ['data-active-index'],
+      // Every index the carousel passes through, not just where it ends up.
+      await slides.evaluate((element) => {
+        const seen: string[] = [];
+        (window as unknown as { activeIndexes: string[] }).activeIndexes = seen;
+        new MutationObserver(() => seen.push(element.dataset.activeIndex ?? '')).observe(element, {
+          attributeFilter: ['data-active-index'],
+        });
       });
-    });
 
-    // In steps, the way a window drag delivers it.
-    for (const [width, height] of [
-      [1180, 800],
-      [1060, 700],
-      [940, 600],
-      [1060, 700],
-      [1280, 800],
-    ]) {
-      await resizeTo(width!, height!);
-      await page.waitForTimeout(150);
+      // In steps, the way a window drag delivers it.
+      for (const [width, height] of [
+        [1180, 800],
+        [1060, 700],
+        [940, 600],
+        [1060, 700],
+        [1280, 800],
+      ]) {
+        await resizeTo(width!, height!);
+        await page.waitForTimeout(150);
+      }
+
+      await expect(slides).toHaveAttribute('data-active-index', String(index));
+      expect(
+        await page.evaluate(() => (window as unknown as { activeIndexes: string[] }).activeIndexes),
+      ).toEqual([]);
+    } finally {
+      await context.close();
     }
-
-    await expect(slides).toHaveAttribute('data-active-index', '20');
-    expect(
-      await page.evaluate(() => (window as unknown as { activeIndexes: string[] }).activeIndexes),
-    ).toEqual([]);
-  } finally {
-    await context.close();
-  }
-});
+  });
+}
