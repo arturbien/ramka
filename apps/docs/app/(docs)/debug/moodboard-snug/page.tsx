@@ -196,6 +196,7 @@ function AutoplayMuteVideo({
   videoRef?: React.Ref<HTMLVideoElement | null>;
 }) {
   const videoRef = React.useRef<HTMLVideoElement | null>(null);
+  React.useImperativeHandle<HTMLVideoElement | null, HTMLVideoElement | null>(videoRefProp, () => videoRef.current, []);
 
   React.useEffect(() => {
     const el = videoRef.current;
@@ -212,11 +213,7 @@ function AutoplayMuteVideo({
 
   return (
     <video
-      ref={(node) => {
-        videoRef.current = node;
-        if (typeof videoRefProp === 'function') videoRefProp(node);
-        else if (videoRefProp) videoRefProp.current = node;
-      }}
+      ref={videoRef}
       src={src}
       poster={poster}
       width={width}

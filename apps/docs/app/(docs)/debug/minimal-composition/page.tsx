@@ -271,6 +271,11 @@ export default function MinimalCompositionDebugPage() {
   const [audit, setAudit] = React.useState<Audit | null>(null);
   const firstIntentAtRef = React.useRef<number | null>(null);
 
+  const handleOpenChange = React.useCallback((next: boolean) => {
+    setOpen(next);
+    if (!next) setAudit(null);
+  }, []);
+
   // When the trigger first saw hover, focus or a press — the moment Trigger's
   // own warm-up fires. Capture phase on the document so this always runs before
   // the handlers that start the fetch, otherwise the comparison in the audit
@@ -296,10 +301,7 @@ export default function MinimalCompositionDebugPage() {
   // The portal subtree only exists while open, so scan on open and then on any
   // mount or state-attribute change inside it. Coalesced to one scan per frame.
   React.useEffect(() => {
-    if (!open) {
-      setAudit(null);
-      return;
-    }
+    if (!open) return;
     let frame = 0;
     const schedule = () => {
       cancelAnimationFrame(frame);
@@ -466,7 +468,7 @@ export default function MinimalCompositionDebugPage() {
       {/* `viewTransition` is left at its default (on), so opening morphs from the
           trigger. The trigger's `imageRef` is what makes that morph clean — without
           it the library warns and the first frame can flash blank. */}
-      <Lightbox.Root open={open} onOpenChange={setOpen} value={value} onValueChange={setValue}>
+      <Lightbox.Root open={open} onOpenChange={handleOpenChange} value={value} onValueChange={setValue}>
         <div className="grid grid-cols-3 gap-3 sm:grid-cols-6">
           {lightboxImageFiles.map((photo, i) => (
             <Lightbox.Trigger

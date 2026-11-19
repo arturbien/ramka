@@ -399,7 +399,6 @@ export function ChromeBuilder() {
         >
           <code>
             {snippet.split('\n').map((line, i) => (
-              // eslint-disable-next-line react/no-array-index-key -- lines have no identity
               <span key={i} className="block min-h-[1.2em]">
                 {highlightLine(line)}
               </span>
