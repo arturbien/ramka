@@ -361,9 +361,9 @@ describe('Lightbox.Slides', () => {
   });
 
   // A real window resize lays the slides out again and the browser scrolls to
-  // keep the snapped slide in place. That scroll (and its `scrollend`) is
-  // delivered before ResizeObserver callbacks in the same frame, so it reaches
-  // Slides while the geometry still describes the old layout.
+  // keep the snapped slide in place. That scroll (and its `scrollend`) can be
+  // delivered before the ResizeObserver callback, so it reaches Slides while
+  // the geometry still describes the old layout.
   it.each(['scroll', 'scrollend'] as const)(
     'keeps the active index when a %s from a resize arrives before the ResizeObserver',
     (event) => {
@@ -396,6 +396,72 @@ describe('Lightbox.Slides', () => {
       expect(viewport.scrollLeft).toBe(6 * NEW);
     },
   );
+
+  it('keeps the user-scroll lock when a resize leaves the slide geometry unchanged', () => {
+    render(<SlidesLightbox />);
+    const viewport = screen.getByTestId('slides');
+    setupGeometry(viewport, 8);
+    swipeTo(viewport, 3);
+    expect(activeThumb()).toBe(3);
+
+    // Height-only resize: full-width slides keep every offset, so there is
+    // nothing to re-pin and the swipe stays the user's.
+    Object.defineProperty(viewport, 'clientHeight', { configurable: true, get: () => 600 });
+    act(() => {
+      fireEvent.scroll(viewport);
+      flushRaf();
+    });
+
+    act(() => {
+      fireEvent.click(screen.getByTestId('thumb-6'));
+    });
+    act(() => flushRaf());
+    expect(activeThumb()).toBe(3);
+    expect(viewport.scrollLeft).toBe(3 * WIDTH);
+  });
+
+  it('Firefox: keeps the active index when the idle fallback settles right after a resize', () => {
+    // Firefox settles through the quiet-gap timer, which can fire after the
+    // relayout but before that frame's re-centring `scroll` reaches Slides.
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    const originalUa = navigator.userAgent;
+    Object.defineProperty(navigator, 'userAgent', {
+      configurable: true,
+      value: 'Mozilla/5.0 (Macintosh; rv:153.0) Gecko/20100101 Firefox/153.0',
+    });
+    try {
+      render(<SlidesLightbox />);
+      const viewport = screen.getByTestId('slides');
+      setupGeometry(viewport, 8);
+      swipeTo(viewport, 6);
+      expect(activeThumb()).toBe(6);
+
+      // The slides shrink and slide 6 is re-centred at 300px, which the old
+      // 100px geometry reads as slide 3.
+      const NEW = 50;
+      Object.defineProperty(viewport, 'clientWidth', { configurable: true, get: () => NEW });
+      Object.defineProperty(viewport, 'scrollWidth', { configurable: true, get: () => NEW * 8 });
+      viewport.querySelectorAll<HTMLElement>('[data-ramka-slide]').forEach((slide, i) => {
+        Object.defineProperty(slide, 'offsetLeft', { configurable: true, get: () => i * NEW });
+        Object.defineProperty(slide, 'offsetWidth', { configurable: true, get: () => NEW });
+      });
+      viewport.scrollLeft = 6 * NEW;
+      act(() => {
+        vi.advanceTimersByTime(200);
+      });
+      expect(activeThumb()).toBe(6);
+
+      flushResizeObservers();
+      expect(activeThumb()).toBe(6);
+      expect(viewport.scrollLeft).toBe(6 * NEW);
+    } finally {
+      Object.defineProperty(navigator, 'userAgent', {
+        configurable: true,
+        value: originalUa,
+      });
+      vi.useRealTimers();
+    }
+  });
 
   it('never leaves scroll-snap stuck at none across overlapping resize jumps', () => {
     render(<SlidesLightbox defaultValue={3} />);

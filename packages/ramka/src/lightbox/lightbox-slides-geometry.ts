@@ -96,6 +96,17 @@ export function measureSlidesGeometry(
   return { offsets, base, step, count };
 }
 
+/** True when two measurements describe the same snap offsets. */
+export function slidesGeometryEqual(a: SlidesGeometry, b: SlidesGeometry): boolean {
+  return (
+    a.base === b.base &&
+    a.step === b.step &&
+    a.count === b.count &&
+    a.offsets.length === b.offsets.length &&
+    a.offsets.every((offset, i) => offset === b.offsets[i])
+  );
+}
+
 /** True when snap offsets match a uniform `base + i * step` track. */
 export function slidesGeometryIsUniform(geometry: SlidesGeometry): boolean {
   const { offsets, count, base, step } = geometry;

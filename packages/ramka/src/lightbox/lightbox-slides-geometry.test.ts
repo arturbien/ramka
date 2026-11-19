@@ -4,6 +4,7 @@ import {
   measureSlidesGeometry,
   slideIndexFromInlinePosition,
   slideInlinePositionForIndex,
+  slidesGeometryEqual,
   slidesGeometryIsUniform,
   slidesScrollProgressAt,
 } from './lightbox-slides-geometry';
@@ -141,6 +142,24 @@ describe('measureSlidesGeometry (ltr)', () => {
     expect(measureSlidesGeometry(viewport).offsets).toEqual(
       measureSlidesGeometry(viewport, 'ltr').offsets,
     );
+  });
+});
+
+describe('slidesGeometryEqual', () => {
+  const geometry = { offsets: [0, 100, 400], base: 0, step: 100, count: 3 };
+
+  it('is true for the same offsets measured twice', () => {
+    expect(slidesGeometryEqual(geometry, { ...geometry, offsets: [0, 100, 400] })).toBe(true);
+  });
+
+  it('is false when any offset moved', () => {
+    expect(slidesGeometryEqual(geometry, { ...geometry, offsets: [0, 100, 401] })).toBe(false);
+  });
+
+  it('is false when the slide count changed', () => {
+    expect(
+      slidesGeometryEqual(geometry, { offsets: [0, 100], base: 0, step: 100, count: 2 }),
+    ).toBe(false);
   });
 });
 
