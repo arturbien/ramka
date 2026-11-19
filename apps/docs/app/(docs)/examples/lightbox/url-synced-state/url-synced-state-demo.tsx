@@ -160,6 +160,9 @@ export function UrlSyncedStateDemo() {
     if (urlIndex !== -1) {
       indexRef.current = urlIndex;
       openRef.current = true;
+      // Adjusting state during render instead would have to write the refs
+      // during render too.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setIndex(urlIndex);
       setOpen(true);
     } else {

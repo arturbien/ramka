@@ -92,7 +92,9 @@ export function InfiniteScrollFeed() {
   const nextPageRef = React.useRef(1);
   const pendingRef = React.useRef(false);
   const countRef = React.useRef(photos.length);
-  countRef.current = photos.length;
+  React.useLayoutEffect(() => {
+    countRef.current = photos.length;
+  });
 
   const loadMore = React.useCallback(() => {
     if (pendingRef.current) return;

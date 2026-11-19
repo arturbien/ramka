@@ -174,11 +174,13 @@ export function AspectFrameStrip({
   const topRef = React.useRef<HTMLSpanElement | null>(null);
   const bottomRef = React.useRef<HTMLSpanElement | null>(null);
   const activeIndexRef = React.useRef(activeIndex);
-  activeIndexRef.current = activeIndex;
 
   const itemAspects = React.useMemo(() => photos.map((p) => p.aspect), [photos]);
   const itemAspectsRef = React.useRef(itemAspects);
-  itemAspectsRef.current = itemAspects;
+  React.useLayoutEffect(() => {
+    activeIndexRef.current = activeIndex;
+    itemAspectsRef.current = itemAspects;
+  });
   const maxAspect = React.useMemo(() => frameMaxAspect(itemAspects), [itemAspects]);
 
   const aspectLinkAnimsRef = React.useRef<Animation[] | null>(null);

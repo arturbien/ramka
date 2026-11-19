@@ -20,7 +20,10 @@ export function MomentumLab() {
   const [decel, setDecel] = useState(0.95);
   // The strip reads this ref every frame, so the slider retunes live flings.
   const decelRef = useRef(0.95);
-  decelRef.current = decel;
+  const tune = (value: number) => {
+    decelRef.current = value;
+    setDecel(value);
+  };
 
   return (
     <figure className="my-8 rounded-2xl border border-neutral-200 p-4 md:p-5 dark:border-neutral-800">
@@ -33,7 +36,7 @@ export function MomentumLab() {
             max={0.99}
             step={0.001}
             value={decel}
-            onChange={(e) => setDecel(Number(e.target.value))}
+            onChange={(e) => tune(Number(e.target.value))}
             className="w-40 accent-neutral-900 dark:accent-neutral-100"
           />
           <span className="tabular-nums text-neutral-500">{decel.toFixed(3)}</span>
@@ -43,7 +46,7 @@ export function MomentumLab() {
             <button
               key={preset.label}
               type="button"
-              onClick={() => setDecel(preset.value)}
+              onClick={() => tune(preset.value)}
               aria-pressed={decel === preset.value}
               className={`h-7 rounded-full px-3 text-[12px] font-medium transition ${
                 decel === preset.value
