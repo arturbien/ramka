@@ -7,14 +7,6 @@ import type { NavigationSource } from './lightbox-context';
 interface LightboxThumbnailStripSelectOptions {
   /** Reported to `onValueChange`. @default 'thumbnail' */
   source?: NavigationSource;
-  /**
-   * Whether this selection may run the element-scoped Slides view transition
-   * (still gated by the strip's `selectViewTransition` prop). Pointer thumb
-   * selection passes `true` (default); keyboard / button navigation passes
-   * `false` so the stage commit stays instant while the strip scrubs.
-   * @default true
-   */
-  stageViewTransition?: boolean;
 }
 
 interface LightboxThumbnailStripContextValue {

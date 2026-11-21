@@ -70,8 +70,6 @@ describe('vt-structural-styles', () => {
     expect(css).toContain('data-ramka-crossfade');
     expect(css).toContain('data-ramka-view-transition="closing"');
     expect(css).toContain('--lightbox-vt-crossfade-close-easing');
-    // Thumb-jump slides crossfade.
-    expect(css).toContain('[data-ramka-slides]::view-transition-group(root)');
     // Everything animated is reduced-motion gated.
     expect(css).toContain('@media (prefers-reduced-motion: no-preference)');
   });

@@ -45,6 +45,7 @@ import { LightboxStage, useOptionalLightboxStageContext } from './lightbox-stage
 import { LightboxThumbnail } from './lightbox-thumbnail';
 import { LightboxThumbnailGroup } from './lightbox-thumbnail-group';
 import { LightboxTrigger } from './lightbox-trigger';
+import { inertWhen } from '../react-compat';
 import { LightboxMedia } from './lightbox-media';
 import { LightboxZoom, type LightboxZoomRef } from './lightbox-zoom';
 import { useZoomContext } from './lightbox-zoom-context';
@@ -1245,6 +1246,53 @@ describe('Lightbox', () => {
       expect(document.activeElement).toBe(screen.getByTestId('last'));
     });
 
+    it('focus guards skip tabindex="-1", disabled, hidden, and inert controls', () => {
+      render(
+        <LightboxRoot defaultOpen defaultValue={0}>
+          <LightboxPortal>
+            <LightboxContent data-testid="content" aria-label="Guard skip test">
+              <button type="button" tabIndex={-1}>
+                Roving tab
+              </button>
+              <button type="button" style={{ display: 'none' }}>
+                Hidden
+              </button>
+              <div style={{ display: 'none' }}>
+                <button type="button">Hidden parent</button>
+              </div>
+              <fieldset disabled>
+                <button type="button">Disabled fieldset</button>
+              </fieldset>
+              <div {...inertWhen(true)}>
+                <button type="button">Inactive item</button>
+              </div>
+              <button data-testid="first" type="button">
+                First
+              </button>
+              <button data-testid="last" type="button">
+                Last
+              </button>
+              <button type="button" style={{ visibility: 'hidden' }}>
+                Invisible
+              </button>
+              <button type="button" tabIndex={-1}>
+                Roving tab
+              </button>
+            </LightboxContent>
+          </LightboxPortal>
+        </LightboxRoot>,
+      );
+
+      const [before, after] = Array.from(document.querySelectorAll<HTMLElement>('[data-focus-guard]')) as [
+        HTMLElement,
+        HTMLElement,
+      ];
+      fireEvent.focus(after);
+      expect(document.activeElement).toBe(screen.getByTestId('first'));
+      fireEvent.focus(before);
+      expect(document.activeElement).toBe(screen.getByTestId('last'));
+    });
+
     it('allows focus to stay in a portaled overlay outside the dialog subtree', async () => {
       render(
         <LightboxRoot defaultOpen defaultValue={0}>
@@ -1629,6 +1677,14 @@ describe('Lightbox', () => {
       screen.getByTestId('thumb-0').focus();
       fireEvent.keyDown(screen.getByTestId('thumb-group'), { key: 'ArrowRight' });
       expect(document.activeElement).toBe(screen.getByTestId('thumb-1'));
+    });
+
+    it('a plain ThumbnailGroup keeps the browser focus scroll', () => {
+      render(<TestLightbox defaultOpen defaultValue={0} withThumbnails />);
+      screen.getByTestId('thumb-0').focus();
+      const focus = vi.spyOn(screen.getByTestId('thumb-1'), 'focus');
+      fireEvent.keyDown(screen.getByTestId('thumb-group'), { key: 'ArrowRight' });
+      expect(focus).toHaveBeenCalledWith({ preventScroll: false });
     });
 
     it('Home/End in ThumbnailGroup jump to first/last', () => {

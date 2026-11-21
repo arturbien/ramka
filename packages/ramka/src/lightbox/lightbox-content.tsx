@@ -50,9 +50,32 @@ const TABBABLE_SELECTOR = [
   '[tabindex]:not([tabindex="-1"])',
 ].join(',');
 
+// Controls that refuse focus — disabled (incl. via a disabled `<fieldset>`),
+// hidden, or inside an `inert` (inactive) item. A guard handing off to one
+// would leave focus stuck on the guard.
+function canTakeFocus(el: HTMLElement): boolean {
+  if (el.matches(':disabled') || el.closest('[inert]')) return false;
+  if (typeof el.checkVisibility === 'function') {
+    // `checkVisibilityCSS` is the pre-2024 name of `visibilityProperty`
+    // (Chrome 105–120, Firefox 106–124).
+    return el.checkVisibility({ visibilityProperty: true, checkVisibilityCSS: true });
+  }
+  const visibility = getComputedStyle(el).visibility;
+  if (visibility === 'hidden' || visibility === 'collapse') return false;
+  for (let node: Element | null = el; node; node = node.parentElement) {
+    if (getComputedStyle(node).display === 'none') return false;
+  }
+  return true;
+}
+
 function getTabbableElements(container: HTMLElement): HTMLElement[] {
   return Array.from(container.querySelectorAll<HTMLElement>(TABBABLE_SELECTOR)).filter(
-    (el) => !el.hasAttribute('data-focus-guard'),
+    (el) =>
+      !el.hasAttribute('data-focus-guard') &&
+      // The selector matches natively focusable elements even when they opt
+      // out with `tabindex="-1"` (roving-tabindex thumbnails, for one).
+      el.tabIndex >= 0 &&
+      canTakeFocus(el),
   );
 }
 

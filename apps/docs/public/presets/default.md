@@ -335,6 +335,7 @@ import {
   ZoomInIcon,
   ZoomOutIcon,
 } from 'lucide-react';
+import { useLightboxContext } from '@ramka/react';
 import * as RamkaLightbox from '@ramka/react/lightbox';
 
 import { cn } from '@/lib/utils';
@@ -788,6 +789,25 @@ const snugItemClass = cn(
   'md:group-data-pull-dismissing/lb:transition-none',
 );
 
+/*
+ * Thumbnail strip docked inside Slides. Wheel scroll chains through the
+ * containing block, so an overlay beside the scroller never scrolls it; a
+ * sticky child does, and stays pinned to the scrollport. `order-first` and
+ * the negative end margin give it zero net inline size, so the slides' snap
+ * positions and geometry are unchanged (the margin also cancels the track gap
+ * after it — 0 in bleed on md+, `--lb-snug-gap` in snug). Hidden with the
+ * bottom placard while pulling or zoomed; while zoomed it also drops below
+ * the zoomed card so the media paints over the fade.
+ */
+const stripDockClass = cn(
+  'pointer-events-none sticky inset-x-0 z-[2] order-first flex-none self-end max-md:hidden',
+  'w-[100cqw] me-[calc(-100cqw_-_var(--lb-snug-gap,0px))]',
+  'px-3 pb-[calc(1rem_+_env(safe-area-inset-bottom,0px))]',
+  chromeGestureHideClass,
+  'group-data-zoomed/lb:z-0 group-data-zoomed/lb:invisible group-data-zoomed/lb:opacity-0',
+  'group-data-zoomed/lb:[transition:opacity_200ms,visibility_0s_linear_200ms]',
+);
+
 /* ── Composed Gallery (product chrome) ──────────────────────────────────── */
 
 function GalleryThumbnailStrip({ items }: { items: LightboxItem[] }) {
@@ -809,6 +829,46 @@ function GalleryThumbnailStrip({ items }: { items: LightboxItem[] }) {
         className="pointer-events-none absolute top-1/2 left-1/2 size-[calc(var(--lb-thumb-size)_+_10px)] -translate-x-1/2 -translate-y-1/2 rounded-[calc(0.5rem_+_3px)] border-2 border-black dark:border-white"
       />
     </ThumbnailStrip>
+  );
+}
+
+/*
+ * The strip docks inside Slides so wheel and trackpad swipes over it scroll
+ * the slides. WebKit ignores `position: sticky` in right-to-left scrollers,
+ * so RTL keeps the strip in the bottom band instead. `dir` is read in these
+ * leaves, not in Gallery: the Lightbox context changes on every slide change,
+ * and reading it there would re-render every slide and thumbnail.
+ */
+function useStripDocked(): boolean {
+  return useLightboxContext().dir !== 'rtl';
+}
+
+function StripDock({ children }: { children: React.ReactNode }) {
+  return useStripDocked() ? <div className={stripDockClass}>{children}</div> : null;
+}
+
+function BottomBand({ solo, strip, children }: { solo: boolean; strip: React.ReactNode; children: React.ReactNode }) {
+  const docked = useStripDocked() && !solo;
+  return (
+    <div
+      className={cn(
+        // Click-through the inset band; caption opts back in for text selection.
+        'pointer-events-none absolute inset-x-0 bottom-0 z-[1] flex flex-col items-center gap-3',
+        'px-3 pb-[calc(1rem_+_env(safe-area-inset-bottom,0px))]',
+        // md+: reserve the docked strip's row (5.125rem) and the gap above it.
+        docked && 'md:pb-[calc(6.875rem_+_env(safe-area-inset-bottom,0px))]',
+        chromeGestureHideClass,
+        // Zoom hides the bottom placard (the zoomed media pans under it).
+        'group-data-zoomed/lb:invisible group-data-zoomed/lb:opacity-0',
+        'group-data-zoomed/lb:[transition:opacity_200ms,visibility_0s_linear_200ms]',
+        // Solo (no strip): center the placard in the bottom inset band
+        // instead of pinning it to the viewport edge.
+        solo && 'min-h-(--lb-inset-bottom) justify-center pb-[env(safe-area-inset-bottom,0px)]',
+      )}
+    >
+      {children}
+      {docked ? null : strip}
+    </div>
   );
 }
 
@@ -873,6 +933,41 @@ function Gallery({
           solo && 'md:[--lb-inset-bottom:calc(4.5rem_+_env(safe-area-inset-bottom,0px))]',
         )}
       >
+        {/* Before Slides so Tab reaches the controls before the docked strip.
+            z-[3] keeps them above the strip and the zoomed snug card. */}
+        <div
+          className={cn(
+            'absolute top-[calc(0.75rem_+_env(safe-area-inset-top,0px))] end-3 z-[3] flex gap-2',
+            chromeGestureHideClass,
+            // On mobile, zoom also hides the top controls — the media fills the screen.
+            'max-md:group-data-zoomed/lb:invisible max-md:group-data-zoomed/lb:opacity-0',
+            'max-md:group-data-zoomed/lb:[transition:opacity_200ms,visibility_0s_linear_200ms]',
+          )}
+        >
+          {/* Layout toggle. User copy: "theater" = bleed (one wide slide),
+              "peek" = snug (card with neighbours peeking). The icon is a
+              miniature of the CURRENT layout; the label names the TARGET. */}
+          <button
+            type="button"
+            className={cn(controlClass, 'max-md:hidden [&_svg]:size-4.5')}
+            aria-pressed={snug}
+            aria-label={snug ? 'Switch to theater layout' : 'Switch to peek layout'}
+            onClick={toggleSlidesLayout}
+          >
+            {snug ? (
+              <GalleryHorizontalIcon strokeWidth={2.25} />
+            ) : (
+              <RectangleHorizontalIcon strokeWidth={2.25} />
+            )}
+          </button>
+          {/* Zoom −/+ share one capsule with a hairline divider. */}
+          <div className={cn(controlGroupClass, 'max-md:hidden')}>
+            <ZoomOut className={controlSegmentClass} />
+            <ZoomIn className={cn(controlSegmentClass, controlSegmentDividerClass)} />
+          </div>
+          <Close />
+        </div>
+
         <Slides
           key={slidesLayout}
           aria-label="Full-size images"
@@ -923,55 +1018,14 @@ function Gallery({
               </Slide>
             );
           })}
+          {solo ? null : (
+            <StripDock>
+              <GalleryThumbnailStrip items={items} />
+            </StripDock>
+          )}
         </Slides>
 
-        <div
-          className={cn(
-            'absolute top-[calc(0.75rem_+_env(safe-area-inset-top,0px))] end-3 z-[1] flex gap-2',
-            chromeGestureHideClass,
-            // On mobile, zoom also hides the top controls — the media fills the screen.
-            'max-md:group-data-zoomed/lb:invisible max-md:group-data-zoomed/lb:opacity-0',
-            'max-md:group-data-zoomed/lb:[transition:opacity_200ms,visibility_0s_linear_200ms]',
-          )}
-        >
-          {/* Layout toggle. User copy: "theater" = bleed (one wide slide),
-              "peek" = snug (card with neighbours peeking). The icon is a
-              miniature of the CURRENT layout; the label names the TARGET. */}
-          <button
-            type="button"
-            className={cn(controlClass, 'max-md:hidden [&_svg]:size-4.5')}
-            aria-pressed={snug}
-            aria-label={snug ? 'Switch to theater layout' : 'Switch to peek layout'}
-            onClick={toggleSlidesLayout}
-          >
-            {snug ? (
-              <GalleryHorizontalIcon strokeWidth={2.25} />
-            ) : (
-              <RectangleHorizontalIcon strokeWidth={2.25} />
-            )}
-          </button>
-          {/* Zoom −/+ share one capsule with a hairline divider. */}
-          <div className={cn(controlGroupClass, 'max-md:hidden')}>
-            <ZoomOut className={controlSegmentClass} />
-            <ZoomIn className={cn(controlSegmentClass, controlSegmentDividerClass)} />
-          </div>
-          <Close />
-        </div>
-
-        <div
-          className={cn(
-            // Click-through the inset band; caption opts back in for text selection.
-            'pointer-events-none absolute inset-x-0 bottom-0 z-[1] flex flex-col items-center gap-3',
-            'px-3 pb-[calc(1rem_+_env(safe-area-inset-bottom,0px))]',
-            chromeGestureHideClass,
-            // Zoom hides the bottom placard (the zoomed media pans under it).
-            'group-data-zoomed/lb:invisible group-data-zoomed/lb:opacity-0',
-            'group-data-zoomed/lb:[transition:opacity_200ms,visibility_0s_linear_200ms]',
-            // Solo (no strip): center the placard in the bottom inset band
-            // instead of pinning it to the viewport edge.
-            solo && 'min-h-(--lb-inset-bottom) justify-center pb-[env(safe-area-inset-bottom,0px)]',
-          )}
-        >
+        <BottomBand solo={solo} strip={<GalleryThumbnailStrip items={items} />}>
           {/*
             Caption under the media, placard-style. The counter is visible on
             mobile where there's no strip to show position; on md+ the strip
@@ -983,8 +1037,7 @@ function Gallery({
             {/* "1 of 1" is noise — skip the counter for single-item galleries. */}
             {solo ? null : <Counter>{({ current, total }) => `${current} of ${total}`}</Counter>}
           </div>
-          <GalleryThumbnailStrip items={items} />
-        </div>
+        </BottomBand>
       </Content>
     </Portal>
   );
@@ -1037,6 +1090,7 @@ export const Lightbox = {
  */
 
 import * as React from 'react';
+import { useLightboxContext } from '@ramka/react';
 import * as RamkaLightbox from '@ramka/react/lightbox';
 
 import './lightbox.css';
@@ -1253,6 +1307,31 @@ function GalleryThumbnailStrip({ items }: { items: LightboxItem[] }) {
   );
 }
 
+/*
+ * The strip docks inside Slides so wheel and trackpad swipes over it scroll
+ * the slides. WebKit ignores `position: sticky` in right-to-left scrollers,
+ * so RTL keeps the strip in the bottom band instead. `dir` is read in these
+ * leaves, not in Gallery: the Lightbox context changes on every slide change,
+ * and reading it there would re-render every slide and thumbnail.
+ */
+function useStripDocked(): boolean {
+  return useLightboxContext().dir !== 'rtl';
+}
+
+function StripDock({ children }: { children: React.ReactNode }) {
+  return useStripDocked() ? <div className={cx('lb-strip-dock', 'lb-chrome-gesture-hide')}>{children}</div> : null;
+}
+
+function BottomBand({ solo, strip, children }: { solo: boolean; strip: React.ReactNode; children: React.ReactNode }) {
+  const docked = useStripDocked() && !solo;
+  return (
+    <div className={cx('lb-bottom', 'lb-chrome-gesture-hide', solo && 'lb-bottom-solo', docked && 'lb-bottom-docked')}>
+      {children}
+      {docked ? null : strip}
+    </div>
+  );
+}
+
 /**
  * Default product chrome — Portal → Backdrop + Content → Slides/Zoom + glass
  * controls / caption + counter placard / desktop ThumbnailStrip. Supports bleed (full-width)
@@ -1304,6 +1383,28 @@ function Gallery({
     <Portal>
       <Backdrop />
       <Content aria-label={ariaLabel} className={cx(snug && 'lb-content-snug', solo && 'lb-content-solo') || undefined}>
+        {/* Before Slides so Tab reaches the controls before the docked strip. */}
+        <div className={cx('lb-top-right', 'lb-chrome-gesture-hide')}>
+          {/* Layout toggle. User copy: "theater" = bleed (one wide slide),
+              "peek" = snug (card with neighbours peeking). The icon is a
+              miniature of the CURRENT layout; the label names the TARGET. */}
+          <button
+            type="button"
+            className={cx('lb-control', 'lb-control-md', 'lb-control-layout')}
+            aria-pressed={snug}
+            aria-label={snug ? 'Switch to theater layout' : 'Switch to peek layout'}
+            onClick={toggleSlidesLayout}
+          >
+            {snug ? <IconLayoutSnug /> : <IconLayoutBleed />}
+          </button>
+          {/* Zoom −/+ share one capsule with a hairline divider. */}
+          <div className={cx('lb-control-group', 'lb-control-md')}>
+            <ZoomOut />
+            <ZoomIn />
+          </div>
+          <Close />
+        </div>
+
         <Slides
           key={slidesLayout}
           aria-label="Full-size images"
@@ -1353,30 +1454,14 @@ function Gallery({
               </Slide>
             );
           })}
+          {solo ? null : (
+            <StripDock>
+              <GalleryThumbnailStrip items={items} />
+            </StripDock>
+          )}
         </Slides>
 
-        <div className={cx('lb-top-right', 'lb-chrome-gesture-hide')}>
-          {/* Layout toggle. User copy: "theater" = bleed (one wide slide),
-              "peek" = snug (card with neighbours peeking). The icon is a
-              miniature of the CURRENT layout; the label names the TARGET. */}
-          <button
-            type="button"
-            className={cx('lb-control', 'lb-control-md', 'lb-control-layout')}
-            aria-pressed={snug}
-            aria-label={snug ? 'Switch to theater layout' : 'Switch to peek layout'}
-            onClick={toggleSlidesLayout}
-          >
-            {snug ? <IconLayoutSnug /> : <IconLayoutBleed />}
-          </button>
-          {/* Zoom −/+ share one capsule with a hairline divider. */}
-          <div className={cx('lb-control-group', 'lb-control-md')}>
-            <ZoomOut />
-            <ZoomIn />
-          </div>
-          <Close />
-        </div>
-
-        <div className={cx('lb-bottom', 'lb-chrome-gesture-hide', solo && 'lb-bottom-solo')}>
+        <BottomBand solo={solo} strip={<GalleryThumbnailStrip items={items} />}>
           {/*
             Caption under the media, placard-style. The counter is visible on
             mobile where there's no strip to show position; on md+ the strip
@@ -1388,8 +1473,7 @@ function Gallery({
             {/* "1 of 1" is noise — skip the counter for single-item galleries. */}
             {solo ? null : <Counter>{({ current, total }) => `${current} of ${total}`}</Counter>}
           </div>
-          <GalleryThumbnailStrip items={items} />
-        </div>
+        </BottomBand>
       </Content>
     </Portal>
   );
@@ -1748,9 +1832,9 @@ export const Lightbox = {
 }
 
 /* Pull-to-dismiss hides all gesture chrome; zoom hides the bottom placard
-   (the zoomed media pans under it). */
+   and the docked strip (the zoomed media pans under them). */
 .lb-content:is([data-pulling], [data-pull-dismissing]) .lb-chrome-gesture-hide,
-.lb-content[data-zoomed] .lb-bottom {
+.lb-content[data-zoomed] :is(.lb-bottom, .lb-strip-dock) {
   opacity: 0;
   visibility: hidden;
   transition:
@@ -1773,7 +1857,8 @@ export const Lightbox = {
   position: absolute;
   inset-inline-end: 0.75rem;
   top: calc(0.75rem + env(safe-area-inset-top, 0px));
-  z-index: 1;
+  /* Rendered before Slides, so it outranks the strip dock and the zoomed snug card. */
+  z-index: 3;
   display: flex;
   gap: 0.5rem;
 }
@@ -1791,6 +1876,49 @@ export const Lightbox = {
   gap: 0.75rem;
   padding-inline: 0.75rem;
   padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+}
+
+/* md+: the strip docks inside Slides (see .lb-strip-dock), so the band only
+   reserves its row (5.125rem) and the gap above it. */
+@media (min-width: 768px) {
+  .lb-bottom-docked {
+    padding-bottom: calc(6.875rem + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/*
+ * Thumbnail strip docked inside Slides. Wheel scroll chains through the
+ * containing block, so an overlay beside the scroller never scrolls it; a
+ * sticky child does, and stays pinned to the scrollport. `order: -1` and the
+ * negative end margin give it zero net inline size, so the slides' snap
+ * positions and geometry are unchanged (the margin also cancels the track gap
+ * after it — 0 in bleed on md+, `--lb-snug-gap` in snug).
+ */
+.lb-strip-dock {
+  box-sizing: border-box;
+  pointer-events: none;
+  position: sticky;
+  inset-inline: 0;
+  z-index: 2;
+  order: -1;
+  flex: none;
+  align-self: flex-end;
+  width: 100cqw;
+  margin-inline-end: calc(-100cqw - var(--lb-snug-gap, 0px));
+  padding-inline: 0.75rem;
+  padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+}
+
+/* While zoomed the media paints over the fading strip. */
+.lb-content[data-zoomed] .lb-strip-dock {
+  z-index: 0;
+}
+
+/* The strip is desktop-only. */
+@media (max-width: 767px) {
+  .lb-strip-dock {
+    display: none;
+  }
 }
 
 /* Solo (no strip): center the placard in the bottom inset band instead of

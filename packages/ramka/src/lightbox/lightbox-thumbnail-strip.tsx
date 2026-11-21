@@ -48,21 +48,10 @@ interface LightboxThumbnailStripProps extends useRender.ComponentProps<'div', Li
    */
   scrubOnSelect?: boolean;
   /**
-   * When true (default), pointer thumbnail selection runs an element-scoped
-   * View Transition on Slides around the active-index commit (stage crossfade).
-   * Falls back to a plain commit when unsupported or
-   * `prefers-reduced-motion`. Tune with `--lightbox-select-vt-duration` /
-   * `--lightbox-select-vt-easing` on Slides. Keyboard and Previous / Next
-   * navigation always keep an instant stage commit (the strip still scrubs
-   * when `scrubOnSelect` is on).
-   */
-  selectViewTransition?: boolean;
-  /**
    * Optional wrapper around the active-index commit so consumers can arm
    * custom WAAPI (e.g. an indicator scrub) *before* `commit` jumps Slides.
-   * `commit` already includes the baked Slides view transition when
-   * `selectViewTransition` is on. Track scrub still runs outside this
-   * callback. Defaults to invoking `commit` immediately.
+   * Track scrub still runs outside this callback. Defaults to invoking
+   * `commit` immediately.
    */
   wrapSelectCommit?: (commit: () => void, slides: HTMLElement | null, index: number) => void;
 }
@@ -70,10 +59,6 @@ interface LightboxThumbnailStripProps extends useRender.ComponentProps<'div', Li
 /** Baked discrete-nav scrub timing (not a public prop — keep the API lean). */
 const SCRUB_DURATION_MS = 450;
 const SCRUB_EASING = 'cubic-bezier(0.22, 1, 0.36, 1)';
-
-type SlidesVtHost = HTMLElement & {
-  startViewTransition?: (cb: () => void) => unknown;
-};
 
 const thumbnailStripStateAttributesMapping = {
   scrubbing: (value: unknown) => (value ? { 'data-scrubbing': '' } : null),
@@ -85,11 +70,9 @@ const thumbnailStripStateAttributesMapping = {
  *
  * Always centers the active thumbnail under the thumbnail-strip midline (Photos-style).
  * Owns midline padding, overflow clip, Slides→track sync via native
- * `ScrollTimeline` + WAAPI (JS scroll→transform fallback when unavailable),
- * and (by default) an element-scoped Slides view transition on pointer select.
+ * `ScrollTimeline` + WAAPI (JS scroll→transform fallback when unavailable).
  * Keyboard / Previous / Next reuse the track scrub when mounted. Consumers style
- * flex/gap, thumb size, optional midline chrome, and VT look via
- * `--lightbox-select-vt-*` on Slides.
+ * flex/gap, thumb size, and optional midline chrome.
  */
 const LightboxThumbnailStrip = React.forwardRef<HTMLDivElement, LightboxThumbnailStripProps>(
   function LightboxThumbnailStrip(props, forwardedRef) {
@@ -97,7 +80,6 @@ const LightboxThumbnailStrip = React.forwardRef<HTMLDivElement, LightboxThumbnai
       render,
       children,
       scrubOnSelect = true,
-      selectViewTransition = true,
       wrapSelectCommit,
       style,
       ...elementProps
@@ -496,7 +478,7 @@ const LightboxThumbnailStrip = React.forwardRef<HTMLDivElement, LightboxThumbnai
 
     const selectIndex = React.useCallback(
       (index: number, options?: LightboxThumbnailStripSelectOptions) => {
-        const { source = 'thumbnail', stageViewTransition = true } = options ?? {};
+        const { source = 'thumbnail' } = options ?? {};
         if (index === activeIndexRef.current || navigationLockedRef.current) return;
 
         const track = trackRef.current;
@@ -542,8 +524,7 @@ const LightboxThumbnailStrip = React.forwardRef<HTMLDivElement, LightboxThumbnai
               fill: 'forwards',
             },
           );
-          // Hold on the first frame until the index commit starts (so a
-          // select view transition can capture a stable "old" slide).
+          // Hold on the first frame until the index commit starts.
           scrubAnim.pause();
           scrubAnim.currentTime = 0;
           scrubAnimRef.current = scrubAnim;
@@ -622,20 +603,8 @@ const LightboxThumbnailStrip = React.forwardRef<HTMLDivElement, LightboxThumbnai
           setActiveIndex(index, source);
         };
 
-        // Stage VT is pointer-select only — keyboard / buttons pass
-        // `stageViewTransition: false` (instant Slides jump, strip still scrubs).
-        const useSelectVt = selectViewTransition && stageViewTransition;
-
         const commit = () => {
-          const host = slides as SlidesVtHost | null;
-          const startVt = host?.startViewTransition;
-          if (useSelectVt && !reduceMotion && typeof startVt === 'function') {
-            startVt.call(host, () => {
-              flushSync(applyIndex);
-            });
-          } else {
-            flushSync(applyIndex);
-          }
+          flushSync(applyIndex);
         };
 
         if (wrapSelectCommit) {
@@ -651,7 +620,6 @@ const LightboxThumbnailStrip = React.forwardRef<HTMLDivElement, LightboxThumbnai
       },
       [
         scrubOnSelect,
-        selectViewTransition,
         wrapSelectCommit,
         setActiveIndex,
         navigationLockedRef,
@@ -663,12 +631,12 @@ const LightboxThumbnailStrip = React.forwardRef<HTMLDivElement, LightboxThumbnai
     );
 
     // Publish so Root's `navigate` (Content keyboard / Previous / Next) can
-    // reuse the scrub path. Those sources never run the stage view transition.
+    // reuse the scrub path.
     const selectIndexRef = React.useRef(selectIndex);
     selectIndexRef.current = selectIndex;
     React.useLayoutEffect(() => {
       const stripSelect = (index: number, source: NavigationSource) => {
-        selectIndexRef.current(index, { source, stageViewTransition: false });
+        selectIndexRef.current(index, { source });
       };
       thumbnailStripSelectRef.current = stripSelect;
       return () => {

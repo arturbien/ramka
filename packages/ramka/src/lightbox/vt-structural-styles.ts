@@ -1,9 +1,6 @@
 import { VIEW_TRANSITION_NAME } from './vt-constants';
-import { LightboxDocumentCssVars, LightboxThumbnailStripCssVars } from './lightbox-css-vars';
-import {
-  LightboxDocumentDataAttributes,
-  LightboxSlidesDataAttributes,
-} from './lightbox-data-attributes';
+import { LightboxDocumentCssVars } from './lightbox-css-vars';
+import { LightboxDocumentDataAttributes } from './lightbox-data-attributes';
 import { VIEW_TRANSITION_PRESETS } from './vt-timing';
 import { ensureLibrarySheet } from './vt-style-sheets';
 
@@ -30,7 +27,6 @@ function buildCss(): string {
   const vt = LightboxDocumentDataAttributes.viewTransition;
   const isolate = LightboxDocumentDataAttributes.viewTransitionIsolate;
   const crossfade = LightboxDocumentDataAttributes.crossfade;
-  const slides = LightboxSlidesDataAttributes.slides;
   const vars = LightboxDocumentCssVars;
   const def = VIEW_TRANSITION_PRESETS.default;
   const groupPseudo = `::view-transition-group(${VIEW_TRANSITION_NAME})`;
@@ -202,20 +198,6 @@ ${presetTimingRules}
   :root[${vt}="closing"][${crossfade}]${newPseudo} {
     animation-timing-function: ${closeEasing} !important;
   }
-}
-
-/* Thumb-jump slides crossfade — the element-scoped view transition started by
-   ThumbnailStrip's selectViewTransition. Tunable via the select-vt vars. */
-[${slides}]::view-transition-group(root) {
-  animation-duration: var(${LightboxThumbnailStripCssVars.selectVtDuration}, 0.4s);
-  animation-timing-function: var(${LightboxThumbnailStripCssVars.selectVtEasing}, cubic-bezier(0.22, 1, 0.36, 1));
-}
-
-[${slides}]::view-transition-old(root),
-[${slides}]::view-transition-new(root) {
-  mix-blend-mode: normal;
-  height: 100%;
-  overflow: clip;
 }
 `;
 }

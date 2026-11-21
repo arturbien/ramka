@@ -4,7 +4,7 @@ import * as React from 'react';
 import { flushSync } from 'react-dom';
 import Image, { type StaticImageData } from 'next/image';
 import * as Lightbox from '@ramka/react/lightbox';
-import { useLightboxTriggerContext } from '@ramka/react';
+import { useLightboxContext, useLightboxTriggerContext } from '@ramka/react';
 import {
   ChevronLeft,
   ChevronRight,
@@ -234,6 +234,42 @@ function GalleryThumbnailStrip({
   );
 }
 
+/*
+ * The strip docks inside Slides so wheel and trackpad swipes over it scroll
+ * the slides. WebKit ignores `position: sticky` in right-to-left scrollers,
+ * so RTL keeps the strip in the bottom band instead. `dir` is read in these
+ * leaves, not in the Gallery: the Lightbox context changes on every slide
+ * change, and reading it there would re-render every slide and thumbnail.
+ */
+function useStripDocked(): boolean {
+  return useLightboxContext().dir !== 'rtl';
+}
+
+function StripDock({ className, children }: { className: string; children: React.ReactNode }) {
+  return useStripDocked() ? <div className={className}>{children}</div> : null;
+}
+
+function ChromeBottom({
+  className,
+  dockedClassName,
+  undockedClassName,
+  strip,
+  children,
+}: {
+  className: string;
+  dockedClassName: string;
+  undockedClassName: string;
+  strip: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  const docked = useStripDocked() && strip != null;
+  return (
+    <div className={`${className} ${docked ? dockedClassName : undockedClassName}`}>
+      {children}
+      {docked ? null : strip}
+    </div>
+  );
+}
 
 /**
  * Default product chrome for docs/examples — the shared fullscreen viewer:
@@ -343,13 +379,16 @@ export function LightboxGallery({
     });
   }, []);
   // Viewport visibility only — linked layout/sync live in Lightbox.ThumbnailStrip.
-  const thumbClass =
-    thumbnails === 'always'
-      ? 'pointer-events-auto lightbox-demo-thumbnail-strip'
-      : 'pointer-events-auto hidden md:block lightbox-demo-thumbnail-strip';
+  const stripVisibility = thumbnails === 'always' ? '' : 'hidden md:block';
 
   // No strip → solo layout: tighter bottom band with the placard centered in it.
   const showStrip = thumbnails !== 'never' && items.length > 1;
+  // A docked strip overlays the band, which only reserves its row:
+  // 5.125rem of strip + 0.75rem gap above the 1rem edge inset.
+  const dockedBottomPadding =
+    thumbnails === 'always'
+      ? 'pb-[calc(6.875rem+env(safe-area-inset-bottom,0px))]'
+      : 'pb-[calc(1rem+env(safe-area-inset-bottom,0px))] md:pb-[calc(6.875rem+env(safe-area-inset-bottom,0px))]';
 
   const backdropTone = backdrop === 'solid' ? 'bg-white dark:bg-black' : 'lightbox-demo-backdrop-light';
   const snug = slidesLayout === 'snug';
@@ -369,6 +408,85 @@ export function LightboxGallery({
         pullToClose={pullToClose}
         className={`lightbox-demo-content fixed inset-0 flex flex-col overscroll-contain outline-none${snug ? ' lightbox-demo-content-snug' : ''}${showStrip ? '' : ' lightbox-demo-content-solo'}`}
       >
+        {/*
+          Toolbar before Slides so Tab reaches it before the docked strip (as it
+          does in RTL). Its `z-30` keeps it above zoomed slides.
+        */}
+        {/*
+          The app-level tooltip wrapper zeroes Base UI's delay; toolbar icons
+          want the platform feel instead — first tooltip after a beat, then
+          instant while moving across the group (provider-shared warm-up).
+        */}
+        <TooltipProvider delay={600}>
+          <div
+            className={`lightbox-demo-chrome-top lightbox-demo-chrome-hide absolute end-3 top-[calc(0.75rem+env(safe-area-inset-top,0px))] z-30 flex gap-2`}
+          >
+            {layoutToggle ? (
+              /* Layout toggle. User copy: "Theater" = bleed (one wide slide),
+                 "Peek" = snug (card with neighbours peeking). The icon is a
+                 miniature of the CURRENT layout; the label names the TARGET. */
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <button
+                      type="button"
+                      // zoom-hide: fades out while zoomed (see pull-progress.css) —
+                      // toggling layouts mid-zoom would remount the track and
+                      // drop the zoom pose.
+                      className={`${lightboxChromeButtonMd} lightbox-demo-chrome-hide lightbox-demo-zoom-hide`}
+                      aria-pressed={snug}
+                      aria-label={snug ? 'Switch to theater layout' : 'Switch to peek layout'}
+                      onClick={toggleSlidesLayout}
+                    />
+                  }
+                >
+                  {/* 16px like the zoom glyphs — the boxy layout glyphs read
+                      heavy at the close button's 18px (the ✕ is optically
+                      lighter, which is why it gets the larger size). */}
+                  {snug ? (
+                    <GalleryHorizontal aria-hidden className="h-4 w-4" strokeWidth={2.25} />
+                  ) : (
+                    <RectangleHorizontal aria-hidden className="h-4 w-4" strokeWidth={2.25} />
+                  )}
+                </TooltipTrigger>
+                <TooltipContent side="bottom">{snug ? 'Theater' : 'Peek'}</TooltipContent>
+              </Tooltip>
+            ) : null}
+            {zoomControls ? (
+              /* Zoom −/+ share one capsule with a hairline divider. */
+              <div className={lightboxChromeButtonGroup}>
+                <Tooltip>
+                  <TooltipTrigger
+                    render={<Lightbox.ZoomOut className={lightboxChromeButtonSegment} aria-label="Zoom out" />}
+                  >
+                    <ZoomOut aria-hidden className="h-4 w-4" strokeWidth={2.25} />
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">Zoom out</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <Lightbox.ZoomIn
+                        className={`${lightboxChromeButtonSegment} ${lightboxChromeSegmentDivider}`}
+                        aria-label="Zoom in"
+                      />
+                    }
+                  >
+                    <ZoomIn aria-hidden className="h-4 w-4" strokeWidth={2.25} />
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">Zoom in</TooltipContent>
+                </Tooltip>
+              </div>
+            ) : null}
+            <Tooltip>
+              <TooltipTrigger render={<Lightbox.Close className={lightboxChromeButton} aria-label="Close" />}>
+                <X aria-hidden className="h-[18px] w-[18px]" strokeWidth={2.25} />
+              </TooltipTrigger>
+              <TooltipContent side="bottom">Close</TooltipContent>
+            </Tooltip>
+          </div>
+        </TooltipProvider>
+
         <Lightbox.Slides
           // Remount the track when the toggle flips layouts mid-session — the
           // bleed/snug geometry (spacers, widths) shouldn't animate between.
@@ -469,91 +587,30 @@ export function LightboxGallery({
               </Lightbox.Slide>
             );
           })}
+          {showStrip ? (
+            // Pinned to the scrollport by `thumbnail-strip-scroll-link.css`.
+            <StripDock
+              className={`lightbox-demo-strip-dock lightbox-demo-chrome-hide lightbox-demo-zoom-hide ${stripVisibility}`}
+            >
+              <GalleryThumbnailStrip items={items} className="pointer-events-auto lightbox-demo-thumbnail-strip" />
+            </StripDock>
+          ) : null}
         </Lightbox.Slides>
 
         {overlay}
 
-        {/*
-          Chrome after Slides, and above snug zoomed-slide `z-20` — DOM order alone
-          can’t win when a sibling slide creates a higher stacking context.
-        */}
-        {/*
-          The app-level tooltip wrapper zeroes Base UI's delay; toolbar icons
-          want the platform feel instead — first tooltip after a beat, then
-          instant while moving across the group (provider-shared warm-up).
-        */}
-        <TooltipProvider delay={600}>
-          <div
-            className={`lightbox-demo-chrome-top lightbox-demo-chrome-hide absolute end-3 top-[calc(0.75rem+env(safe-area-inset-top,0px))] z-30 flex gap-2`}
-          >
-            {layoutToggle ? (
-              /* Layout toggle. User copy: "Theater" = bleed (one wide slide),
-                 "Peek" = snug (card with neighbours peeking). The icon is a
-                 miniature of the CURRENT layout; the label names the TARGET. */
-              <Tooltip>
-                <TooltipTrigger
-                  render={
-                    <button
-                      type="button"
-                      // zoom-hide: fades out while zoomed (see pull-progress.css) —
-                      // toggling layouts mid-zoom would remount the track and
-                      // drop the zoom pose.
-                      className={`${lightboxChromeButtonMd} lightbox-demo-chrome-hide lightbox-demo-zoom-hide`}
-                      aria-pressed={snug}
-                      aria-label={snug ? 'Switch to theater layout' : 'Switch to peek layout'}
-                      onClick={toggleSlidesLayout}
-                    />
-                  }
-                >
-                  {/* 16px like the zoom glyphs — the boxy layout glyphs read
-                      heavy at the close button's 18px (the ✕ is optically
-                      lighter, which is why it gets the larger size). */}
-                  {snug ? (
-                    <GalleryHorizontal aria-hidden className="h-4 w-4" strokeWidth={2.25} />
-                  ) : (
-                    <RectangleHorizontal aria-hidden className="h-4 w-4" strokeWidth={2.25} />
-                  )}
-                </TooltipTrigger>
-                <TooltipContent side="bottom">{snug ? 'Theater' : 'Peek'}</TooltipContent>
-              </Tooltip>
-            ) : null}
-            {zoomControls ? (
-              /* Zoom −/+ share one capsule with a hairline divider. */
-              <div className={lightboxChromeButtonGroup}>
-                <Tooltip>
-                  <TooltipTrigger
-                    render={<Lightbox.ZoomOut className={lightboxChromeButtonSegment} aria-label="Zoom out" />}
-                  >
-                    <ZoomOut aria-hidden className="h-4 w-4" strokeWidth={2.25} />
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom">Zoom out</TooltipContent>
-                </Tooltip>
-                <Tooltip>
-                  <TooltipTrigger
-                    render={
-                      <Lightbox.ZoomIn
-                        className={`${lightboxChromeButtonSegment} ${lightboxChromeSegmentDivider}`}
-                        aria-label="Zoom in"
-                      />
-                    }
-                  >
-                    <ZoomIn aria-hidden className="h-4 w-4" strokeWidth={2.25} />
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom">Zoom in</TooltipContent>
-                </Tooltip>
-              </div>
-            ) : null}
-            <Tooltip>
-              <TooltipTrigger render={<Lightbox.Close className={lightboxChromeButton} aria-label="Close" />}>
-                <X aria-hidden className="h-[18px] w-[18px]" strokeWidth={2.25} />
-              </TooltipTrigger>
-              <TooltipContent side="bottom">Close</TooltipContent>
-            </Tooltip>
-          </div>
-        </TooltipProvider>
-
-        <div
-          className={`lightbox-demo-chrome-bottom lightbox-demo-chrome-hide${showStrip ? '' : ' lightbox-demo-chrome-bottom-solo'} pointer-events-none absolute inset-x-0 bottom-0 z-30 flex flex-col items-center gap-3 px-3 pb-[calc(1rem+env(safe-area-inset-bottom,0px))]`}
+        <ChromeBottom
+          className={`lightbox-demo-chrome-bottom lightbox-demo-chrome-hide${showStrip ? '' : ' lightbox-demo-chrome-bottom-solo'} pointer-events-none absolute inset-x-0 bottom-0 z-30 flex flex-col items-center px-3`}
+          dockedClassName={dockedBottomPadding}
+          undockedClassName="gap-3 pb-[calc(1rem+env(safe-area-inset-bottom,0px))]"
+          strip={
+            showStrip ? (
+              <GalleryThumbnailStrip
+                items={items}
+                className={`pointer-events-auto lightbox-demo-thumbnail-strip ${stripVisibility}`}
+              />
+            ) : null
+          }
         >
           {/*
             Caption under the media, placard-style, on every breakpoint. The
@@ -572,8 +629,7 @@ export function LightboxGallery({
               </Lightbox.Counter>
             ) : null}
           </div>
-          {showStrip ? <GalleryThumbnailStrip items={items} className={thumbClass} /> : null}
-        </div>
+        </ChromeBottom>
       </Lightbox.Content>
     </Lightbox.Portal>
   );

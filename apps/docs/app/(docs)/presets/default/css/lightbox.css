@@ -320,9 +320,9 @@
 }
 
 /* Pull-to-dismiss hides all gesture chrome; zoom hides the bottom placard
-   (the zoomed media pans under it). */
+   and the docked strip (the zoomed media pans under them). */
 .lb-content:is([data-pulling], [data-pull-dismissing]) .lb-chrome-gesture-hide,
-.lb-content[data-zoomed] .lb-bottom {
+.lb-content[data-zoomed] :is(.lb-bottom, .lb-strip-dock) {
   opacity: 0;
   visibility: hidden;
   transition:
@@ -345,7 +345,8 @@
   position: absolute;
   inset-inline-end: 0.75rem;
   top: calc(0.75rem + env(safe-area-inset-top, 0px));
-  z-index: 1;
+  /* Rendered before Slides, so it outranks the strip dock and the zoomed snug card. */
+  z-index: 3;
   display: flex;
   gap: 0.5rem;
 }
@@ -363,6 +364,49 @@
   gap: 0.75rem;
   padding-inline: 0.75rem;
   padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+}
+
+/* md+: the strip docks inside Slides (see .lb-strip-dock), so the band only
+   reserves its row (5.125rem) and the gap above it. */
+@media (min-width: 768px) {
+  .lb-bottom-docked {
+    padding-bottom: calc(6.875rem + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/*
+ * Thumbnail strip docked inside Slides. Wheel scroll chains through the
+ * containing block, so an overlay beside the scroller never scrolls it; a
+ * sticky child does, and stays pinned to the scrollport. `order: -1` and the
+ * negative end margin give it zero net inline size, so the slides' snap
+ * positions and geometry are unchanged (the margin also cancels the track gap
+ * after it — 0 in bleed on md+, `--lb-snug-gap` in snug).
+ */
+.lb-strip-dock {
+  box-sizing: border-box;
+  pointer-events: none;
+  position: sticky;
+  inset-inline: 0;
+  z-index: 2;
+  order: -1;
+  flex: none;
+  align-self: flex-end;
+  width: 100cqw;
+  margin-inline-end: calc(-100cqw - var(--lb-snug-gap, 0px));
+  padding-inline: 0.75rem;
+  padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+}
+
+/* While zoomed the media paints over the fading strip. */
+.lb-content[data-zoomed] .lb-strip-dock {
+  z-index: 0;
+}
+
+/* The strip is desktop-only. */
+@media (max-width: 767px) {
+  .lb-strip-dock {
+    display: none;
+  }
 }
 
 /* Solo (no strip): center the placard in the bottom inset band instead of

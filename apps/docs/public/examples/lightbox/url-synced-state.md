@@ -504,6 +504,33 @@ export const galleryPhotos: GalleryPhoto[] = (
  * floating square. Aspect-morph nine-slice lives on the debug recipes page.
  */
 
+/*
+ * Strip docked inside Slides. Wheel scroll chains through the containing
+ * block, so an overlay beside the scroller never scrolls it; a sticky child
+ * does, and stays pinned to the scrollport. `order: -1` and the negative end
+ * margin give it zero net inline size, so the slides' snap positions and
+ * geometry are unchanged (the margin also cancels the track gap after it).
+ */
+.lightbox-demo-strip-dock {
+  box-sizing: border-box;
+  order: -1;
+  position: sticky;
+  inset-inline: 0;
+  z-index: 2;
+  flex: none;
+  align-self: flex-end;
+  width: 100cqw;
+  margin-inline-end: calc(-100cqw - var(--lightbox-snug-gap, var(--lightbox-ssr-slide-gap, 0px)));
+  padding-inline: 0.75rem;
+  padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+  pointer-events: none;
+}
+
+/* Zoomed media paints above the fading strip (see pull-progress.css). */
+.lightbox-demo-content[data-zoomed] .lightbox-demo-strip-dock {
+  z-index: 0;
+}
+
 .lightbox-demo-thumbnail-strip {
   --lightbox-demo-thumb-h: 4.5rem;
   --lightbox-demo-thumbnail-strip-fade: 40px;
@@ -611,7 +638,4 @@ export const galleryPhotos: GalleryPhoto[] = (
 :is(.dark, [data-theme='dark']) .lightbox-demo-thumbnail-strip-indicator {
   border-color: #fff;
 }
-
-/* Thumb-jump slides crossfade CSS is injected by the library — tune with
-   `--lightbox-select-vt-*` on Slides (or a parent). */
 ```

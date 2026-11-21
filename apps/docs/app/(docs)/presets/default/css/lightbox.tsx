@@ -14,6 +14,7 @@
  */
 
 import * as React from 'react';
+import { useLightboxContext } from '@ramka/react';
 import * as RamkaLightbox from '@ramka/react/lightbox';
 
 import './lightbox.css';
@@ -230,6 +231,31 @@ function GalleryThumbnailStrip({ items }: { items: LightboxItem[] }) {
   );
 }
 
+/*
+ * The strip docks inside Slides so wheel and trackpad swipes over it scroll
+ * the slides. WebKit ignores `position: sticky` in right-to-left scrollers,
+ * so RTL keeps the strip in the bottom band instead. `dir` is read in these
+ * leaves, not in Gallery: the Lightbox context changes on every slide change,
+ * and reading it there would re-render every slide and thumbnail.
+ */
+function useStripDocked(): boolean {
+  return useLightboxContext().dir !== 'rtl';
+}
+
+function StripDock({ children }: { children: React.ReactNode }) {
+  return useStripDocked() ? <div className={cx('lb-strip-dock', 'lb-chrome-gesture-hide')}>{children}</div> : null;
+}
+
+function BottomBand({ solo, strip, children }: { solo: boolean; strip: React.ReactNode; children: React.ReactNode }) {
+  const docked = useStripDocked() && !solo;
+  return (
+    <div className={cx('lb-bottom', 'lb-chrome-gesture-hide', solo && 'lb-bottom-solo', docked && 'lb-bottom-docked')}>
+      {children}
+      {docked ? null : strip}
+    </div>
+  );
+}
+
 /**
  * Default product chrome — Portal → Backdrop + Content → Slides/Zoom + glass
  * controls / caption + counter placard / desktop ThumbnailStrip. Supports bleed (full-width)
@@ -281,6 +307,28 @@ function Gallery({
     <Portal>
       <Backdrop />
       <Content aria-label={ariaLabel} className={cx(snug && 'lb-content-snug', solo && 'lb-content-solo') || undefined}>
+        {/* Before Slides so Tab reaches the controls before the docked strip. */}
+        <div className={cx('lb-top-right', 'lb-chrome-gesture-hide')}>
+          {/* Layout toggle. User copy: "theater" = bleed (one wide slide),
+              "peek" = snug (card with neighbours peeking). The icon is a
+              miniature of the CURRENT layout; the label names the TARGET. */}
+          <button
+            type="button"
+            className={cx('lb-control', 'lb-control-md', 'lb-control-layout')}
+            aria-pressed={snug}
+            aria-label={snug ? 'Switch to theater layout' : 'Switch to peek layout'}
+            onClick={toggleSlidesLayout}
+          >
+            {snug ? <IconLayoutSnug /> : <IconLayoutBleed />}
+          </button>
+          {/* Zoom −/+ share one capsule with a hairline divider. */}
+          <div className={cx('lb-control-group', 'lb-control-md')}>
+            <ZoomOut />
+            <ZoomIn />
+          </div>
+          <Close />
+        </div>
+
         <Slides
           key={slidesLayout}
           aria-label="Full-size images"
@@ -330,30 +378,14 @@ function Gallery({
               </Slide>
             );
           })}
+          {solo ? null : (
+            <StripDock>
+              <GalleryThumbnailStrip items={items} />
+            </StripDock>
+          )}
         </Slides>
 
-        <div className={cx('lb-top-right', 'lb-chrome-gesture-hide')}>
-          {/* Layout toggle. User copy: "theater" = bleed (one wide slide),
-              "peek" = snug (card with neighbours peeking). The icon is a
-              miniature of the CURRENT layout; the label names the TARGET. */}
-          <button
-            type="button"
-            className={cx('lb-control', 'lb-control-md', 'lb-control-layout')}
-            aria-pressed={snug}
-            aria-label={snug ? 'Switch to theater layout' : 'Switch to peek layout'}
-            onClick={toggleSlidesLayout}
-          >
-            {snug ? <IconLayoutSnug /> : <IconLayoutBleed />}
-          </button>
-          {/* Zoom −/+ share one capsule with a hairline divider. */}
-          <div className={cx('lb-control-group', 'lb-control-md')}>
-            <ZoomOut />
-            <ZoomIn />
-          </div>
-          <Close />
-        </div>
-
-        <div className={cx('lb-bottom', 'lb-chrome-gesture-hide', solo && 'lb-bottom-solo')}>
+        <BottomBand solo={solo} strip={<GalleryThumbnailStrip items={items} />}>
           {/*
             Caption under the media, placard-style. The counter is visible on
             mobile where there's no strip to show position; on md+ the strip
@@ -365,8 +397,7 @@ function Gallery({
             {/* "1 of 1" is noise — skip the counter for single-item galleries. */}
             {solo ? null : <Counter>{({ current, total }) => `${current} of ${total}`}</Counter>}
           </div>
-          <GalleryThumbnailStrip items={items} />
-        </div>
+        </BottomBand>
       </Content>
     </Portal>
   );

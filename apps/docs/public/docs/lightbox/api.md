@@ -361,15 +361,14 @@ A single thumbnail tab that activates the given index.
 
 ### ThumbnailStrip
 
-Scroll-linked thumbnail strip root. Always centers the active thumbnail on the midline (Photos-style): owns overflow clip, measured midline track padding (from registered Thumbnail nodes — not role=tab queries), and Slides→track sync via native ScrollTimeline + WAAPI (JS scroll→transform fallback when ScrollTimeline is unavailable). Compose with ThumbnailStripTrack + Thumbnails; optional midline selection chrome is plain consumer markup (strip root is position:relative). Discrete nav (pointer thumb, keyboard, Previous/Next) goes through ThumbnailStrip (DocumentTimeline WAAPI track scrub via scrubOnSelect; element-scoped Slides view transition on pointer select via selectViewTransition — tune with --lightbox-select-vt-duration / --lightbox-select-vt-easing on Slides; optional wrapSelectCommit(commit, slides, index) to arm consumer WAAPI such as an indicator scrub before the scroll jump). Keyboard / Previous / Next keep an instant stage commit while the strip still scrubs. Flex/gap/thumb size remain consumer CSS.
+Scroll-linked thumbnail strip root. Always centers the active thumbnail on the midline (Photos-style): owns overflow clip, measured midline track padding (from registered Thumbnail nodes — not role=tab queries), and Slides→track sync via native ScrollTimeline + WAAPI (JS scroll→transform fallback when ScrollTimeline is unavailable). Compose with ThumbnailStripTrack + Thumbnails; optional midline selection chrome is plain consumer markup (strip root is position:relative). Discrete nav (pointer thumb, keyboard, Previous/Next) goes through ThumbnailStrip (DocumentTimeline WAAPI track scrub via scrubOnSelect; optional wrapSelectCommit(commit, slides, index) to arm consumer WAAPI such as an indicator scrub before the scroll jump). Flex/gap/thumb size remain consumer CSS.
 
 #### Props
 
 | Name | Type | Default | Description |
 | --- | --- | --- | --- |
 | scrubOnSelect | `boolean` |  | When true (default), discrete navigation (thumbnail pointer, keyboard, Previous/Next) WAAPI-scrubs the track to the target index. When false, the strip follows the Slides jump via the scroll link. |
-| selectViewTransition | `boolean` |  | When true (default), pointer thumbnail selection runs an element-scoped View Transition on Slides around the active-index commit (stage crossfade). Falls back to a plain commit when unsupported or `prefers-reduced-motion`. Tune with `--lightbox-select-vt-duration` / `--lightbox-select-vt-easing` on Slides. Keyboard and Previous / Next navigation always keep an instant stage commit (the strip still scrubs when `scrubOnSelect` is on). |
-| wrapSelectCommit | `(commit: () => void, slides: HTMLElement \| null, index: number) => void` |  | Optional wrapper around the active-index commit so consumers can arm custom WAAPI (e.g. an indicator scrub) *before* `commit` jumps Slides. `commit` already includes the baked Slides view transition when `selectViewTransition` is on. Track scrub still runs outside this callback. Defaults to invoking `commit` immediately. |
+| wrapSelectCommit | `(commit: () => void, slides: HTMLElement \| null, index: number) => void` |  | Optional wrapper around the active-index commit so consumers can arm custom WAAPI (e.g. an indicator scrub) *before* `commit` jumps Slides. Track scrub still runs outside this callback. Defaults to invoking `commit` immediately. |
 | render | `ReactElement \| ComponentRenderFn` |  | Replaces the part's default element with another tag or component. Accepts an element to clone, or a function that returns one. |
 
 #### Data attributes
@@ -386,8 +385,6 @@ Scroll-linked thumbnail strip root. Always centers the active thumbnail on the m
 | Name | Type | Description |
 | --- | --- | --- |
 | `--lightbox-thumbnail-strip-travel` |  | End `translateX` travel for the scroll link (negative px length to center the last thumb — `(count - 1) * step` when thumbs are uniform). Set on the ThumbnailStripTrack. |
-| `--lightbox-select-vt-duration` |  | Duration of the element-scoped Slides view transition on pointer thumb select (`selectViewTransition`). Set on Slides (or a parent) and use from `::view-transition-group(root)` — library starts the transition; CSS owns the look. Default fallback in demos: `0.4s`. |
-| `--lightbox-select-vt-easing` |  | Easing of the element-scoped Slides view transition on pointer thumb select. Pair with `--lightbox-select-vt-duration`. Default fallback in demos: `cubic-bezier(0.22, 1, 0.36, 1)`. |
 
 ### ThumbnailStripTrack
 

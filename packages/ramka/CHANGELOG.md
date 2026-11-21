@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+
+- `Lightbox.ThumbnailStrip`'s `selectViewTransition` prop and the
+  `--lightbox-select-vt-duration` / `--lightbox-select-vt-easing` CSS
+  variables. Clicking a thumbnail no longer runs a view transition on
+  `Lightbox.Slides`; the slides jump and the strip scrubs, the same as keyboard
+  and Previous / Next navigation. The injected structural stylesheet no longer
+  includes the `[data-ramka-slides]` `::view-transition-group/old/new(root)`
+  rules that styled that transition.
+
 ### Fixed
 
 - `Lightbox.Slides` no longer lands on another slide when the window is
@@ -16,6 +26,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a slide up to a dozen or more away. Slides now notices the viewport size
   changed when those events arrive and re-measures and re-pins the active
   slide first.
+- `Lightbox.Content`'s focus trap no longer wraps focus onto an inactive
+  thumbnail. Tabbing past the last control (or Shift+Tabbing past the first)
+  sent focus to the first or last `<button>` in the dialog even when it had
+  `tabindex="-1"`, so it landed on a thumbnail outside the roving tab order.
+  It also skips controls that cannot take focus (disabled, including inside a
+  disabled `<fieldset>`; `display: none` on the control or an ancestor;
+  `visibility: hidden`; or inside an inactive, `inert` item), where the
+  hand-off silently failed. This matches the tabbable rules of Base UI's
+  focus manager.
+- Arrow, Home and End keys in a `Lightbox.ThumbnailStrip` no longer let the
+  browser's focus scroll pan an ancestor scroller (such as `Lightbox.Slides`
+  when the strip sits inside it). The strip positions its own track, so it
+  now focuses the next thumbnail with `preventScroll`.
 
 ## [0.0.2] - 2026-11-09
 

@@ -243,7 +243,6 @@ On first [Root](docs/lightbox/api.md#api-root) mount the library injects one sty
 - **Snapshots** — hard-cut by default (`object-fit: cover`, no UA dissolve); when Trigger `crossfade` sets `data-ramka-crossfade`, the dissolve path (UA fade, `plus-lighter`, `object-fit: fill`) runs on the same preset clock. Open uses the morph ease-out so the destination appears promptly; both phases run that complementary dissolve on a shorter window so the outgoing snapshot is gone before the size settle (`plus-lighter` stays opaque).
 - **Root snapshot** — the page-behind crossfade, kept as a *single* root group (promoting Backdrop / Content into named groups tanks Safari). Fade scrim and chrome with live `opacity` transitions instead.
 - **Morph-target hide** — `[data-morph-target]` gets `opacity: 0` with a 200ms fade-back (disabled during the transition so it can't be captured mid-flight), so the live trigger never shows doubled under the morphing snapshot.
-- **Thumb-jump crossfade** — the element-scoped Slides transition started by ThumbnailStrip's `selectViewTransition`, tunable via `--lightbox-select-vt-duration/easing` on Slides.
 
 Everything except name isolation is gated under `prefers-reduced-motion: no-preference`. The stylesheet is inserted at the *start* of `<head>`, so your own stylesheets cascade after it — overriding any injected rule takes an ordinary declaration of equal specificity, no `!important` needed.
 
