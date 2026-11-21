@@ -406,7 +406,7 @@ export function LightboxGallery({
       <Lightbox.Content
         aria-label={ariaLabel}
         pullToClose={pullToClose}
-        className={`lightbox-demo-content fixed inset-0 flex flex-col overscroll-contain outline-none${snug ? ' lightbox-demo-content-snug' : ''}${showStrip ? '' : ' lightbox-demo-content-solo'}`}
+        className={`lightbox-demo-content fixed inset-0 flex flex-col overscroll-contain outline-none${snug ? ' lightbox-demo-content-snug' : ''}${showStrip ? '' : ' lightbox-demo-content-solo'}${showStrip && thumbnails === 'always' ? ' lightbox-demo-content-strip-always' : ''}`}
       >
         {/*
           Toolbar before Slides so Tab reaches it before the docked strip (as it
@@ -614,9 +614,9 @@ export function LightboxGallery({
         >
           {/*
             Caption under the media, placard-style, on every breakpoint. The
-            counter is visible on mobile where there's no strip to show
-            position; on md+ the strip covers that, so the counter collapses
-            to sr-only and keeps only its aria-live announcement role.
+            counter is visible wherever there's no strip to show position;
+            where the strip shows (md+, or everywhere with `thumbnails="always"`)
+            it collapses to sr-only and keeps only its aria-live announcement role.
           */}
           <div className="flex max-w-full flex-col items-center text-center">
             <Lightbox.Caption className="block max-w-full truncate text-[13px] font-medium leading-tight text-neutral-900 dark:text-neutral-50">
@@ -624,7 +624,9 @@ export function LightboxGallery({
             </Lightbox.Caption>
             {/* "1 of 1" is noise — skip the counter for single-item galleries. */}
             {items.length > 1 ? (
-              <Lightbox.Counter className="text-[11px] leading-tight tabular-nums text-neutral-500 dark:text-neutral-400 md:sr-only">
+              <Lightbox.Counter
+                className={`text-[11px] leading-tight tabular-nums text-neutral-500 dark:text-neutral-400 ${showStrip && thumbnails === 'always' ? 'sr-only' : 'md:sr-only'}`}
+              >
                 {({ current, total }) => `${current} of ${total}`}
               </Lightbox.Counter>
             ) : null}

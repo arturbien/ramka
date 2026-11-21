@@ -280,6 +280,7 @@ export function LandingDemo({ eager = true }: { eager?: boolean }) {
         backdrop="solid"
         slidesLayout="snug"
         layoutToggle
+        thumbnails="always"
       />
     </Lightbox.Root>
   );
