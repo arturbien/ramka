@@ -45,6 +45,7 @@ import { LightboxStage, useOptionalLightboxStageContext } from './lightbox-stage
 import { LightboxThumbnail } from './lightbox-thumbnail';
 import { LightboxThumbnailGroup } from './lightbox-thumbnail-group';
 import { LightboxTrigger } from './lightbox-trigger';
+import { inertWhen } from '../react-compat';
 import { LightboxMedia } from './lightbox-media';
 import { LightboxZoom, type LightboxZoomRef } from './lightbox-zoom';
 import { useZoomContext } from './lightbox-zoom-context';
@@ -1262,7 +1263,7 @@ describe('Lightbox', () => {
               <fieldset disabled>
                 <button type="button">Disabled fieldset</button>
               </fieldset>
-              <div inert>
+              <div {...inertWhen(true)}>
                 <button type="button">Inactive item</button>
               </div>
               <button data-testid="first" type="button">
