@@ -28,10 +28,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   thumbnail. Tabbing past the last control (or Shift+Tabbing past the first)
   sent focus to the first or last `<button>` in the dialog even when it had
   `tabindex="-1"`, so it landed on a thumbnail outside the roving tab order.
-  It also skips controls that cannot take focus (`display: none`,
-  `visibility: hidden`, or inside an inactive, `inert` item), where the
+  It also skips controls that cannot take focus (disabled, including inside a
+  disabled `<fieldset>`; `display: none` on the control or an ancestor;
+  `visibility: hidden`; or inside an inactive, `inert` item), where the
   hand-off silently failed. This matches the tabbable rules of Base UI's
   focus manager.
+- Arrow, Home and End keys in a `Lightbox.ThumbnailStrip` no longer let the
+  browser's focus scroll pan an ancestor scroller (such as `Lightbox.Slides`
+  when the strip sits inside it). The strip positions its own track, so it
+  now focuses the next thumbnail with `preventScroll`.
 
 ## [0.0.2] - 2026-11-09
 

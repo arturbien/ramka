@@ -530,6 +530,46 @@ function GalleryThumbnailStrip({ items }: { items: LightboxItem[] }) {
   );
 }
 
+/*
+ * The strip docks inside Slides so wheel and trackpad swipes over it scroll
+ * the slides. WebKit ignores `position: sticky` in right-to-left scrollers,
+ * so RTL keeps the strip in the bottom band instead. `dir` is read in these
+ * leaves, not in Gallery: the Lightbox context changes on every slide change,
+ * and reading it there would re-render every slide and thumbnail.
+ */
+function useStripDocked(): boolean {
+  return useLightboxContext().dir !== 'rtl';
+}
+
+function StripDock({ children }: { children: React.ReactNode }) {
+  return useStripDocked() ? <div className={stripDockClass}>{children}</div> : null;
+}
+
+function BottomBand({ solo, strip, children }: { solo: boolean; strip: React.ReactNode; children: React.ReactNode }) {
+  const docked = useStripDocked() && !solo;
+  return (
+    <div
+      className={cn(
+        // Click-through the inset band; caption opts back in for text selection.
+        'pointer-events-none absolute inset-x-0 bottom-0 z-[1] flex flex-col items-center gap-3',
+        'px-3 pb-[calc(1rem_+_env(safe-area-inset-bottom,0px))]',
+        // md+: reserve the docked strip's row (5.125rem) and the gap above it.
+        docked && 'md:pb-[calc(6.875rem_+_env(safe-area-inset-bottom,0px))]',
+        chromeGestureHideClass,
+        // Zoom hides the bottom placard (the zoomed media pans under it).
+        'group-data-zoomed/lb:invisible group-data-zoomed/lb:opacity-0',
+        'group-data-zoomed/lb:[transition:opacity_200ms,visibility_0s_linear_200ms]',
+        // Solo (no strip): center the placard in the bottom inset band
+        // instead of pinning it to the viewport edge.
+        solo && 'min-h-(--lb-inset-bottom) justify-center pb-[env(safe-area-inset-bottom,0px)]',
+      )}
+    >
+      {children}
+      {docked ? null : strip}
+    </div>
+  );
+}
+
 /**
  * Default product chrome — Portal → Backdrop + Content → Slides/Zoom + glass
  * controls / caption + counter placard / desktop ThumbnailStrip. Supports bleed (full-width)
@@ -553,11 +593,6 @@ function Gallery({
   const snug = slidesLayout === 'snug';
   // Single item → no thumbnail strip → solo layout (tighter, centered bottom band).
   const solo = items.length <= 1;
-  // The strip docks inside Slides so wheel and trackpad swipes over it scroll
-  // the slides. WebKit ignores `position: sticky` in right-to-left scrollers,
-  // so RTL keeps the strip in the bottom band instead.
-  const { dir } = useLightboxContext();
-  const dockStrip = !solo && dir !== 'rtl';
 
   const setSlidesLayout = React.useCallback(
     (next: SlidesLayout) => {
@@ -596,6 +631,41 @@ function Gallery({
           solo && 'md:[--lb-inset-bottom:calc(4.5rem_+_env(safe-area-inset-bottom,0px))]',
         )}
       >
+        {/* Before Slides so Tab reaches the controls before the docked strip.
+            z-[3] keeps them above the strip and the zoomed snug card. */}
+        <div
+          className={cn(
+            'absolute top-[calc(0.75rem_+_env(safe-area-inset-top,0px))] end-3 z-[3] flex gap-2',
+            chromeGestureHideClass,
+            // On mobile, zoom also hides the top controls — the media fills the screen.
+            'max-md:group-data-zoomed/lb:invisible max-md:group-data-zoomed/lb:opacity-0',
+            'max-md:group-data-zoomed/lb:[transition:opacity_200ms,visibility_0s_linear_200ms]',
+          )}
+        >
+          {/* Layout toggle. User copy: "theater" = bleed (one wide slide),
+              "peek" = snug (card with neighbours peeking). The icon is a
+              miniature of the CURRENT layout; the label names the TARGET. */}
+          <button
+            type="button"
+            className={cn(controlClass, 'max-md:hidden [&_svg]:size-4.5')}
+            aria-pressed={snug}
+            aria-label={snug ? 'Switch to theater layout' : 'Switch to peek layout'}
+            onClick={toggleSlidesLayout}
+          >
+            {snug ? (
+              <GalleryHorizontalIcon strokeWidth={2.25} />
+            ) : (
+              <RectangleHorizontalIcon strokeWidth={2.25} />
+            )}
+          </button>
+          {/* Zoom −/+ share one capsule with a hairline divider. */}
+          <div className={cn(controlGroupClass, 'max-md:hidden')}>
+            <ZoomOut className={controlSegmentClass} />
+            <ZoomIn className={cn(controlSegmentClass, controlSegmentDividerClass)} />
+          </div>
+          <Close />
+        </div>
+
         <Slides
           key={slidesLayout}
           aria-label="Full-size images"
@@ -646,62 +716,14 @@ function Gallery({
               </Slide>
             );
           })}
-          {dockStrip ? (
-            <div className={stripDockClass}>
+          {solo ? null : (
+            <StripDock>
               <GalleryThumbnailStrip items={items} />
-            </div>
-          ) : null}
+            </StripDock>
+          )}
         </Slides>
 
-        <div
-          className={cn(
-            'absolute top-[calc(0.75rem_+_env(safe-area-inset-top,0px))] end-3 z-[1] flex gap-2',
-            chromeGestureHideClass,
-            // On mobile, zoom also hides the top controls — the media fills the screen.
-            'max-md:group-data-zoomed/lb:invisible max-md:group-data-zoomed/lb:opacity-0',
-            'max-md:group-data-zoomed/lb:[transition:opacity_200ms,visibility_0s_linear_200ms]',
-          )}
-        >
-          {/* Layout toggle. User copy: "theater" = bleed (one wide slide),
-              "peek" = snug (card with neighbours peeking). The icon is a
-              miniature of the CURRENT layout; the label names the TARGET. */}
-          <button
-            type="button"
-            className={cn(controlClass, 'max-md:hidden [&_svg]:size-4.5')}
-            aria-pressed={snug}
-            aria-label={snug ? 'Switch to theater layout' : 'Switch to peek layout'}
-            onClick={toggleSlidesLayout}
-          >
-            {snug ? (
-              <GalleryHorizontalIcon strokeWidth={2.25} />
-            ) : (
-              <RectangleHorizontalIcon strokeWidth={2.25} />
-            )}
-          </button>
-          {/* Zoom −/+ share one capsule with a hairline divider. */}
-          <div className={cn(controlGroupClass, 'max-md:hidden')}>
-            <ZoomOut className={controlSegmentClass} />
-            <ZoomIn className={cn(controlSegmentClass, controlSegmentDividerClass)} />
-          </div>
-          <Close />
-        </div>
-
-        <div
-          className={cn(
-            // Click-through the inset band; caption opts back in for text selection.
-            'pointer-events-none absolute inset-x-0 bottom-0 z-[1] flex flex-col items-center gap-3',
-            'px-3 pb-[calc(1rem_+_env(safe-area-inset-bottom,0px))]',
-            // md+: reserve the docked strip's row (5.125rem) and the gap above it.
-            dockStrip && 'md:pb-[calc(6.875rem_+_env(safe-area-inset-bottom,0px))]',
-            chromeGestureHideClass,
-            // Zoom hides the bottom placard (the zoomed media pans under it).
-            'group-data-zoomed/lb:invisible group-data-zoomed/lb:opacity-0',
-            'group-data-zoomed/lb:[transition:opacity_200ms,visibility_0s_linear_200ms]',
-            // Solo (no strip): center the placard in the bottom inset band
-            // instead of pinning it to the viewport edge.
-            solo && 'min-h-(--lb-inset-bottom) justify-center pb-[env(safe-area-inset-bottom,0px)]',
-          )}
-        >
+        <BottomBand solo={solo} strip={<GalleryThumbnailStrip items={items} />}>
           {/*
             Caption under the media, placard-style. The counter is visible on
             mobile where there's no strip to show position; on md+ the strip
@@ -713,8 +735,7 @@ function Gallery({
             {/* "1 of 1" is noise — skip the counter for single-item galleries. */}
             {solo ? null : <Counter>{({ current, total }) => `${current} of ${total}`}</Counter>}
           </div>
-          {dockStrip ? null : <GalleryThumbnailStrip items={items} />}
-        </div>
+        </BottomBand>
       </Content>
     </Portal>
   );

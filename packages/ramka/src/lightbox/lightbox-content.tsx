@@ -50,13 +50,18 @@ const TABBABLE_SELECTOR = [
   '[tabindex]:not([tabindex="-1"])',
 ].join(',');
 
-// Controls that refuse focus — hidden, or inside an `inert` (inactive) item.
-// A guard handing off to one would leave focus stuck on the guard.
+// Controls that refuse focus — disabled (incl. via a disabled `<fieldset>`),
+// hidden, or inside an `inert` (inactive) item. A guard handing off to one
+// would leave focus stuck on the guard.
 function canTakeFocus(el: HTMLElement): boolean {
-  if (el.closest('[inert]')) return false;
+  if (el.matches(':disabled') || el.closest('[inert]')) return false;
   if (typeof el.checkVisibility === 'function') return el.checkVisibility({ visibilityProperty: true });
-  const style = getComputedStyle(el);
-  return style.display !== 'none' && style.visibility !== 'hidden';
+  const visibility = getComputedStyle(el).visibility;
+  if (visibility === 'hidden' || visibility === 'collapse') return false;
+  for (let node: Element | null = el; node; node = node.parentElement) {
+    if (getComputedStyle(node).display === 'none') return false;
+  }
+  return true;
 }
 
 function getTabbableElements(container: HTMLElement): HTMLElement[] {

@@ -100,7 +100,10 @@ const LightboxThumbnailGroup = React.forwardRef<HTMLDivElement, LightboxThumbnai
           setActiveIndex(nextIndex, 'thumbnail');
         }
 
-        getThumb(nextIndex)?.focus();
+        // A strip positions its own track, and its `overflow: clip` makes the
+        // nearest scroller an ancestor (Slides, when docked inside it) that a
+        // default focus scroll would pan.
+        getThumb(nextIndex)?.focus({ preventScroll: !!thumbnailStrip });
       },
       [
         activeIndex,

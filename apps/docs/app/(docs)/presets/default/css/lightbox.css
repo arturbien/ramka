@@ -345,7 +345,8 @@
   position: absolute;
   inset-inline-end: 0.75rem;
   top: calc(0.75rem + env(safe-area-inset-top, 0px));
-  z-index: 1;
+  /* Rendered before Slides, so it outranks the strip dock and the zoomed snug card. */
+  z-index: 3;
   display: flex;
   gap: 0.5rem;
 }
@@ -382,6 +383,7 @@
  * after it — 0 in bleed on md+, `--lb-snug-gap` in snug).
  */
 .lb-strip-dock {
+  box-sizing: border-box;
   pointer-events: none;
   position: sticky;
   inset-inline: 0;

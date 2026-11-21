@@ -1245,7 +1245,7 @@ describe('Lightbox', () => {
       expect(document.activeElement).toBe(screen.getByTestId('last'));
     });
 
-    it('focus guards skip tabindex="-1", hidden, and inert controls', () => {
+    it('focus guards skip tabindex="-1", disabled, hidden, and inert controls', () => {
       render(
         <LightboxRoot defaultOpen defaultValue={0}>
           <LightboxPortal>
@@ -1256,6 +1256,12 @@ describe('Lightbox', () => {
               <button type="button" style={{ display: 'none' }}>
                 Hidden
               </button>
+              <div style={{ display: 'none' }}>
+                <button type="button">Hidden parent</button>
+              </div>
+              <fieldset disabled>
+                <button type="button">Disabled fieldset</button>
+              </fieldset>
               <div inert>
                 <button type="button">Inactive item</button>
               </div>
