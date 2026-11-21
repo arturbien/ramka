@@ -7,7 +7,7 @@
     "build": "tsx scripts/generate-llms-txt.ts && next build",
     "start": "next start",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "next typegen && tsc --noEmit",
     "docs:api": "tsx scripts/generate-lightbox-api.ts",
     "docs:api:check": "tsx scripts/generate-lightbox-api.ts --check",
     "docs:excerpts": "tsx scripts/generate-excerpts.ts",
