@@ -19,6 +19,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `Lightbox.ThumbnailStrip` no longer jumps and snaps back at the end of a
+  zoom-out on the last slide in Safari. WebKit keeps the zoomed media's
+  overflow in the scroller's `scrollWidth` for a few frames after zoom rests;
+  the strip now waits for that overflow to clear before relinking to scroll.
 - `Lightbox.Slides` no longer lands on another slide when the window is
   resized or a phone is rotated. After the relayout the browser's own
   re-centring `scroll` and `scrollend` arrive before ResizeObserver callbacks,

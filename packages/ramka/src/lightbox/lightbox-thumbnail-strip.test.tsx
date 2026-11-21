@@ -431,6 +431,50 @@ describe('Lightbox.ThumbnailStrip', () => {
     expect(rearmed!.anim.play).toHaveBeenCalled();
   });
 
+  it('waits for the zoom overflow to leave scrollWidth before re-arming on unzoom', async () => {
+    enableScrollTimeline();
+
+    render(<Gallery count={5} />);
+    const slides = screen.getByTestId('slides');
+    setupSlidesGeometry(slides, 5);
+    const root = screen.getByTestId('thumbnail-strip');
+    const track = screen.getByTestId('thumbnail-strip-track');
+    setupThumbnailStripRoot(root);
+    setupThumbGeometry(track, 5);
+    endScroll(slides);
+
+    swipeTo(slides, 4);
+    endScroll(slides);
+
+    const dialog = screen.getByRole('dialog');
+    await act(async () => {
+      dialog.setAttribute('data-zoomed', '');
+      await Promise.resolve();
+      flushRaf();
+    });
+    const linksWhileZoomed = linkCalls.length;
+
+    // WebKit: the zoomed media's overflow outlives `data-zoomed` by a few frames.
+    let overflow = 40;
+    Object.defineProperty(slides, 'scrollWidth', {
+      configurable: true,
+      get: () => WIDTH * 5 + overflow,
+    });
+    await act(async () => {
+      dialog.removeAttribute('data-zoomed');
+      await Promise.resolve();
+      flushRaf();
+    });
+
+    expect(linkCalls.length).toBe(linksWhileZoomed);
+    expect(readTranslateX(track)).toBeCloseTo(-4 * THUMB_STEP, 5);
+
+    overflow = 0;
+    act(() => flushRaf());
+
+    expect(linkCalls.length).toBeGreaterThan(linksWhileZoomed);
+  });
+
   it('thumb click cancels the ScrollTimeline link, scrubs via WAAPI, then re-arms ScrollTimeline', async () => {
     enableScrollTimeline();
 

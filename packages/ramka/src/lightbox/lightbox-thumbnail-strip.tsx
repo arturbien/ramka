@@ -452,15 +452,57 @@ const LightboxThumbnailStrip = React.forwardRef<HTMLDivElement, LightboxThumbnai
     // `startLinkAnimation`, which consults the same ref.
     // `useEffect` (not layout): Content assigns `dialogElementRef` in its own
     // layout pass, which runs after this child's layout effects.
+    //
+    // Unzoom waits for the scroll range to shrink back before re-arming:
+    // WebKit keeps the zoomed media's overflow in `scrollWidth` for a few
+    // frames after the transform lands at rest, and a timeline armed in that
+    // window maps the last slide short of progress 1 (the strip visibly
+    // drifts, then snaps). The clamped JS mirror holds the track meanwhile.
     React.useEffect(() => {
       const dialog = dialogElementRef.current;
       if (!dialog || typeof MutationObserver !== 'function') return;
 
+      let baseline: { scrollWidth: number; clientWidth: number } | null = null;
+      let settleRaf = 0;
+      const cancelSettle = () => {
+        if (settleRaf !== 0) cancelAnimationFrame(settleRaf);
+        settleRaf = 0;
+      };
+      const unzoom = () => {
+        cancelSettle();
+        baseline = null;
+        zoomedRef.current = false;
+        reattachRef.current?.();
+      };
+
       const sync = () => {
         const zoomed = dialog.hasAttribute(LightboxContentDataAttributes.zoomed);
-        if (zoomed === zoomedRef.current) return;
-        zoomedRef.current = zoomed;
-        reattachRef.current?.();
+        if (zoomed) {
+          cancelSettle();
+          if (zoomedRef.current) return;
+          const slides = slidesViewportRef.current;
+          baseline = slides
+            ? { scrollWidth: slides.scrollWidth, clientWidth: slides.clientWidth }
+            : null;
+          zoomedRef.current = true;
+          reattachRef.current?.();
+          return;
+        }
+        if (!zoomedRef.current || settleRaf !== 0) return;
+        const start = performance.now();
+        const waitForRange = () => {
+          settleRaf = 0;
+          const slides = slidesViewportRef.current;
+          const settled =
+            !slides ||
+            !baseline ||
+            slides.clientWidth !== baseline.clientWidth ||
+            slides.scrollWidth <= baseline.scrollWidth ||
+            performance.now() - start > 1000;
+          if (settled) unzoom();
+          else settleRaf = requestAnimationFrame(waitForRange);
+        };
+        waitForRange();
       };
 
       // Covers a strip mounted mid-zoom (refs start unzoomed).
@@ -472,9 +514,10 @@ const LightboxThumbnailStrip = React.forwardRef<HTMLDivElement, LightboxThumbnai
       });
       return () => {
         observer.disconnect();
+        cancelSettle();
         zoomedRef.current = false;
       };
-    }, [dialogElementRef]);
+    }, [dialogElementRef, slidesViewportRef]);
 
     const selectIndex = React.useCallback(
       (index: number, options?: LightboxThumbnailStripSelectOptions) => {
