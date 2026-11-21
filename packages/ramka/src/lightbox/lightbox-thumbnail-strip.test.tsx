@@ -590,6 +590,18 @@ describe('Lightbox.ThumbnailStrip', () => {
     expect(scrubPlay).toHaveBeenCalled();
   });
 
+  it('arrow keys focus the next thumb without a focus scroll', () => {
+    render(<Gallery count={5} />);
+    setupSlidesGeometry(screen.getByTestId('slides'), 5);
+    const track = screen.getByTestId('thumbnail-strip-track');
+    setupThumbnailStripRoot(screen.getByTestId('thumbnail-strip'));
+    setupThumbGeometry(track, 5);
+
+    const focus = vi.spyOn(screen.getByTestId('thumb-1'), 'focus');
+    fireEvent.keyDown(track, { key: 'ArrowRight' });
+    expect(focus).toHaveBeenCalledWith({ preventScroll: true });
+  });
+
   it('Next button scrubs the thumbnail strip', async () => {
     enableScrollTimeline();
 

@@ -13,7 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `--lightbox-select-vt-duration` / `--lightbox-select-vt-easing` CSS
   variables. Clicking a thumbnail no longer runs a view transition on
   `Lightbox.Slides`; the slides jump and the strip scrubs, the same as keyboard
-  and Previous / Next navigation.
+  and Previous / Next navigation. The injected structural stylesheet no longer
+  includes the `[data-ramka-slides]` `::view-transition-group/old/new(root)`
+  rules that styled that transition.
 
 ### Fixed
 

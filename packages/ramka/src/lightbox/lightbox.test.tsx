@@ -1678,6 +1678,14 @@ describe('Lightbox', () => {
       expect(document.activeElement).toBe(screen.getByTestId('thumb-1'));
     });
 
+    it('a plain ThumbnailGroup keeps the browser focus scroll', () => {
+      render(<TestLightbox defaultOpen defaultValue={0} withThumbnails />);
+      screen.getByTestId('thumb-0').focus();
+      const focus = vi.spyOn(screen.getByTestId('thumb-1'), 'focus');
+      fireEvent.keyDown(screen.getByTestId('thumb-group'), { key: 'ArrowRight' });
+      expect(focus).toHaveBeenCalledWith({ preventScroll: false });
+    });
+
     it('Home/End in ThumbnailGroup jump to first/last', () => {
       render(<TestLightbox defaultOpen defaultValue={1} withThumbnails />);
       screen.getByTestId('thumb-1').focus();

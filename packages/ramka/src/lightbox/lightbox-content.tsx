@@ -55,7 +55,11 @@ const TABBABLE_SELECTOR = [
 // would leave focus stuck on the guard.
 function canTakeFocus(el: HTMLElement): boolean {
   if (el.matches(':disabled') || el.closest('[inert]')) return false;
-  if (typeof el.checkVisibility === 'function') return el.checkVisibility({ visibilityProperty: true });
+  if (typeof el.checkVisibility === 'function') {
+    // `checkVisibilityCSS` is the pre-2024 name of `visibilityProperty`
+    // (Chrome 105–120, Firefox 106–124).
+    return el.checkVisibility({ visibilityProperty: true, checkVisibilityCSS: true });
+  }
   const visibility = getComputedStyle(el).visibility;
   if (visibility === 'hidden' || visibility === 'collapse') return false;
   for (let node: Element | null = el; node; node = node.parentElement) {
