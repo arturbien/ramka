@@ -3,6 +3,15 @@ import type { NextConfig } from 'next';
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   transpilePackages: ['@ramka/react'],
+  images: {
+    // Every optimized image comes from a static import with a content-hashed
+    // URL, so it never changes. The 4-hour default made the CDN drop variants
+    // and re-read them from Vercel's image cache, which is billed per read.
+    minimumCacheTTL: 60 * 60 * 24 * 31,
+    // Next's defaults minus 750 and 2048, which sit within ~10% of 640/828
+    // and 1920: each extra width is another variant to cache and read.
+    deviceSizes: [640, 828, 1080, 1200, 1920, 3840],
+  },
   async redirects() {
     return [
       {
