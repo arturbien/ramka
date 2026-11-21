@@ -24,6 +24,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a slide up to a dozen or more away. Slides now notices the viewport size
   changed when those events arrive and re-measures and re-pins the active
   slide first.
+- `Lightbox.Content`'s focus trap no longer wraps focus onto an inactive
+  thumbnail. Tabbing past the last control (or Shift+Tabbing past the first)
+  sent focus to the first or last `<button>` in the dialog even when it had
+  `tabindex="-1"`, so it landed on a thumbnail outside the roving tab order.
+  It also skips controls that cannot take focus (`display: none`,
+  `visibility: hidden`, or inside an inactive, `inert` item), where the
+  hand-off silently failed. This matches the tabbable rules of Base UI's
+  focus manager.
 
 ## [0.0.2] - 2026-11-09
 

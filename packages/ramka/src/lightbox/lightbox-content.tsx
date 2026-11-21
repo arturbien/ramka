@@ -50,9 +50,23 @@ const TABBABLE_SELECTOR = [
   '[tabindex]:not([tabindex="-1"])',
 ].join(',');
 
+// Controls that refuse focus — hidden, or inside an `inert` (inactive) item.
+// A guard handing off to one would leave focus stuck on the guard.
+function canTakeFocus(el: HTMLElement): boolean {
+  if (el.closest('[inert]')) return false;
+  if (typeof el.checkVisibility === 'function') return el.checkVisibility({ visibilityProperty: true });
+  const style = getComputedStyle(el);
+  return style.display !== 'none' && style.visibility !== 'hidden';
+}
+
 function getTabbableElements(container: HTMLElement): HTMLElement[] {
   return Array.from(container.querySelectorAll<HTMLElement>(TABBABLE_SELECTOR)).filter(
-    (el) => !el.hasAttribute('data-focus-guard'),
+    (el) =>
+      !el.hasAttribute('data-focus-guard') &&
+      // The selector matches natively focusable elements even when they opt
+      // out with `tabindex="-1"` (roving-tabindex thumbnails, for one).
+      el.tabIndex >= 0 &&
+      canTakeFocus(el),
   );
 }
 

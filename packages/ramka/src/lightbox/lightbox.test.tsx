@@ -1245,6 +1245,47 @@ describe('Lightbox', () => {
       expect(document.activeElement).toBe(screen.getByTestId('last'));
     });
 
+    it('focus guards skip tabindex="-1", hidden, and inert controls', () => {
+      render(
+        <LightboxRoot defaultOpen defaultValue={0}>
+          <LightboxPortal>
+            <LightboxContent data-testid="content" aria-label="Guard skip test">
+              <button type="button" tabIndex={-1}>
+                Roving tab
+              </button>
+              <button type="button" style={{ display: 'none' }}>
+                Hidden
+              </button>
+              <div inert>
+                <button type="button">Inactive item</button>
+              </div>
+              <button data-testid="first" type="button">
+                First
+              </button>
+              <button data-testid="last" type="button">
+                Last
+              </button>
+              <button type="button" style={{ visibility: 'hidden' }}>
+                Invisible
+              </button>
+              <button type="button" tabIndex={-1}>
+                Roving tab
+              </button>
+            </LightboxContent>
+          </LightboxPortal>
+        </LightboxRoot>,
+      );
+
+      const [before, after] = Array.from(document.querySelectorAll<HTMLElement>('[data-focus-guard]')) as [
+        HTMLElement,
+        HTMLElement,
+      ];
+      fireEvent.focus(after);
+      expect(document.activeElement).toBe(screen.getByTestId('first'));
+      fireEvent.focus(before);
+      expect(document.activeElement).toBe(screen.getByTestId('last'));
+    });
+
     it('allows focus to stay in a portaled overlay outside the dialog subtree', async () => {
       render(
         <LightboxRoot defaultOpen defaultValue={0}>
