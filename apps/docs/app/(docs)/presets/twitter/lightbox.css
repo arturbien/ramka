@@ -182,6 +182,12 @@
     visibility 0s linear 200ms;
 }
 
+/* A flick can release before the fade finishes, and the close view
+   transition would freeze the half-faded chrome into its snapshot. */
+.xlb-content[data-pull-dismissing] .xlb-chrome-pull-hide {
+  transition: none;
+}
+
 .xlb-close {
   position: absolute;
   z-index: 2;

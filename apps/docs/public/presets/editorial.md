@@ -399,6 +399,12 @@ export const Lightbox = {
     visibility 0s linear 200ms;
 }
 
+/* A flick can release before the fade finishes, and the close view
+   transition would freeze the half-faded chrome into its snapshot. */
+.elb-content[data-pull-dismissing] .elb-chrome-gesture-hide {
+  transition: none;
+}
+
 /* ── Top band: counter + close ──────────────────────────────────────────── */
 
 .elb-top {

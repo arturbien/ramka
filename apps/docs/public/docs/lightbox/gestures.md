@@ -121,6 +121,13 @@ When a pull is released short of the threshold, the surface springs back and the
     visibility 0s linear 200ms;
 }
 
+/* A flick can release before the fade above finishes, and the close View
+   Transition would freeze the half-faded chrome into its snapshot. Finish
+   the fade instantly once the dismiss commits. */
+.lightbox-demo-content[data-pull-dismissing] .lightbox-demo-chrome-hide {
+  transition: none;
+}
+
 .lightbox-demo-content[data-zoomed] .lightbox-demo-chrome-bottom.lightbox-demo-chrome-hide {
   opacity: 0;
   visibility: hidden;

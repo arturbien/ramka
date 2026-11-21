@@ -965,6 +965,13 @@ When a pull is released short of the threshold, the surface springs back and the
     visibility 0s linear 200ms;
 }
 
+/* A flick can release before the fade above finishes, and the close View
+   Transition would freeze the half-faded chrome into its snapshot. Finish
+   the fade instantly once the dismiss commits. */
+.lightbox-demo-content[data-pull-dismissing] .lightbox-demo-chrome-hide {
+  transition: none;
+}
+
 .lightbox-demo-content[data-zoomed] .lightbox-demo-chrome-bottom.lightbox-demo-chrome-hide {
   opacity: 0;
   visibility: hidden;
@@ -2426,14 +2433,16 @@ const controlSegmentDividerClass =
  * opacity/pointer-events) keeps hidden controls out of the tab order; its 0s
  * flip is delayed to the end of the fade-out, instant on fade-in. Pull-to-
  * dismiss (and the dismiss animation) hides all gesture chrome; `starting:`
- * fades it in on open.
+ * fades it in on open. A committed dismiss cuts the fade short: a flick can
+ * release mid-fade, and the close view transition would freeze the
+ * half-faded chrome into its snapshot.
  */
 const chromeGestureHideClass = cn(
   'visible opacity-100 [transition:opacity_200ms,visibility_0s_linear_0s] starting:opacity-0',
   'group-data-pulling/lb:invisible group-data-pulling/lb:opacity-0',
   'group-data-pulling/lb:[transition:opacity_200ms,visibility_0s_linear_200ms]',
   'group-data-pull-dismissing/lb:invisible group-data-pull-dismissing/lb:opacity-0',
-  'group-data-pull-dismissing/lb:[transition:opacity_200ms,visibility_0s_linear_200ms]',
+  'group-data-pull-dismissing/lb:transition-none',
 );
 
 /* ── Styled primitives (design-system re-exports) ───────────────────────── */
@@ -3816,6 +3825,12 @@ export const Lightbox = {
     visibility 0s linear 200ms;
 }
 
+/* A flick can release before the fade finishes, and the close view
+   transition would freeze the half-faded chrome into its snapshot. */
+.lb-content[data-pull-dismissing] .lb-chrome-gesture-hide {
+  transition: none;
+}
+
 /* On mobile, zoom also hides the top controls — the media fills the screen. */
 @media (max-width: 767px) {
   .lb-content[data-zoomed] .lb-top-right {
@@ -4963,6 +4978,12 @@ export const Lightbox = {
   transition:
     opacity 200ms,
     visibility 0s linear 200ms;
+}
+
+/* A flick can release before the fade finishes, and the close view
+   transition would freeze the half-faded chrome into its snapshot. */
+.xlb-content[data-pull-dismissing] .xlb-chrome-pull-hide {
+  transition: none;
 }
 
 .xlb-close {
@@ -6473,6 +6494,12 @@ export const Lightbox = {
     visibility 0s linear 200ms;
 }
 
+/* A flick can release before the fade finishes, and the close view
+   transition would freeze the half-faded chrome into its snapshot. */
+.slb-content[data-pull-dismissing] .slb-chrome-gesture-hide {
+  transition: none;
+}
+
 /* ── Controls (flat white circles, readable over photos) ────────────────── */
 
 .slb-control {
@@ -7523,6 +7550,12 @@ export const Lightbox = {
   transition:
     opacity 200ms,
     visibility 0s linear 200ms;
+}
+
+/* A flick can release before the fade finishes, and the close view
+   transition would freeze the half-faded chrome into its snapshot. */
+.elb-content[data-pull-dismissing] .elb-chrome-gesture-hide {
+  transition: none;
 }
 
 /* ── Top band: counter + close ──────────────────────────────────────────── */
@@ -8590,6 +8623,12 @@ export const Lightbox = {
   opacity: 0;
   pointer-events: none;
   transition: opacity 200ms;
+}
+
+/* A flick can release before the fade finishes, and the close view
+   transition would freeze the half-faded chrome into its snapshot. */
+.stl-content[data-pull-dismissing] :is(.stl-chrome-gesture-hide, .stl-hud) {
+  transition: none;
 }
 
 /* ── Stage-adjacent navigation (desktop) ───────────────────────────────── */
