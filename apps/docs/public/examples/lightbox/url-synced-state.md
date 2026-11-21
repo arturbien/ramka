@@ -512,6 +512,7 @@ export const galleryPhotos: GalleryPhoto[] = (
  * geometry are unchanged (the margin also cancels the track gap after it).
  */
 .lightbox-demo-strip-dock {
+  box-sizing: border-box;
   order: -1;
   position: sticky;
   inset-inline: 0;
