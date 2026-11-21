@@ -210,6 +210,12 @@
     visibility 0s linear 200ms;
 }
 
+/* A flick can release before the fade finishes, and the close view
+   transition would freeze the half-faded chrome into its snapshot. */
+.slb-content[data-pull-dismissing] .slb-chrome-gesture-hide {
+  transition: none;
+}
+
 /* ── Controls (flat white circles, readable over photos) ────────────────── */
 
 .slb-control {

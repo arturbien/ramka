@@ -150,14 +150,16 @@ const controlSegmentDividerClass =
  * opacity/pointer-events) keeps hidden controls out of the tab order; its 0s
  * flip is delayed to the end of the fade-out, instant on fade-in. Pull-to-
  * dismiss (and the dismiss animation) hides all gesture chrome; `starting:`
- * fades it in on open.
+ * fades it in on open. A committed dismiss cuts the fade short: a flick can
+ * release mid-fade, and the close view transition would freeze the
+ * half-faded chrome into its snapshot.
  */
 const chromeGestureHideClass = cn(
   'visible opacity-100 [transition:opacity_200ms,visibility_0s_linear_0s] starting:opacity-0',
   'group-data-pulling/lb:invisible group-data-pulling/lb:opacity-0',
   'group-data-pulling/lb:[transition:opacity_200ms,visibility_0s_linear_200ms]',
   'group-data-pull-dismissing/lb:invisible group-data-pull-dismissing/lb:opacity-0',
-  'group-data-pull-dismissing/lb:[transition:opacity_200ms,visibility_0s_linear_200ms]',
+  'group-data-pull-dismissing/lb:transition-none',
 );
 
 /* ── Styled primitives (design-system re-exports) ───────────────────────── */

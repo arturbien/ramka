@@ -330,6 +330,12 @@
     visibility 0s linear 200ms;
 }
 
+/* A flick can release before the fade finishes, and the close view
+   transition would freeze the half-faded chrome into its snapshot. */
+.lb-content[data-pull-dismissing] .lb-chrome-gesture-hide {
+  transition: none;
+}
+
 /* On mobile, zoom also hides the top controls — the media fills the screen. */
 @media (max-width: 767px) {
   .lb-content[data-zoomed] .lb-top-right {

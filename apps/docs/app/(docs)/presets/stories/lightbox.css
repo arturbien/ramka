@@ -421,6 +421,12 @@
   transition: opacity 200ms;
 }
 
+/* A flick can release before the fade finishes, and the close view
+   transition would freeze the half-faded chrome into its snapshot. */
+.stl-content[data-pull-dismissing] :is(.stl-chrome-gesture-hide, .stl-hud) {
+  transition: none;
+}
+
 /* ── Stage-adjacent navigation (desktop) ───────────────────────────────── */
 
 .stl-nav {

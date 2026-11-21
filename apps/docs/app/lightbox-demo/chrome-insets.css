@@ -29,6 +29,14 @@
 }
 
 /*
+ * `thumbnails="always"`: the strip shows on mobile too, so mobile reserves the
+ * same bottom band as desktop (strip row + caption + gap).
+ */
+.lightbox-demo-content-strip-always {
+  --lightbox-inset-bottom: calc(8.625rem + env(safe-area-inset-bottom, 0px));
+}
+
+/*
  * Solo (no thumbnail strip — single item or `thumbnails="never"`): the desktop
  * bottom band only holds the caption + counter placard, so shrink it to match
  * the top inset and keep the letterbox symmetric. Mobile is already symmetric.
