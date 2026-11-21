@@ -33,6 +33,7 @@ import {
   ZoomInIcon,
   ZoomOutIcon,
 } from 'lucide-react';
+import { useLightboxContext } from '@ramka/react';
 import * as RamkaLightbox from '@ramka/react/lightbox';
 
 import { cn } from '@/lib/utils';
@@ -486,6 +487,25 @@ const snugItemClass = cn(
   'md:group-data-pull-dismissing/lb:transition-none',
 );
 
+/*
+ * Thumbnail strip docked inside Slides. Wheel scroll chains through the
+ * containing block, so an overlay beside the scroller never scrolls it; a
+ * sticky child does, and stays pinned to the scrollport. `order-first` and
+ * the negative end margin give it zero net inline size, so the slides' snap
+ * positions and geometry are unchanged (the margin also cancels the track gap
+ * after it — 0 in bleed on md+, `--lb-snug-gap` in snug). Hidden with the
+ * bottom placard while pulling or zoomed; while zoomed it also drops below
+ * the zoomed card so the media paints over the fade.
+ */
+const stripDockClass = cn(
+  'pointer-events-none sticky inset-x-0 z-[2] order-first flex-none self-end max-md:hidden',
+  'w-[100cqw] me-[calc(-100cqw_-_var(--lb-snug-gap,0px))]',
+  'px-3 pb-[calc(1rem_+_env(safe-area-inset-bottom,0px))]',
+  chromeGestureHideClass,
+  'group-data-zoomed/lb:z-0 group-data-zoomed/lb:invisible group-data-zoomed/lb:opacity-0',
+  'group-data-zoomed/lb:[transition:opacity_200ms,visibility_0s_linear_200ms]',
+);
+
 /* ── Composed Gallery (product chrome) ──────────────────────────────────── */
 
 function GalleryThumbnailStrip({ items }: { items: LightboxItem[] }) {
@@ -533,6 +553,11 @@ function Gallery({
   const snug = slidesLayout === 'snug';
   // Single item → no thumbnail strip → solo layout (tighter, centered bottom band).
   const solo = items.length <= 1;
+  // The strip docks inside Slides so wheel and trackpad swipes over it scroll
+  // the slides. WebKit ignores `position: sticky` in right-to-left scrollers,
+  // so RTL keeps the strip in the bottom band instead.
+  const { dir } = useLightboxContext();
+  const dockStrip = !solo && dir !== 'rtl';
 
   const setSlidesLayout = React.useCallback(
     (next: SlidesLayout) => {
@@ -621,6 +646,11 @@ function Gallery({
               </Slide>
             );
           })}
+          {dockStrip ? (
+            <div className={stripDockClass}>
+              <GalleryThumbnailStrip items={items} />
+            </div>
+          ) : null}
         </Slides>
 
         <div
@@ -661,6 +691,8 @@ function Gallery({
             // Click-through the inset band; caption opts back in for text selection.
             'pointer-events-none absolute inset-x-0 bottom-0 z-[1] flex flex-col items-center gap-3',
             'px-3 pb-[calc(1rem_+_env(safe-area-inset-bottom,0px))]',
+            // md+: reserve the docked strip's row (5.125rem) and the gap above it.
+            dockStrip && 'md:pb-[calc(6.875rem_+_env(safe-area-inset-bottom,0px))]',
             chromeGestureHideClass,
             // Zoom hides the bottom placard (the zoomed media pans under it).
             'group-data-zoomed/lb:invisible group-data-zoomed/lb:opacity-0',
@@ -681,7 +713,7 @@ function Gallery({
             {/* "1 of 1" is noise — skip the counter for single-item galleries. */}
             {solo ? null : <Counter>{({ current, total }) => `${current} of ${total}`}</Counter>}
           </div>
-          <GalleryThumbnailStrip items={items} />
+          {dockStrip ? null : <GalleryThumbnailStrip items={items} />}
         </div>
       </Content>
     </Portal>

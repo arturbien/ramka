@@ -14,6 +14,7 @@
  */
 
 import * as React from 'react';
+import { useLightboxContext } from '@ramka/react';
 import * as RamkaLightbox from '@ramka/react/lightbox';
 
 import './lightbox.css';
@@ -253,6 +254,11 @@ function Gallery({
   const snug = slidesLayout === 'snug';
   // Single item → no thumbnail strip → solo layout (tighter, centered bottom band).
   const solo = items.length <= 1;
+  // The strip docks inside Slides so wheel and trackpad swipes over it scroll
+  // the slides. WebKit ignores `position: sticky` in right-to-left scrollers,
+  // so RTL keeps the strip in the bottom band instead.
+  const { dir } = useLightboxContext();
+  const dockStrip = !solo && dir !== 'rtl';
 
   const setSlidesLayout = React.useCallback(
     (next: SlidesLayout) => {
@@ -330,6 +336,11 @@ function Gallery({
               </Slide>
             );
           })}
+          {dockStrip ? (
+            <div className={cx('lb-strip-dock', 'lb-chrome-gesture-hide')}>
+              <GalleryThumbnailStrip items={items} />
+            </div>
+          ) : null}
         </Slides>
 
         <div className={cx('lb-top-right', 'lb-chrome-gesture-hide')}>
@@ -353,7 +364,9 @@ function Gallery({
           <Close />
         </div>
 
-        <div className={cx('lb-bottom', 'lb-chrome-gesture-hide', solo && 'lb-bottom-solo')}>
+        <div
+          className={cx('lb-bottom', 'lb-chrome-gesture-hide', solo && 'lb-bottom-solo', dockStrip && 'lb-bottom-docked')}
+        >
           {/*
             Caption under the media, placard-style. The counter is visible on
             mobile where there's no strip to show position; on md+ the strip
@@ -365,7 +378,7 @@ function Gallery({
             {/* "1 of 1" is noise — skip the counter for single-item galleries. */}
             {solo ? null : <Counter>{({ current, total }) => `${current} of ${total}`}</Counter>}
           </div>
-          <GalleryThumbnailStrip items={items} />
+          {dockStrip ? null : <GalleryThumbnailStrip items={items} />}
         </div>
       </Content>
     </Portal>
