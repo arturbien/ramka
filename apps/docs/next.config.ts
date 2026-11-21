@@ -3,6 +3,16 @@ import type { NextConfig } from 'next';
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   transpilePackages: ['@ramka/react'],
+  // Dev only: lets phones on a local network load the dev server's scripts
+  // (Next blocks cross-origin dev resources by default). Covers the private
+  // IPv4 ranges (10/8, 172.16/12, 192.168/16) and mDNS `.local` hostnames.
+  // No effect in production.
+  allowedDevOrigins: [
+    '10.*.*.*',
+    ...Array.from({ length: 16 }, (_, i) => `172.${16 + i}.*.*`),
+    '192.168.*.*',
+    '*.local',
+  ],
   images: {
     // Every optimized image comes from a static import with a content-hashed
     // URL, so it never changes. The 4-hour default made the CDN drop variants
