@@ -10,13 +10,8 @@ import { interceptedPhotos } from '../../../photos';
  * the grid stays mounted underneath. Hard loads never come here (interception
  * is client-navigation-only); they get `photos/[id]/page.tsx`.
  */
-export default async function InterceptedPhotoRoute({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+export default async function InterceptedPhotoRoute({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const index = interceptedPhotos.findIndex((photo) => photo.id === id);
-  if (index === -1) notFound();
-  return <PhotoModal initialIndex={index} />;
+  if (!interceptedPhotos.some((photo) => photo.id === id)) notFound();
+  return <PhotoModal initialPhotoId={id} />;
 }

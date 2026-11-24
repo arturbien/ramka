@@ -20,11 +20,7 @@ import {
   ramkaM,
   ramkaN,
 } from './images.generated';
-import {
-  LightboxGallery,
-  triggerFocusClass,
-  type LightboxGalleryItem,
-} from './lightbox-chrome';
+import { LightboxGallery, triggerFocusClass, type LightboxGalleryItem } from './lightbox-chrome';
 
 /**
  * Landing gallery. Three morph flavors on one clean wall:
@@ -60,6 +56,7 @@ import {
  */
 const visibleImages: (LightboxGalleryItem & { tileClass: string; breakClass: string })[] = [
   {
+    id: 'meadow',
     src: ramkaA,
     thumb: ramkaA,
     alt: 'Person standing in a sunlit meadow at golden hour',
@@ -68,6 +65,7 @@ const visibleImages: (LightboxGalleryItem & { tileClass: string; breakClass: str
     breakClass: '',
   },
   {
+    id: 'seashells',
     src: ramkaB,
     thumb: ramkaB,
     alt: 'Seashells scattered along the shoreline',
@@ -76,6 +74,7 @@ const visibleImages: (LightboxGalleryItem & { tileClass: string; breakClass: str
     breakClass: '',
   },
   {
+    id: 'beach-walk',
     src: ramkaJ,
     thumb: ramkaJ,
     alt: 'Father carrying a child along a sandy beach',
@@ -84,6 +83,7 @@ const visibleImages: (LightboxGalleryItem & { tileClass: string; breakClass: str
     breakClass: '',
   },
   {
+    id: 'curved-facade',
     src: ramkaC,
     thumb: ramkaC,
     alt: 'Curved building facade in black and white',
@@ -92,6 +92,7 @@ const visibleImages: (LightboxGalleryItem & { tileClass: string; breakClass: str
     breakClass: 'md:break-before-column',
   },
   {
+    id: 'above-the-clouds',
     src: ramkaD,
     thumb: ramkaD,
     alt: 'Airplane crossing a purple sky above the clouds',
@@ -102,6 +103,7 @@ const visibleImages: (LightboxGalleryItem & { tileClass: string; breakClass: str
     breakClass: 'break-before-column md:break-before-auto',
   },
   {
+    id: 'concrete-tower',
     src: ramkaK,
     thumb: ramkaK,
     alt: 'Brutalist concrete tower against a pale sky',
@@ -110,6 +112,7 @@ const visibleImages: (LightboxGalleryItem & { tileClass: string; breakClass: str
     breakClass: '',
   },
   {
+    id: 'valley-fog',
     src: ramkaE,
     thumb: ramkaE,
     alt: 'Fog rolling over dark hills',
@@ -118,6 +121,7 @@ const visibleImages: (LightboxGalleryItem & { tileClass: string; breakClass: str
     breakClass: 'md:break-before-column',
   },
   {
+    id: 'twin-tunnels',
     src: ramkaF,
     thumb: ramkaF,
     alt: 'Aerial view of a road entering twin forest tunnels',
@@ -126,6 +130,7 @@ const visibleImages: (LightboxGalleryItem & { tileClass: string; breakClass: str
     breakClass: '',
   },
   {
+    id: 'wedding-car',
     src: ramkaG,
     thumb: ramkaG,
     alt: 'Bride seen through the windows of a vintage car',
@@ -134,6 +139,7 @@ const visibleImages: (LightboxGalleryItem & { tileClass: string; breakClass: str
     breakClass: 'break-before-column md:break-before-auto',
   },
   {
+    id: 'city-lights',
     src: ramkaL,
     thumb: ramkaL,
     alt: 'Out-of-focus city lights glowing at dusk',
@@ -142,6 +148,7 @@ const visibleImages: (LightboxGalleryItem & { tileClass: string; breakClass: str
     breakClass: 'md:break-before-column',
   },
   {
+    id: 'husky',
     src: ramkaN,
     thumb: ramkaN,
     alt: 'Husky dog in a harness looking into the distance',
@@ -150,6 +157,7 @@ const visibleImages: (LightboxGalleryItem & { tileClass: string; breakClass: str
     breakClass: '',
   },
   {
+    id: 'hoodoos',
     src: ramkaH,
     thumb: ramkaH,
     alt: 'Sandstone hoodoos under a summer sky',
@@ -165,6 +173,7 @@ const visibleImages: (LightboxGalleryItem & { tileClass: string; breakClass: str
  */
 const hiddenImages: LightboxGalleryItem[] = [
   {
+    id: 'first-snow',
     src: ramkaM,
     thumb: ramkaM,
     alt: 'Patches of snow on a mossy forest floor',
@@ -172,6 +181,7 @@ const hiddenImages: LightboxGalleryItem[] = [
     destinationBlur: true,
   },
   {
+    id: 'pisa',
     src: ramkaI,
     thumb: ramkaI,
     alt: 'The Leaning Tower of Pisa at dusk',
@@ -225,8 +235,8 @@ export function LandingDemo({ eager = true }: { eager?: boolean }) {
           const isStack = i === lastIndex;
           return (
             <Lightbox.Trigger
-              key={img.alt}
-              index={i}
+              key={img.id}
+              itemId={img.id}
               // The stack tile's content (photo + "+2" scrim) doesn't match
               // the clean slide, so dissolve both ways instead of morphing.
               crossfade={isStack ? 'both' : undefined}

@@ -18,7 +18,7 @@ import * as Lightbox from '@ramka/react/lightbox';
       <Lightbox.Slides>
         {images.map((img, i) => (
           <Lightbox.Slide key={img.id}>
-            <Lightbox.Item index={i}>
+            <Lightbox.Item index={i} itemId={img.id}>
               <Lightbox.Media>
                 <img src={img.src} alt={img.alt} />
               </Lightbox.Media>
@@ -46,18 +46,18 @@ Not everything flips, and the split is not arbitrary. Moving through an ordered 
 | --- | --- | --- |
 | Slide order & scroll | Mirrored | Index 0 sits at the inline-start (right) edge; the scroller runs right-to-left. |
 | Horizontal arrow keys | Mirrored | ArrowLeft advances, ArrowRight goes back — travel follows reading order. |
-| Home / End | Not mirrored | Home is always the first item, End the last. They address indices, not sides. |
+| Home / End | Not mirrored | Home is always the first item, End the last. They address positions, not sides. |
 | Thumbnail strip | Mirrored | Track, padding, and the active-thumb indicator all run on the inline axis. |
 | Previous / Next | Mirrored position | Previous is the item nearer index 0, so it belongs on the inline-start side. |
 | Zoomed panning | Not mirrored | Direct manipulation of a surface: ArrowRight pans right, as on a map. |
 | Pull-to-dismiss | Not mirrored | The sheet follows your finger, which has no reading direction. |
 | Morph / view transitions | Mirrored | The morph measures the trigger and the slide, so it follows whatever they do. |
 
-## Indices never mirror
+## Item order never mirrors
 
-The imperative API is index-based, and indices are not sides. [createHandle()](docs/lightbox/api.md#api-create-handle)’s `open(3)` and `goTo(3)` land on the fourth item in either direction; what changes is that RTL renders it further left and the track travels the other way to reach it. The same holds for `value` / `onValueChange` and for [Trigger](docs/lightbox/api.md#api-trigger)’s `index`.
+The imperative API names items by `itemId`, and item order is not a side. [createHandle()](docs/lightbox/api.md#api-create-handle)’s `open(id)` and `goTo(id)` land on the same item in either direction, and [Item](docs/lightbox/api.md#api-item) `index` 3 is the fourth item either way; what changes is that RTL renders it further left and the track travels the other way to reach it. The same holds for `value` / `onValueChange`.
 
-The buttons inside the viewer below jump by index. Open it, then watch the strip: the photo you land on is the same one an LTR gallery would show.
+The buttons inside the viewer below jump to fixed photos. Open it, then watch the strip: the photo you land on is the same one an LTR gallery would show.
 
 ```tsx Imperative API under RTL
 import * as Lightbox from '@ramka/react/lightbox';
@@ -66,12 +66,12 @@ const lightbox = Lightbox.createHandle();
 
 <>
   {/* Opens the first item, at the inline-start (right) edge of the track. */}
-  <button type="button" onClick={() => lightbox.open(0)}>
+  <button type="button" onClick={() => lightbox.open('photo-1')}>
     פתיחת הגלריה
   </button>
 
   {/* Jumps to the 4th item regardless of reading direction. */}
-  <button type="button" onClick={() => lightbox.goTo(3)}>
+  <button type="button" onClick={() => lightbox.goTo('photo-4')}>
     מעבר לתמונה 4
   </button>
 
@@ -107,10 +107,7 @@ import * as Lightbox from '@ramka/react/lightbox';
           default. Name the carousel itself with `aria-label`, and leave
           the word "carousel" out of that name; the roledescription
           already says it. */}
-      <Lightbox.Slides
-        aria-label={t('viewer.photos')}
-        aria-roledescription={t('viewer.carousel')}
-      >
+      <Lightbox.Slides aria-label={t('viewer.photos')} aria-roledescription={t('viewer.carousel')}>
         {items.map((item, i) => (
           <Lightbox.Slide key={item.id}>
             {/* A slide is a `group`, and a group is not named by the text
@@ -119,6 +116,7 @@ import * as Lightbox from '@ramka/react/lightbox';
                 the index and the count already. */}
             <Lightbox.Item
               index={i}
+              itemId={item.id}
               aria-roledescription={t('viewer.slide')}
               aria-label={t('viewer.position', { current: i + 1, total: items.length })}
             >
@@ -133,11 +131,7 @@ import * as Lightbox from '@ramka/react/lightbox';
       {/* Counter renders "1 / 7" by default. Digits are not English, but
           their formatting is a locale decision — pass children to run the
           numbers through Intl. */}
-      <Lightbox.Counter>
-        {({ current, total }) =>
-          t('viewer.position', { current, total })
-        }
-      </Lightbox.Counter>
+      <Lightbox.Counter>{({ current, total }) => t('viewer.position', { current, total })}</Lightbox.Counter>
 
       <Lightbox.Previous aria-label={t('viewer.previous')} />
       <Lightbox.Next aria-label={t('viewer.next')} />

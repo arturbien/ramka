@@ -181,9 +181,7 @@ function runAudit(itemCount: number, activeIndex: number, firstIntentAt: number 
       id: 'zoom-fetch',
       label: 'The zoom engine waited for intent — it is not part of the idle warm-up',
       pass: enginesVisible
-        ? zoomFetched.length > 0 &&
-          firstIntentAt != null &&
-          zoomFetched.every((r) => r.startTime >= firstIntentAt)
+        ? zoomFetched.length > 0 && firstIntentAt != null && zoomFetched.every((r) => r.startTime >= firstIntentAt)
         : null,
       detail: enginesVisible
         ? zoomFetched.length === 0
@@ -267,7 +265,9 @@ const AUDITED_ATTRIBUTES = ['data-disabled', 'data-active', 'data-active-index']
 
 export default function MinimalCompositionDebugPage() {
   const [open, setOpen] = React.useState(false);
-  const [value, setValue] = React.useState(0);
+  // The image URL doubles as the item id.
+  const [value, setValue] = React.useState(lightboxImageFiles[0]!.src);
+  const activeIndex = lightboxImageFiles.findIndex((photo) => photo.src === value);
   const [audit, setAudit] = React.useState<Audit | null>(null);
   const firstIntentAtRef = React.useRef<number | null>(null);
 
@@ -285,10 +285,7 @@ export default function MinimalCompositionDebugPage() {
     const record = (event: Event) => {
       if (firstIntentAtRef.current != null) return;
       const target = event.target;
-      if (
-        target instanceof Element &&
-        target.closest(`[${Lightbox.LightboxTriggerDataAttributes.trigger}]`)
-      ) {
+      if (target instanceof Element && target.closest(`[${Lightbox.LightboxTriggerDataAttributes.trigger}]`)) {
         firstIntentAtRef.current = performance.now();
       }
     };
@@ -306,7 +303,7 @@ export default function MinimalCompositionDebugPage() {
     const schedule = () => {
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(() =>
-        setAudit(runAudit(lightboxImageFiles.length, value, firstIntentAtRef.current)),
+        setAudit(runAudit(lightboxImageFiles.length, activeIndex, firstIntentAtRef.current)),
       );
     };
     schedule();
@@ -321,7 +318,7 @@ export default function MinimalCompositionDebugPage() {
       cancelAnimationFrame(frame);
       observer.disconnect();
     };
-  }, [open, value]);
+  }, [open, activeIndex]);
 
   if (process.env.NODE_ENV === 'production') {
     notFound();
@@ -351,8 +348,8 @@ export default function MinimalCompositionDebugPage() {
             <li>16.1 KB gz eager — only 1.6 KB more than Root/Trigger/Portal/Content/Item/Media</li>
             <li>Slides and Slide are layout; the chrome parts render one element each</li>
             <li>
-              ~7.7 KB gz for the morph lands at browser idle after first paint — it has to be resident before the
-              click, because the morph starts inside the click handler
+              ~7.7 KB gz for the morph lands at browser idle after first paint — it has to be resident before the click,
+              because the morph starts inside the click handler
             </li>
             <li>
               ~11.1 KB gz for zoom and ~2.7 KB gz for pull-to-dismiss are the genuinely deferred ones: zoom on hover /
@@ -473,7 +470,7 @@ export default function MinimalCompositionDebugPage() {
           {lightboxImageFiles.map((photo, i) => (
             <Lightbox.Trigger
               key={photo.src}
-              index={i}
+              itemId={photo.src}
               className="overflow-hidden rounded-lg outline-offset-2 focus-visible:outline-2 focus-visible:outline-sky-500"
             >
               {({ imageRef }) => (
@@ -507,7 +504,7 @@ export default function MinimalCompositionDebugPage() {
                   key={photo.src}
                   className="h-full min-w-full flex-[0_0_100%] px-4 pt-16 pb-24 sm:px-20 sm:pt-20"
                 >
-                  <Lightbox.Item index={i}>
+                  <Lightbox.Item index={i} itemId={photo.src}>
                     <Lightbox.Zoom>
                       <Lightbox.Media width={photo.width} height={photo.height}>
                         {/* draggable={false} is required: the Zoom host sets
@@ -526,16 +523,10 @@ export default function MinimalCompositionDebugPage() {
             <Lightbox.Close aria-label="Close" className={`${EDGE_BUTTON} right-4 top-4`}>
               <X className="size-5" aria-hidden />
             </Lightbox.Close>
-            <Lightbox.Previous
-              aria-label="Previous"
-              className={`${EDGE_BUTTON} left-4 top-1/2 -translate-y-1/2`}
-            >
+            <Lightbox.Previous aria-label="Previous" className={`${EDGE_BUTTON} left-4 top-1/2 -translate-y-1/2`}>
               <ChevronLeft className="size-6" aria-hidden />
             </Lightbox.Previous>
-            <Lightbox.Next
-              aria-label="Next"
-              className={`${EDGE_BUTTON} right-4 top-1/2 -translate-y-1/2`}
-            >
+            <Lightbox.Next aria-label="Next" className={`${EDGE_BUTTON} right-4 top-1/2 -translate-y-1/2`}>
               <ChevronRight className="size-6" aria-hidden />
             </Lightbox.Next>
 

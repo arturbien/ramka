@@ -22,8 +22,8 @@ Peer dependencies: `react` and `react-dom` >= 18.
 import * as Lightbox from '@ramka/react/lightbox';
 
 <Lightbox.Root>
-  {items.map((item, i) => (
-    <Lightbox.Trigger key={item.id} index={i}>
+  {items.map((item) => (
+    <Lightbox.Trigger key={item.id} itemId={item.id}>
       {({ imageRef }) => <img ref={imageRef} src={item.thumb} alt={item.alt} />}
     </Lightbox.Trigger>
   ))}
@@ -38,6 +38,7 @@ import * as Lightbox from '@ramka/react/lightbox';
           <Lightbox.Slide key={item.id}>
             <Lightbox.Item
               index={i}
+              itemId={item.id}
               caption={item.caption ?? item.alt}
               aria-roledescription="slide"
               aria-label={`${i + 1} of ${items.length}`}
@@ -80,7 +81,7 @@ Accessible primitives for fullscreen media lightboxes — compound parts in the 
 Work through these decisions in order:
 
 1. **State** — controlled props, createHandle, or both? See [State & lifecycle](docs/lightbox/state-lifecycle.md).
-2. **Layout** — default to the swipe carousel ( [Slides + Zoom](docs/lightbox/composition.md#slides) ). See [Composition](docs/lightbox/composition.md).
+2. **Layout** — default to the swipe carousel ([Slides + Zoom](docs/lightbox/composition.md#slides) ). See [Composition](docs/lightbox/composition.md).
 3. **Morph** — on by default; wrap destination media in `Lightbox.Media` (and `imageRef` on Trigger thumbs), choose `crossfade` / `morphTo`, or pass `viewTransition={false}` to opt out. See [View transitions](docs/lightbox/view-transitions.md).
 4. **Gestures** — pull-to-dismiss on Content, Zoom on media, keyboard on Content. See [Gestures](docs/lightbox/gestures.md).
 5. **Cosmetics vs mechanics** — colors, chrome, and radius *values* are yours. Structural styles (view-transition morph CSS, morph host box, zoom overflow, slide snap alignment, placeholders) are applied by the library or via Media `width` /`height`; slide track width (full-bleed vs snug cards) is consumer CSS — see [Composition → Slides + Zoom](docs/lightbox/composition.md#slides). Style with documented `data-*` attributes and CSS variables from the [API reference](docs/lightbox/api.md).
@@ -93,13 +94,13 @@ Import the namespace and compose parts. The sketch below is the default gallery 
 import * as Lightbox from '@ramka/react/lightbox';
 
 <Lightbox.Root>
-  <Lightbox.Trigger index={0}>{/* thumb */}</Lightbox.Trigger>
+  <Lightbox.Trigger itemId="photo-1">{/* thumb */}</Lightbox.Trigger>
   <Lightbox.Portal>
     <Lightbox.Backdrop />
     <Lightbox.Content>
       <Lightbox.Slides>
         <Lightbox.Slide>
-          <Lightbox.Item index={0}>
+          <Lightbox.Item index={0} itemId="photo-1">
             <Lightbox.Zoom>
               <Lightbox.Media>
                 <img alt="" />
@@ -120,7 +121,7 @@ import * as Lightbox from '@ramka/react/lightbox';
 
 ## Next steps
 
-- [State & lifecycle](docs/lightbox/state-lifecycle.md): Controlled open/index, createHandle, and open-change callbacks.
+- [State & lifecycle](docs/lightbox/state-lifecycle.md): Controlled open/value, createHandle, and open-change callbacks.
 - [Composition](docs/lightbox/composition.md): Slides + Zoom chrome, media fill / fit-box sizing, and itemCount.
 - [Next.js Image](docs/lightbox/nextjs-image.md): next/image with Ramka — destination blur only when that item has no trigger image.
 - [View transitions](docs/lightbox/view-transitions.md): Morph refs (on by default), crossfade, morphTo, and scrollTriggerIntoView.
@@ -132,11 +133,11 @@ Browse product demos under [Examples](examples/lightbox/photos-app.md). Guides a
 
 # State & lifecycle
 
-Control open state and the active index from React, `createHandle()`, or both — and know when callbacks fire. Part of [Lightbox](docs/lightbox.md).
+Control open state and the active item from React, `createHandle()`, or both — and know when callbacks fire. Part of [Lightbox](docs/lightbox.md).
 
 ## Controlled state
 
-Pass `open` / `onOpenChange` and `value` / `onValueChange` on [Root](docs/lightbox/api.md#api-root) to drive the lightbox from URL params, a store, or sibling UI. Omit them for uncontrolled defaults ( `defaultOpen` / `defaultValue`).
+Pass `open` / `onOpenChange` and `value` / `onValueChange` on [Root](docs/lightbox/api.md#api-root) to drive the lightbox from URL params, a store, or sibling UI. Omit them for uncontrolled defaults (`defaultOpen` / `defaultValue`). The value is the active [Item](docs/lightbox/api.md#api-item)'s `itemId`, so it reads well in a URL; `onValueChange` also passes the item's position as `details.index`.
 
 ```tsx Controlled open + value
 import * as Lightbox from '@ramka/react/lightbox';
@@ -148,7 +149,7 @@ import * as Lightbox from '@ramka/react/lightbox';
 
 ## Imperative API
 
-[Lightbox.createHandle()](docs/lightbox/api.md#api-create-handle) lets Triggers and Root live apart — pass the same handle to both. Call `open(index, { triggerId })` from any button so the open still morphs from the matching [Trigger](docs/lightbox/api.md#api-trigger).
+[Lightbox.createHandle()](docs/lightbox/api.md#api-create-handle) lets Triggers and Root live apart — pass the same handle to both. Call `open(itemId)` from any button; the open still morphs from that item's [Trigger](docs/lightbox/api.md#api-trigger). `goTo(itemId)` navigates without opening.
 
 ```tsx createHandle
 import * as Lightbox from '@ramka/react/lightbox';
@@ -156,12 +157,12 @@ import * as Lightbox from '@ramka/react/lightbox';
 const lightbox = Lightbox.createHandle();
 
 <>
-  <button type="button" onClick={() => lightbox.open(0, { triggerId: 'photo-0' })}>
+  <button type="button" onClick={() => lightbox.open('photo-1')}>
     View gallery
   </button>
 
-  {images.map((img, i) => (
-    <Lightbox.Trigger key={img.id} handle={lightbox} id={`photo-${i}`} index={i}>
+  {images.map((img) => (
+    <Lightbox.Trigger key={img.id} handle={lightbox} itemId={img.id}>
       <img src={img.src} alt={img.alt} />
     </Lightbox.Trigger>
   ))}
@@ -173,7 +174,7 @@ const lightbox = Lightbox.createHandle();
         <Lightbox.Slides>
           {images.map((img, i) => (
             <Lightbox.Slide key={img.id}>
-              <Lightbox.Item index={i}>
+              <Lightbox.Item index={i} itemId={img.id}>
                 <Lightbox.Zoom>
                   <Lightbox.Media>
                     <img src={img.src} alt={img.alt} />
@@ -192,7 +193,7 @@ const lightbox = Lightbox.createHandle();
 
 ## Lifecycle callbacks
 
-`onOpenChange` fires immediately when open flips — use it to sync URL or external state. `onOpenChangeComplete` fires after enter/exit motion settles — use it for cleanup and focus. `onValueChange` reports the new index plus a [NavigationSource](docs/lightbox/api.md#types) (including `imperative` for handle navigation).
+`onOpenChange` fires immediately when open flips — use it to sync URL or external state. `onOpenChangeComplete` fires after enter/exit motion settles — use it for cleanup and focus. `onValueChange` fires when the active item changes, with its `itemId`, its index, and a [NavigationSource](docs/lightbox/api.md#types) (including `imperative` for handle navigation).
 
 ```tsx Lifecycle callbacks
 import * as Lightbox from '@ramka/react/lightbox';
@@ -206,8 +207,10 @@ import * as Lightbox from '@ramka/react/lightbox';
     // Fires after enter/exit motion settles — cleanup / focus here.
     void open;
   }}
-  onValueChange={(value, { source }) => {
-    void value;
+  onValueChange={(itemId, { index, source }) => {
+    // Fires when the active item changes — `itemId` is the new item.
+    void itemId;
+    void index;
     void source; // 'trigger' | 'keyboard' | 'thumbnail' | 'button' | 'scroll' | 'imperative'
   }}
 >
@@ -217,13 +220,13 @@ import * as Lightbox from '@ramka/react/lightbox';
 
 ## onBeforeOpen
 
-When View Transitions are on, open is *prepare → optional image decode → optional onBeforeOpen → morph*. Use [Root](docs/lightbox/api.md#api-root) ’s `onBeforeOpen` to delay the morph until custom media is ready (iframe `load`, video, WebGL, …). It runs after the lightbox is mounted hidden — so destination nodes exist — and before `startViewTransition`.
+When View Transitions are on, open is *prepare → optional image decode → optional onBeforeOpen → morph* . Use [Root](docs/lightbox/api.md#api-root) ’s `onBeforeOpen` to delay the morph until custom media is ready (iframe `load`, video, WebGL, …). It runs after the lightbox is mounted hidden — so destination nodes exist — and before `startViewTransition`.
 
 Keep `awaitImageDecode` for photos (default `true`). For non-image destinations, pass `awaitImageDecode={false}` and wait in `onBeforeOpen`. Bound your own timeout; `ctx.signal` aborts if a newer open/close wins. See [3D models](examples/lightbox/3d-models.md).
 
 ## onBeforeClose
 
-`onBeforeClose` fires synchronously when close begins — and, with View Transitions, *before* the old snapshot is captured. Use it to freeze custom media (`video.pause()`, stop a rAF loop) so the close morph isn’t a mid-frame. Unlike `onBeforeOpen`, it cannot delay close. `onOpenChange(false)` is too late for this: it runs inside the transition callback, after the snapshot.
+`onBeforeClose` fires synchronously when close begins — and, with View Transitions, *before* the old snapshot is captured. Use it to freeze custom media ( `video.pause()`, stop a rAF loop) so the close morph isn’t a mid-frame. Unlike `onBeforeOpen`, it cannot delay close. `onOpenChange(false)` is too late for this: it runs inside the transition callback, after the snapshot.
 
 # Composition
 
@@ -231,12 +234,12 @@ Default to Slides + Zoom (swipe carousel with pinch zoom), size media to fill Co
 
 ## Slides + Zoom
 
-Prefer [Slides](docs/lightbox/api.md#api-slides) + [Slide](docs/lightbox/api.md#api-slide) for a swipeable snap carousel wired to the active index — this is the layout used by nearly every docs demo and example. Slide boxes stay mounted; `preload` gates heavy Item content.
+Prefer [Slides](docs/lightbox/api.md#api-slides) + [Slide](docs/lightbox/api.md#api-slide) for a swipeable snap carousel wired to the active item — this is the layout used by nearly every docs demo and example. Slide boxes stay mounted; `preload` gates heavy Item content.
 
 - Nesting rule: put `Item` and [Zoom](docs/lightbox/api.md#api-zoom) *inside* each `Slide`. Pull transforms the item, not the snap box.
 - User flings set an internal scroll lock so pull-to-dismiss, zoom chrome, and discrete prev/next do not fight the carousel mid-gesture.
-- Scroll-driven index changes report `onValueChange` with `source: 'scroll'` — see [NavigationSource](docs/lightbox/api.md#types).
-- Item render-prop `active` is the current index (drive expensive work here). `visible` means the item is in the preload window — use it for lightweight prefetch, not video autoplay.
+- Scroll-driven item changes report `onValueChange` with `source: 'scroll'` — see [NavigationSource](docs/lightbox/api.md#types).
+- Item render-prop `active` is true for the current item (drive expensive work here). `visible` means the item is in the preload window — use it for lightweight prefetch, not video autoplay.
 
 ```tsx Slides + Slide nesting
 import * as Lightbox from '@ramka/react/lightbox';
@@ -248,7 +251,7 @@ import * as Lightbox from '@ramka/react/lightbox';
       <Lightbox.Slides preload={1}>
         {items.map((item, i) => (
           <Lightbox.Slide key={item.id}>
-            <Lightbox.Item index={i}>
+            <Lightbox.Item index={i} itemId={item.id}>
               <Lightbox.Zoom>
                 <Lightbox.Media>
                   <img src={item.src} alt={item.alt} />
@@ -281,7 +284,7 @@ Ramka is *cosmetically* unstyled — colors and chrome are yours — but Media m
 - `Content` — fullscreen surface ( `fixed inset-0` / full dialog)
 - `Slides` — `flex-1` (or equivalent stretch)
 - `Slide` — `flex: 0 0 100%; min-width: 100%` for a full-bleed track; `h-full` for height; put chrome / safe-area insets here as padding (not on Zoom)
-- `Item` — already fills the Slide (`width/height: 100%`)
+- `Item` — already fills the Slide ( `width/height: 100%`)
 - `Zoom` — already fills + centers (structural)
 - `Media` — sized fit-box (morph + placeholder host); `<img>` / `<video>` inside
 
@@ -300,7 +303,7 @@ import * as Lightbox from '@ramka/react/lightbox';
     <Lightbox.Content className="fixed inset-0 flex flex-col">
       <Lightbox.Slides className="flex-1">
         <Lightbox.Slide className="h-full p-8">
-          <Lightbox.Item index={0}>
+          <Lightbox.Item index={0} itemId="photo">
             {/* Zoom fills the Slide content box; pad the Slide for chrome insets. */}
             <Lightbox.Zoom>
               <Lightbox.Media width={width} height={height}>
@@ -349,7 +352,7 @@ Live examples: [Twitter preset](presets/twitter.md), [Stories preset](presets/st
 
 ## Chrome
 
-The site default viewer is Slides + Zoom with Counter (top-left), Close / ZoomIn / ZoomOut, Caption, and a desktop [ThumbnailStrip](docs/lightbox/api.md#api-thumbnail-strip) (scroll-linked midline track) as siblings inside [Content](docs/lightbox/api.md#api-content). Midline selection chrome is plain consumer markup on the strip root. Prefer [ThumbnailGroup](docs/lightbox/api.md#api-thumbnail-group) when you want a static tablist without scroll-linking. Thumbnails register by `index` like Triggers. Put Backdrop and Content in [Portal](docs/lightbox/api.md#api-portal). Stacking follows Base UI: `isolation: isolate` on the app layout root, and — when using `keepMounted` — a consumer `z-index` on the Portal host (e.g. `className="relative z-[1]"`). Inside the portal, document order keeps Backdrop under Content.
+The site default viewer is Slides + Zoom with Counter (top-left), Close / ZoomIn / ZoomOut, Caption, and a desktop [ThumbnailStrip](docs/lightbox/api.md#api-thumbnail-strip) (scroll-linked midline track) as siblings inside [Content](docs/lightbox/api.md#api-content). Midline selection chrome is plain consumer markup on the strip root. Prefer [ThumbnailGroup](docs/lightbox/api.md#api-thumbnail-group) when you want a static tablist without scroll-linking. Thumbnails register by `index`, matching the Item at that position. Put Backdrop and Content in [Portal](docs/lightbox/api.md#api-portal). Stacking follows Base UI: `isolation: isolate` on the app layout root, and — when using `keepMounted` — a consumer `z-index` on the Portal host (e.g. `className="relative z-[1]"`). Inside the portal, document order keeps Backdrop under Content.
 
 ```tsx Chrome composition
 import * as Lightbox from '@ramka/react/lightbox';
@@ -361,7 +364,7 @@ import * as Lightbox from '@ramka/react/lightbox';
       <Lightbox.Slides>
         {items.map((item, i) => (
           <Lightbox.Slide key={item.id}>
-            <Lightbox.Item index={i} caption={item.caption}>
+            <Lightbox.Item index={i} itemId={item.id} caption={item.caption}>
               <Lightbox.Zoom>
                 <Lightbox.Media>
                   <img src={item.src} alt={item.alt} />
@@ -398,7 +401,9 @@ Packaged as a skin: [Default preset](presets/default.md).
 
 ## Dynamic itemCount
 
-Items register on mount. The root `itemCount` is derived from registered items — indices do not need to be contiguous, but Counter, loop edges, and preload distance all use that count. Prefer dense `0…n-1` indexes unless you intentionally leave holes.
+Items register on mount with their `index` (position) and `itemId` (identity). The root `itemCount` is derived from registered items — indices do not need to be contiguous, but Counter, loop edges, and preload distance all use that count. Prefer dense `0…n-1` indexes unless you intentionally leave holes.
+
+Items register in effects, which never run on the server. A page that server-renders the lightbox already open (a deep link) can pass the gallery's ids in order as [Root](docs/lightbox/api.md#api-root) `itemIds` so the counter, caption, and slide position paint right before hydration. Once items mount, the prop is ignored.
 
 # Next.js Image
 
@@ -408,14 +413,14 @@ The demos on this page intentionally delay every full-size lightbox image by ~50
 
 ## When to use blurDataURL
 
-Decide **per item index**, not per gallery. Ramka paints an open bridge only when that index has a registered trigger image (`imageRef`).
+Decide **per item**, not per gallery. Ramka paints an open bridge only when that item has a registered trigger image ( `imageRef`).
 
 | Image | `placeholder="blur"` | Why |
 | --- | --- | --- |
 | Image inside `Lightbox.Trigger` | Yes | A regular page image — the LQIP covers its own load. Ramka never paints a placeholder here. |
 | Image inside `Lightbox.Thumbnail` | Yes | Same as a trigger: a regular page image. Ramka bridges only the destination media, never strip thumbnails, so the LQIP is the only thing covering the thumb’s own load. |
-| Lightbox image, index *has* a trigger image ( `imageRef`) | No | While the full-size image loads, Ramka paints the trigger’s image — already decoded and on screen — onto a canvas *behind* the lightbox image. Next’s LQIP renders as a background on the lightbox image itself, in front of that canvas, so blur here hides a sharp placeholder behind a blurry one. |
-| Lightbox image, index has *no* trigger image | Yes | Ramka has no trigger image to paint, so the LQIP is the only loading placeholder (see [No trigger image](#no-trigger-image)). |
+| Lightbox image, item *has* a trigger image (`imageRef`) | No | While the full-size image loads, Ramka paints the trigger’s image — already decoded and on screen — onto a canvas *behind* the lightbox image. Next’s LQIP renders as a background on the lightbox image itself, in front of that canvas, so blur here hides a sharp placeholder behind a blurry one. |
+| Lightbox image, item has *no* trigger image | Yes | Ramka has no trigger image to paint, so the LQIP is the only loading placeholder (see [No trigger image](#no-trigger-image)). |
 
 **One exception:** pages that server-render the lightbox already open (deep links). The bridge is painted on gesture opens — a server-rendered open has no gesture, and before hydration nothing is decoded to paint from — while `blurDataURL` is inlined into the server HTML itself. For those visits, destination blur is the only placeholder that can exist on first paint: enable it for the deep-link visit and keep destinations clean for regular visits (decide once per mount, like the portal container). See the URL-synced state example.
 
@@ -427,7 +432,7 @@ Static-import the same asset for trigger and destination (Next fills in `blurDat
 import * as Lightbox from '@ramka/react/lightbox';
 
 <Lightbox.Root>
-  <Lightbox.Trigger index={0}>
+  <Lightbox.Trigger itemId="photo">
     {({ imageRef }) => (
       <Image
         ref={imageRef}
@@ -444,7 +449,7 @@ import * as Lightbox from '@ramka/react/lightbox';
     <Lightbox.Content>
       <Lightbox.Slides>
         <Lightbox.Slide>
-          <Lightbox.Item index={0}>
+          <Lightbox.Item index={0} itemId="photo">
             <Lightbox.Zoom>
               <Lightbox.Media width={photo.width} height={photo.height}>
                 <Image
@@ -466,13 +471,13 @@ import * as Lightbox from '@ramka/react/lightbox';
 
 ## Don’t
 
-`placeholder="blur"` on a lightbox image whose index has a trigger image covers Ramka’s bridge with Next’s LQIP while the full image loads.
+`placeholder="blur"` on a lightbox image whose item has a trigger image covers Ramka’s bridge with Next’s LQIP while the full image loads.
 
 ```tsx Don’t — blur on lightbox Image
 import * as Lightbox from '@ramka/react/lightbox';
 
 <Lightbox.Root>
-  <Lightbox.Trigger index={0}>
+  <Lightbox.Trigger itemId="photo">
     {({ imageRef }) => (
       <Image ref={imageRef} src={photo} alt="Photo" className="aspect-square size-full object-cover" />
     )}
@@ -483,7 +488,7 @@ import * as Lightbox from '@ramka/react/lightbox';
     <Lightbox.Content>
       <Lightbox.Slides>
         <Lightbox.Slide>
-          <Lightbox.Item index={0}>
+          <Lightbox.Item index={0} itemId="photo">
             <Lightbox.Zoom>
               <Lightbox.Media width={photo.width} height={photo.height}>
                 <Image
@@ -506,18 +511,18 @@ import * as Lightbox from '@ramka/react/lightbox';
 
 ## No trigger image
 
-If an index has no trigger `imageRef`, Ramka has nothing to paint. Use destination `placeholder="blur"` for those items only — not for siblings that still have a trigger image.
+If an item has no trigger `imageRef`, Ramka has nothing to paint. Use destination `placeholder="blur"` for those items only — not for siblings that still have a trigger image.
 
 ### +N extras
 
-Open the +N tile, then swipe past the triggered photos. Overflow slides show Next’s LQIP; indexes 0–1 stay on Ramka’s trigger-image bridge. Close uses [morphTo="closest"](docs/lightbox/view-transitions.md#morph-to).
+Open the +N tile, then swipe past the triggered photos. Overflow slides show Next’s LQIP; the first two photos stay on Ramka’s trigger-image bridge. Close uses [morphTo="closest"](docs/lightbox/view-transitions.md#morph-to).
 
 ```tsx Destination blur for +N extras
 import * as Lightbox from '@ramka/react/lightbox';
 
 <Lightbox.Root morphTo="closest">
   {photos.slice(0, visible).map((photo, i) => (
-    <Lightbox.Trigger key={photo.src} index={i} crossfade={i === visible - 1 ? 'both' : undefined}>
+    <Lightbox.Trigger key={photo.src} itemId={photo.src} crossfade={i === visible - 1 ? 'both' : undefined}>
       {({ imageRef }) => <Image ref={imageRef} src={photo} alt="" placeholder="blur" />}
     </Lightbox.Trigger>
   ))}
@@ -528,7 +533,7 @@ import * as Lightbox from '@ramka/react/lightbox';
       <Lightbox.Slides>
         {photos.map((photo, i) => (
           <Lightbox.Slide key={photo.src}>
-            <Lightbox.Item index={i}>
+            <Lightbox.Item index={i} itemId={photo.src}>
               <Lightbox.Zoom>
                 <Lightbox.Media width={photo.width} height={photo.height}>
                   <Image
@@ -536,7 +541,7 @@ import * as Lightbox from '@ramka/react/lightbox';
                     alt=""
                     sizes="100vw"
                     priority
-                    // Overflow indexes only — siblings with trigger thumbs stay clean.
+                    // Overflow items only — siblings with trigger thumbs stay clean.
                     {...(i >= visible ? { placeholder: 'blur' as const } : null)}
                   />
                 </Lightbox.Media>
@@ -558,7 +563,7 @@ Initials / swatches have a Trigger but no trigger image. Blur on the lightbox im
 import * as Lightbox from '@ramka/react/lightbox';
 
 <Lightbox.Root>
-  <Lightbox.Trigger index={0} crossfade="both">
+  <Lightbox.Trigger itemId="portrait" crossfade="both">
     <div className="flex size-16 items-center justify-center rounded-full bg-sky-700 text-white">AC</div>
   </Lightbox.Trigger>
 
@@ -567,7 +572,7 @@ import * as Lightbox from '@ramka/react/lightbox';
     <Lightbox.Content>
       <Lightbox.Slides>
         <Lightbox.Slide>
-          <Lightbox.Item index={0}>
+          <Lightbox.Item index={0} itemId="portrait">
             <Lightbox.Zoom>
               <Lightbox.Media width={photo.width} height={photo.height}>
                 <Image src={photo} alt="Portrait" sizes="100vw" priority placeholder="blur" />
@@ -583,7 +588,7 @@ import * as Lightbox from '@ramka/react/lightbox';
 
 ## Checklist
 
-- Per index: trigger image → no destination blur; no trigger image → destination blur OK
+- Per item: trigger image → no destination blur; no trigger image → destination blur OK
 - Match Media `width` /`height` to the image source aspect
 - Trigger and destination must share that intrinsic aspect (CSS-crop the tile; don't serve a differently-cropped file) — [Source aspect](docs/lightbox/view-transitions.md#source-aspect)
 - Trigger: `imageRef` (or [useLightboxTriggerContext](docs/lightbox/api.md#api-use-trigger-context)); blur OK on the trigger image
@@ -609,14 +614,14 @@ Nested wrappers can use [useLightboxTriggerContext](docs/lightbox/api.md#api-use
 import * as Lightbox from '@ramka/react/lightbox';
 
 <Lightbox.Root morphTo="active">
-  <Lightbox.Trigger index={0}>{({ imageRef }) => <img ref={imageRef} src={thumb} alt="" />}</Lightbox.Trigger>
+  <Lightbox.Trigger itemId="photo">{({ imageRef }) => <img ref={imageRef} src={thumb} alt="" />}</Lightbox.Trigger>
 
   <Lightbox.Portal>
     <Lightbox.Backdrop />
     <Lightbox.Content>
       <Lightbox.Slides>
         <Lightbox.Slide>
-          <Lightbox.Item index={0}>
+          <Lightbox.Item index={0} itemId="photo">
             <Lightbox.Zoom>
               <Lightbox.Media>
                 <img src={src} alt="" />
@@ -632,7 +637,7 @@ import * as Lightbox from '@ramka/react/lightbox';
 
 ## Source aspect
 
-The morph snapshots whatever pixels are on the trigger `<img>` and interpolates them into the destination Media box. That only looks like one photo when both sides share the *same intrinsic aspect ratio* — the same file, or srcset candidates of that file. A square tile is fine; crop it with CSS ( `object-fit: cover`), not by baking `w=h&fit=crop` into a different image.
+The morph snapshots whatever pixels are on the trigger `<img>` and interpolates them into the destination Media box. That only looks like one photo when both sides share the *same intrinsic aspect ratio* — the same file, or srcset candidates of that file. A square tile is fine; crop it with CSS (`object-fit: cover`), not by baking `w=h&fit=crop` into a different image.
 
 A CDN-cropped 1∶1 thumb against a 3∶2 lightbox image will reframe mid-animation: Ramka paints the square thumb into the landscape box, then the full file lands with a different crop. Element boxes may differ. Intrinsic aspect must not.
 
@@ -642,7 +647,7 @@ These demos delay the lightbox image by ~500ms so the handoff is visible on ever
 import * as Lightbox from '@ramka/react/lightbox';
 
 <Lightbox.Root>
-  <Lightbox.Trigger index={0}>
+  <Lightbox.Trigger itemId="photo">
     {({ imageRef }) => (
       <Image
         ref={imageRef}
@@ -659,7 +664,7 @@ import * as Lightbox from '@ramka/react/lightbox';
     <Lightbox.Content>
       <Lightbox.Slides>
         <Lightbox.Slide>
-          <Lightbox.Item index={0}>
+          <Lightbox.Item index={0} itemId="photo">
             <Lightbox.Zoom>
               <Lightbox.Media width={photo.width} height={photo.height}>
                 <Image src={photo} alt="Photo" sizes="100vw" priority />
@@ -677,7 +682,7 @@ import * as Lightbox from '@ramka/react/lightbox';
 import * as Lightbox from '@ramka/react/lightbox';
 
 <Lightbox.Root>
-  <Lightbox.Trigger index={0}>
+  <Lightbox.Trigger itemId="photo">
     {({ imageRef }) => (
       // ❌ 1∶1 file. Media below is the full 3∶2 photo.
       <Image ref={imageRef} src={squareThumb} alt="Photo" className="size-full object-cover" />
@@ -689,7 +694,7 @@ import * as Lightbox from '@ramka/react/lightbox';
     <Lightbox.Content>
       <Lightbox.Slides>
         <Lightbox.Slide>
-          <Lightbox.Item index={0}>
+          <Lightbox.Item index={0} itemId="photo">
             <Lightbox.Zoom>
               <Lightbox.Media width={photo.width} height={photo.height}>
                 <Image src={photo} alt="Photo" sizes="100vw" priority />
@@ -717,7 +722,7 @@ Keep trigger and item images on `object-fit: cover` (or the same fit) so crops s
 import * as Lightbox from '@ramka/react/lightbox';
 
 <Lightbox.Root morphTo="closest">
-  <Lightbox.Trigger index={0} crossfade="both">
+  <Lightbox.Trigger itemId="photo-1" crossfade="both">
     {({ imageRef }) => (
       <div className="relative">
         <Image ref={imageRef} src={photo} alt="" placeholder="blur" />
@@ -730,7 +735,7 @@ import * as Lightbox from '@ramka/react/lightbox';
     <Lightbox.Content>
       <Lightbox.Slides>
         <Lightbox.Slide>
-          <Lightbox.Item index={0}>
+          <Lightbox.Item index={0} itemId="photo-1">
             {({ imageRef }) => <Image ref={imageRef} src={photo} alt="" sizes="100vw" priority />}
           </Lightbox.Item>
         </Lightbox.Slide>
@@ -744,29 +749,29 @@ import * as Lightbox from '@ramka/react/lightbox';
 
 Picks which trigger receives the *close* morph:
 
-- `active` (default) — trigger for the current active index. No morph if that index has no trigger.
+- `active` (default) — the trigger for the active item. No morph if that item has no trigger.
 - `origin` — always the trigger that opened the lightbox (one tile opens many items).
-- `closest` — active index if registered, otherwise the nearest registered trigger.
+- `closest` — the active item's trigger if registered, otherwise the nearest registered trigger.
 
 ```tsx morphTo="closest"
 import * as Lightbox from '@ramka/react/lightbox';
 
 <Lightbox.Root morphTo="closest">
-  <Lightbox.Trigger index={0}>{/* first thumb */}</Lightbox.Trigger>
-  <Lightbox.Trigger index={1}>{/* +N tile */}</Lightbox.Trigger>
-  {/* items 2…n close to the nearest trigger */}
+  <Lightbox.Trigger itemId="photo-1">{/* first thumb */}</Lightbox.Trigger>
+  <Lightbox.Trigger itemId="photo-2">{/* +N tile */}</Lightbox.Trigger>
+  {/* photo-3…n close to the nearest trigger */}
   <Lightbox.Portal>
     <Lightbox.Backdrop />
     <Lightbox.Content>
       <Lightbox.Slides>
         <Lightbox.Slide>
-          <Lightbox.Item index={0} />
+          <Lightbox.Item index={0} itemId="photo-1" />
         </Lightbox.Slide>
         <Lightbox.Slide>
-          <Lightbox.Item index={1} />
+          <Lightbox.Item index={1} itemId="photo-2" />
         </Lightbox.Slide>
         <Lightbox.Slide>
-          <Lightbox.Item index={2} />
+          <Lightbox.Item index={2} itemId="photo-3" />
         </Lightbox.Slide>
       </Lightbox.Slides>
     </Lightbox.Content>
@@ -774,11 +779,30 @@ import * as Lightbox from '@ramka/react/lightbox';
 </Lightbox.Root>
 ```
 
+### Curated grids: `overflowItemIds`
+
+A +N tile placed after the first photos needs nothing beyond `morphTo="closest"`: the hidden photos come next in viewer order, so the nearest trigger is the tile. Curated grids are different — an Airbnb-style "Show all photos" layout shows hand-picked photos, not the first N, so `closest` would land on the wrong tile. List the `itemId` s the +N tile stands in for on its [Trigger](docs/lightbox/api.md#api-trigger). While one of them is active, the close morph lands on that tile; an item's own trigger always wins.
+
+```tsx +N tile in a curated grid
+const shown = ['kitchen', 'pool', 'bedroom'];
+const hidden = photos.filter((photo) => !shown.includes(photo.id));
+
+<Lightbox.Trigger itemId="kitchen">…</Lightbox.Trigger>
+<Lightbox.Trigger itemId="pool">…</Lightbox.Trigger>
+<Lightbox.Trigger
+  itemId="bedroom"
+  overflowItemIds={hidden.map((photo) => photo.id)}
+  crossfade="both"
+>
+  … +{hidden.length}
+</Lightbox.Trigger>
+```
+
 ## Root scrollTriggerIntoView
 
 When the page scrolls while the lightbox is open, the close morph can land off-screen. Use `scrollTriggerIntoView` to keep the target trigger in view:
 
-- `onChange` — scroll to the active trigger as the index changes (preemptive).
+- `onChange` — scroll to the active trigger as the active item changes (preemptive).
 - `onOpenComplete` — reposition once open settles (invisible under the overlay; `instant` recommended).
 - `onClose` — scroll just before the close morph (visible jump at close start).
 
@@ -799,7 +823,7 @@ import * as Lightbox from '@ramka/react/lightbox';
 
 ## Programmatic open
 
-Prefer [createHandle()](docs/lightbox/api.md#api-create-handle): `open(index, { triggerId })` associates a Trigger that declared that `id` so the open morph can use that element. Without a registered trigger (or `triggerId`), the open falls back to the fade path. Trigger clicks still morph. Demo: [State & lifecycle → Imperative API](docs/lightbox/state-lifecycle.md#imperative).
+Prefer [createHandle()](docs/lightbox/api.md#api-create-handle): `open(itemId)` morphs from that item's mounted Trigger, if it has one. Without one, the open falls back to the fade path. Trigger clicks still morph. Demo: [State & lifecycle → Imperative API](docs/lightbox/state-lifecycle.md#imperative).
 
 ## Styling
 
@@ -1050,7 +1074,7 @@ import * as Lightbox from '@ramka/react/lightbox';
 
       <Lightbox.Slides>
         <Lightbox.Slide>
-          <Lightbox.Item index={0}>
+          <Lightbox.Item index={0} itemId="photo">
             <Lightbox.Zoom>
               <Lightbox.Media>
                 <img src={src} alt={alt} />
@@ -1219,7 +1243,7 @@ import * as Lightbox from '@ramka/react/lightbox';
       <Lightbox.Slides>
         {images.map((img, i) => (
           <Lightbox.Slide key={img.id}>
-            <Lightbox.Item index={i}>
+            <Lightbox.Item index={i} itemId={img.id}>
               <Lightbox.Media>
                 <img src={img.src} alt={img.alt} />
               </Lightbox.Media>
@@ -1247,18 +1271,18 @@ Not everything flips, and the split is not arbitrary. Moving through an ordered 
 | --- | --- | --- |
 | Slide order & scroll | Mirrored | Index 0 sits at the inline-start (right) edge; the scroller runs right-to-left. |
 | Horizontal arrow keys | Mirrored | ArrowLeft advances, ArrowRight goes back — travel follows reading order. |
-| Home / End | Not mirrored | Home is always the first item, End the last. They address indices, not sides. |
+| Home / End | Not mirrored | Home is always the first item, End the last. They address positions, not sides. |
 | Thumbnail strip | Mirrored | Track, padding, and the active-thumb indicator all run on the inline axis. |
 | Previous / Next | Mirrored position | Previous is the item nearer index 0, so it belongs on the inline-start side. |
 | Zoomed panning | Not mirrored | Direct manipulation of a surface: ArrowRight pans right, as on a map. |
 | Pull-to-dismiss | Not mirrored | The sheet follows your finger, which has no reading direction. |
 | Morph / view transitions | Mirrored | The morph measures the trigger and the slide, so it follows whatever they do. |
 
-## Indices never mirror
+## Item order never mirrors
 
-The imperative API is index-based, and indices are not sides. [createHandle()](docs/lightbox/api.md#api-create-handle)’s `open(3)` and `goTo(3)` land on the fourth item in either direction; what changes is that RTL renders it further left and the track travels the other way to reach it. The same holds for `value` / `onValueChange` and for [Trigger](docs/lightbox/api.md#api-trigger)’s `index`.
+The imperative API names items by `itemId`, and item order is not a side. [createHandle()](docs/lightbox/api.md#api-create-handle)’s `open(id)` and `goTo(id)` land on the same item in either direction, and [Item](docs/lightbox/api.md#api-item) `index` 3 is the fourth item either way; what changes is that RTL renders it further left and the track travels the other way to reach it. The same holds for `value` / `onValueChange`.
 
-The buttons inside the viewer below jump by index. Open it, then watch the strip: the photo you land on is the same one an LTR gallery would show.
+The buttons inside the viewer below jump to fixed photos. Open it, then watch the strip: the photo you land on is the same one an LTR gallery would show.
 
 ```tsx Imperative API under RTL
 import * as Lightbox from '@ramka/react/lightbox';
@@ -1267,12 +1291,12 @@ const lightbox = Lightbox.createHandle();
 
 <>
   {/* Opens the first item, at the inline-start (right) edge of the track. */}
-  <button type="button" onClick={() => lightbox.open(0)}>
+  <button type="button" onClick={() => lightbox.open('photo-1')}>
     פתיחת הגלריה
   </button>
 
   {/* Jumps to the 4th item regardless of reading direction. */}
-  <button type="button" onClick={() => lightbox.goTo(3)}>
+  <button type="button" onClick={() => lightbox.goTo('photo-4')}>
     מעבר לתמונה 4
   </button>
 
@@ -1308,10 +1332,7 @@ import * as Lightbox from '@ramka/react/lightbox';
           default. Name the carousel itself with `aria-label`, and leave
           the word "carousel" out of that name; the roledescription
           already says it. */}
-      <Lightbox.Slides
-        aria-label={t('viewer.photos')}
-        aria-roledescription={t('viewer.carousel')}
-      >
+      <Lightbox.Slides aria-label={t('viewer.photos')} aria-roledescription={t('viewer.carousel')}>
         {items.map((item, i) => (
           <Lightbox.Slide key={item.id}>
             {/* A slide is a `group`, and a group is not named by the text
@@ -1320,6 +1341,7 @@ import * as Lightbox from '@ramka/react/lightbox';
                 the index and the count already. */}
             <Lightbox.Item
               index={i}
+              itemId={item.id}
               aria-roledescription={t('viewer.slide')}
               aria-label={t('viewer.position', { current: i + 1, total: items.length })}
             >
@@ -1334,11 +1356,7 @@ import * as Lightbox from '@ramka/react/lightbox';
       {/* Counter renders "1 / 7" by default. Digits are not English, but
           their formatting is a locale decision — pass children to run the
           numbers through Intl. */}
-      <Lightbox.Counter>
-        {({ current, total }) =>
-          t('viewer.position', { current, total })
-        }
-      </Lightbox.Counter>
+      <Lightbox.Counter>{({ current, total }) => t('viewer.position', { current, total })}</Lightbox.Counter>
 
       <Lightbox.Previous aria-label={t('viewer.previous')} />
       <Lightbox.Next aria-label={t('viewer.next')} />
@@ -1413,46 +1431,44 @@ Each part accepts native element props for its default host (via Base UI `render
 
 ### Root
 
-Groups all parts of the lightbox and owns open state, active index, view-transition morph, scroll locking, and the active-zoom bridge. Pass handle from Lightbox.createHandle() for imperative control and detached Triggers. Prefer onOpenChangeComplete for post-motion work; use scrollTriggerIntoView so close morphs land on-screen when the page scrolled while open.
+Groups all parts of the lightbox and owns open state, the active item (value, by itemId), view-transition morph, scroll locking, and the active-zoom bridge. Pass handle from Lightbox.createHandle() for imperative control and detached Triggers. Prefer onOpenChangeComplete for post-motion work; use scrollTriggerIntoView so close morphs land on-screen when the page scrolled while open.
 
 #### Props
 
 | Name | Type | Default | Description |
 | --- | --- | --- | --- |
-| children | `ReactNode \| ((state: LightboxRootRenderState<Payload>) => ReactNode)` |  | Lightbox parts and page content (triggers typically live as children of Root). Pass a function to render the viewer from the open's `payload` — the shape for one Root serving many galleries through keyed Triggers. |
+| children | `ReactNode` |  | Lightbox parts and page content (triggers typically live as children of Root). A viewer serving many galleries reads the open's payload with `useLightboxPayload()`. |
 | handle | `LightboxHandle<Payload>` |  | Imperative handle from `Lightbox.createHandle()`. Pass the same handle to detached `Lightbox.Trigger`s outside this Root. |
-| revealTrigger | `LightboxRevealTrigger<Payload>` |  | Bring an unmounted keyed trigger back so the close morph has somewhere to land — for triggers inside a virtualized list, whose rows unmount when they scroll away. Called with the active item's `itemId` when the close target has no mounted trigger. Scroll the row that holds the item into view here, e.g. `virtualizer.scrollToIndex(row)`. - On close (`reason: 'close'`) the morph waits for the trigger to mount and its position to settle, up to a few frames, then morphs (or fades if it never mounts). Return a Promise to wait for your own signal instead (bound it yourself; `signal` aborts if a newer open/close wins), or `false` when the item can't be revealed, to skip the wait. - While open (`reason: 'change'`) it is called after navigation settles, only when `scrollTriggerIntoView` includes `onChange` — the same moments Root scrolls a mounted trigger into view. Without view transitions nothing waits: the trigger is revealed and focus returns to it once it mounts. Use `behavior: 'instant'` scrolling; a smooth scroll outlasts the wait. Only keyed Triggers (`itemId`) are revealed. |
-| defaultPayload | `Payload` |  | Payload for a Root that starts open (`defaultOpen` / controlled `open`) — a deep link rendered from the URL. Later opens set the payload from the opening Trigger or `handle.open({ payload })`. Pair with `defaultValue` (or `value`) for the item's index, e.g. `payload.images.findIndex((image) => image.id === params.photo)`. |
+| revealTrigger | `LightboxRevealTrigger<Payload>` |  | Bring an unmounted trigger back so the close morph has somewhere to land — for triggers inside a virtualized list, whose rows unmount when they scroll away. Called with the active item's `itemId` when the close target has no mounted trigger. Scroll the row that holds the item into view here, e.g. `virtualizer.scrollToIndex(row)`. - On close (`reason: 'close'`) the morph waits for the trigger to mount and its position to settle, up to a few frames, then morphs (or fades if it never mounts). Return a Promise to wait for your own signal instead (bound it yourself; `signal` aborts if a newer open/close wins), or `false` when the item can't be revealed, to skip the wait. - While open (`reason: 'change'`) it is called after navigation settles, only when `scrollTriggerIntoView` includes `onChange` — the same moments Root scrolls a mounted trigger into view. Without view transitions nothing waits: the trigger is revealed and focus returns to it once it mounts. Use `behavior: 'instant'` scrolling; a smooth scroll outlasts the wait. |
+| defaultPayload | `Payload` |  | Payload for a Root that starts open (`defaultOpen` / controlled `open`) — a deep link rendered from the URL. Later opens set the payload from the opening Trigger or `handle.open(itemId, { payload })`. Pair with `defaultValue` (or `value`) for the item, e.g. `params.photo`. |
 | defaultOpen | `boolean` | `false` | Uncontrolled initial open state. |
 | open | `boolean` |  | Controlled open state. |
 | onOpenChange | `(open: boolean) => void` |  | Called when open state changes (immediately, before enter/exit animations finish). Prefer this for syncing URL state or stores. |
 | onOpenChangeComplete | `(open: boolean) => void` |  | Called when the open/close transition settles. Receives `true` after open completes, `false` after close completes. Prefer this for cleanup and focus management. |
-| defaultValue | `number` | `0` | Uncontrolled initial active index. |
-| value | `number` |  | Controlled active index. |
-| onValueChange | `(value: number, metadata: { source: NavigationSource; itemId?: string }) => void` |  | Callback when active index changes. `metadata.itemId` is the new active item's `itemId` when it has one — the stable key to write to a URL. |
-| count | `number` |  | Total number of items, used until the mounted `Lightbox.Item`s have registered themselves. Registration happens in effects, which never run during server rendering — so a page that server-renders an open lightbox paints `Lightbox.Counter` as "n / 0" (and boundary-disables `Lightbox.Next` / `Lightbox.Previous` when `loop` is off) until hydration. Pass the item total to make that first paint correct. Once any item mounts the live registry takes over and this prop is ignored, so it can't drift from the real count. |
+| defaultValue | `string` | `the first item` | Uncontrolled initial active item: its `itemId`. |
+| value | `string` |  | Controlled active item: its `itemId`. |
+| onValueChange | `(value: string, details: { index: number; source: NavigationSource }) => void` |  | Called when the active item changes, with its `itemId` — the stable key to write to a URL. `details.index` is its position in the viewer. |
+| itemIds | `readonly string[]` |  | The gallery's `itemId`s in viewer order, for a page that server-renders an open lightbox (a deep link). Items register in effects, which never run during server rendering, so without this the first paint can't know where `value` sits: `Lightbox.Counter`, `Lightbox.Caption`, the Previous/Next boundaries and the slide position stay wrong until hydration. Once items mount the live registry takes over and this prop is ignored, so it can't drift. |
 | loop | `boolean` | `false` | Wrap navigation at boundaries. |
 | dir | `TextDirection` | `'ltr' (behavior); no `dir` attribute is written when omitted` | Reading direction. `'rtl'` mirrors slide navigation, thumbnail-strip travel, and the horizontal arrow keys (so `ArrowLeft` advances). Setting this is enough on its own: the direction is written to the `Lightbox.Portal` host as a `dir` attribute, so CSS follows it across the portal boundary even though the host mounts on `document.body`. That also makes it the way to run one RTL lightbox inside an otherwise-LTR page. Pass it whenever the surrounding UI is RTL, including in an app that is already RTL end to end (`dir="rtl"` on `<html>`) — behavior falls back to `'ltr'` without it, and navigation would run against the layout. Omitting it writes no attribute at all, so such an app still *lays out* RTL by inheritance; in development that disagreement logs a warning. |
 | viewTransition | `boolean \| LightboxViewTransitionPreset` | `true` | Morph between trigger and lightbox item via the View Transitions API. On by default: clicking a trigger morphs into the fullscreen item, and close morphs back. The morph engine is loaded on first use — pass `false` to skip that download. Falls back to a plain fade when unsupported, when prefers-reduced-motion is set, or on low-end devices. Pass a preset name to pick the morph's motion (duration + easing): - `"default"` — 360ms, sheet curve with a tamed launch (same as `true`) - `"snappy"` — 340ms, hotter launch; reads quicker - `"relaxed"` — 400ms, softer launch and longer settle - `"spring"` — 450ms, critically damped spring; Photos-style settle Timing is preset-based (not free-form CSS) on purpose: each preset is vetted on-device to stay smooth and skip-safe on iOS Safari (including Low Power Mode) and Android, where arbitrary curves stutter or teleport. The chosen timing drives the morph, the crossfade and the root fade together so they always stay in sync. |
-| scrollTriggerIntoView | `ScrollTriggerIntoView` | `null` | Scroll the active trigger element into the viewport so close animations land on-screen instead of animating off-viewport. Accepts a single option or an array of options, so you can combine the moments below. Per option: - `behavior` — `"smooth"` (default) or `"instant"` - `block` / `inline` — `scrollIntoView` alignment (`"nearest"` default). Use `inline: "center"` for horizontal snap strips with variable-width tiles. - `null` (default) — no automatic scrolling - `{ type: "onChange" }` — scroll to the trigger the close morph will land on whenever the active index changes while the lightbox is open (preemptive; respects `morphTo`, so `closest` scrolls the nearest registered trigger when the active index has none) - `{ type: "onOpenComplete" }` — scroll to that same trigger once the open transition finishes. The viewer covers the page and scroll is locked, so this reposition is invisible — it only pays off by ensuring the close morph lands on-screen without a jump when the trigger was partially off-screen at open time. `"instant"` recommended. - `{ type: "onClose" }` — scroll to that trigger just before the close morph runs (visible reposition at close start) |
-| morphTo | `'active' \| 'origin' \| 'closest'` | `'active'` | Controls which trigger receives the View Transition morph on close. - `'active'` (default) — morph to the trigger matching the current active index. No morph if no trigger exists for that index. - `'origin'` — always morph back to the trigger that originally opened the lightbox, regardless of which item is active. - `'closest'` — morph to the trigger at the active index if it exists, otherwise fall back to the nearest registered trigger. |
+| scrollTriggerIntoView | `ScrollTriggerIntoView` | `null` | Scroll the active trigger element into the viewport so close animations land on-screen instead of animating off-viewport. Accepts a single option or an array of options, so you can combine the moments below. Per option: - `behavior` — `"smooth"` (default) or `"instant"` - `block` / `inline` — `scrollIntoView` alignment (`"nearest"` default). Use `inline: "center"` for horizontal snap strips with variable-width tiles. - `null` (default) — no automatic scrolling - `{ type: "onChange" }` — scroll to the trigger the close morph will land on whenever the active item changes while the lightbox is open (preemptive; respects `morphTo`, so `closest` scrolls the nearest trigger when the active item has none) - `{ type: "onOpenComplete" }` — scroll to that same trigger once the open transition finishes. The viewer covers the page and scroll is locked, so this reposition is invisible — it only pays off by ensuring the close morph lands on-screen without a jump when the trigger was partially off-screen at open time. `"instant"` recommended. - `{ type: "onClose" }` — scroll to that trigger just before the close morph runs (visible reposition at close start) |
+| morphTo | `'active' \| 'origin' \| 'closest'` | `'active'` | Controls which trigger receives the View Transition morph on close. - `'active'` (default) — morph to the active item's trigger. No morph if it has none. - `'origin'` — always morph back to the trigger that originally opened the lightbox, regardless of which item is active. - `'closest'` — morph to the active item's trigger if it has one, otherwise to the trigger of the nearest item that does (a "+N" tile for the photos behind it). |
 | awaitImageDecode | `boolean \| number` | `true` | How long the open morph waits for the destination image to decode before starting, so the lightbox doesn't flash empty space while the full-size image is still loading. - `true` (default) — wait up to ~200ms, then start regardless. - `false` — don't wait; start the transition immediately. Useful when the trigger image doubles as a placeholder for the lightbox item so there is nothing to wait for. - `number` — wait up to this many milliseconds. The morph starts as soon as the image decodes (or is served from cache), or when the timeout elapses — whichever comes first. Runs after the lightbox is prepared (mounted hidden) and before `onBeforeOpen`. Only relevant when `viewTransition` is enabled. |
 | onBeforeOpen | `LightboxBeforeOpen` |  | Called after the open morph has prepared the lightbox (mounted, still hidden) and finished any `awaitImageDecode` wait, and **before** the View Transition starts. Use this to await custom media readiness (iframe `load`, video `loadeddata`, WebGL, …). May return a Promise — the morph waits for it. Bound your own timeout inside the callback; there is no library-imposed cap. When a newer open/close supersedes this one, `ctx.signal` aborts. Only relevant when `viewTransition` is enabled. Skipped when unset. |
 | onBeforeClose | `LightboxBeforeClose` |  | Called synchronously just before close commits — and, when View Transitions are on, **before** the old snapshot is captured. Use this to freeze custom media (`video.pause()`, stop a rAF loop, …) so the close morph isn’t a mid-frame. Unlike `onBeforeOpen`, this cannot delay close (return values are ignored). Skipped when unset. |
 
 ### Trigger
 
-Opens the lightbox at a given index and is the morph source (view transitions on by default). Carries the Base UI dialog-trigger disclosure semantics: aria-haspopup="dialog", aria-controls pointing at the dialog while open, and aria-expanded set only on the trigger that opened it. Pass handle + id to use outside Root or for handle.open(..., { triggerId }). Prefer render-prop children to attach imageRef / morphRef.
+Opens the lightbox at the Item with the same itemId and is the morph source (view transitions on by default). Carries the Base UI dialog-trigger disclosure semantics: aria-haspopup="dialog", and aria-controls / aria-expanded on the trigger that opened the dialog. Pass handle to use it outside Root. Prefer render-prop children to attach imageRef / morphRef.
 
 #### Props
 
 | Name | Type | Default | Description |
 | --- | --- | --- | --- |
-| index | `number` |  | Item index this trigger opens. Use either `index` or `itemId`. |
-| itemId | `string` |  | Open the item with this `itemId` (see `Lightbox.Item`'s `itemId`) instead of a fixed index. Keyed triggers can share one Root across many galleries — inside the Root, or anywhere with a `handle`: only triggers whose `itemId` is in the open gallery take part in the morph, placeholders and `morphTo`, so two messages' first images never collide on index 0. |
-| overflowItemIds | `readonly string[]` |  | With `itemId`: items this trigger stands in for without opening them — the images collapsed behind a "+N" tile. While one of them is active the close morph lands on this trigger (and it hides as the morph target), crossfading since the tile shows a different photo; an item's own trigger always wins. |
-| payload | `Payload` |  | Data for the gallery this trigger opens, handed to Root's render-function `children` as `payload`. Pass whatever the viewer needs — the full image list, or just an id to look it up by. Required when the handle declares a payload type (`createHandle<Payload>()`), so a trigger can't silently reopen the previous gallery. |
-| id | `string` |  | Stable id for this trigger. Required for `handle.open(index, { triggerId })` association and for detached Triggers. Also applied as the DOM `id`. |
+| itemId | `string` |  | The item this trigger opens: the `itemId` of a `Lightbox.Item`. Only triggers whose `itemId` is in the open gallery take part in the morph, placeholders and `morphTo`, so one Root can serve many galleries. |
+| overflowItemIds | `readonly string[]` |  | Items this trigger stands in for without opening them, for grids whose visible tiles aren't simply the first photos (a curated "Show all photos" tile). While one of them is active the close morph lands on this trigger, crossfading since the tile shows a different photo; an item's own trigger always wins. A "+N" tile after the first photos doesn't need this: `morphTo="closest"` already lands on it. |
+| payload | `Payload` |  | Data for the gallery this trigger opens, read in the viewer with `useLightboxPayload()`. Pass whatever the viewer needs — the full image list, or just an id to look it up by. Required when the handle declares a payload type (`createHandle<Payload>()`), so a trigger can't silently reopen the previous gallery. |
 | handle | `LightboxHandle<Payload>` |  | Handle from `Lightbox.createHandle()`. Pass the same handle as Root to use this Trigger outside the Root tree (Base UI Dialog-style detached triggers). |
 | crossfade | `'open' \| 'close' \| 'both'` |  | Crossfade between trigger and item snapshots during the view-transition morph. Omit (default) for a hard-cut morph — ideal when trigger and item show the same image at the same intrinsic aspect (a CSS `object-cover` window or smaller srcset is fine; a CDN-baked crop that changes the aspect is not). Use a direction when they differ visually: - `'both'` — crossfade on open and close (e.g. a stack → single photo) - `'open'` — crossfade only when opening - `'close'` — crossfade only when closing (e.g. poster → live video) Sets `data-crossfade` on the trigger and `data-ramka-crossfade` on `<html>` during phases that dissolve (omitted for hard-cut). |
 | children | `ReactNode \| ((state: LightboxTriggerRenderState) => ReactNode)` |  | Static children, or a render function that receives `imageRef` / `morphRef` (attach them to designate the placeholder source and the morph element) plus `open` / `active` state. The render function is the recommended form: it wires the flash-free placeholder without any DOM guessing. |
@@ -1588,8 +1604,8 @@ A single lightbox item. Registers captions and morph/placeholder refs. ARIA adap
 
 | Name | Type | Default | Description |
 | --- | --- | --- | --- |
-| index | `number` |  | The index of this item in the collection. |
-| itemId | `string` |  | Stable key for this item, matched against keyed Triggers' `itemId`. Lets one Root serve many galleries: a Trigger opens at whichever index the item with its `itemId` sits at, and the close morph, placeholders and `morphTo` only consider triggers whose `itemId` is in the open gallery. Must be unique within the gallery. |
+| index | `number` |  | This item's position in the viewer. |
+| itemId | `string` |  | Stable key for this item: what Triggers open, `value` names and `onValueChange` reports. Must be unique within the gallery — the image's id or URL works. |
 | caption | `ReactNode` |  | Optional caption for this item, displayed by Lightbox.Caption. |
 | children | `ReactNode \| ((state: LightboxItemRenderState) => ReactNode)` |  | Static children, or a render function that receives per-item state plus `imageRef` / `morphRef`. Prefer the render function and attach `imageRef` to your `<img>` so the open transition bridges the blank frame with the trigger's thumbnail (see `Lightbox.Trigger`'s `imageRef`). |
 | render | `ReactElement \| ComponentRenderFn` |  | Replaces the part's default element with another tag or component. Accepts an element to clone, or a function that returns one. |
@@ -1627,7 +1643,7 @@ Sized destination media host — morph target and placeholder canvas container. 
 
 ### Slides
 
-Default layout: horizontal snap carousel wired to the active index. Emits role="group" — the WAI-ARIA carousel container — and you pass the translated aria-roledescription="carousel" plus an aria-label / aria-labelledby naming the gallery (leave the word "carousel" out of the name; the roledescription already says it). Gates Item contents via `preload`; put Slide → Item → Zoom → Media inside. Consumer CSS sizes each Slide snap box (e.g. flex 0 0 100% for full-bleed); index geometry measures offsetLeft/offsetWidth. While the user is flinging, navigation is locked so pull-to-dismiss and zoom chrome do not fight the scroll.
+Default layout: horizontal snap carousel wired to the active item. Emits role="group" — the WAI-ARIA carousel container — and you pass the translated aria-roledescription="carousel" plus an aria-label / aria-labelledby naming the gallery (leave the word "carousel" out of the name; the roledescription already says it). Gates Item contents via `preload`; put Slide → Item → Zoom → Media inside. Consumer CSS sizes each Slide snap box (e.g. flex 0 0 100% for full-bleed); index geometry measures offsetLeft/offsetWidth. While the user is flinging, navigation is locked so pull-to-dismiss and zoom chrome do not fight the scroll.
 
 #### Props
 
@@ -1903,7 +1919,7 @@ While a view-transition morph runs, ramka sets attributes and CSS variables on <
 
 Helper types you will see in callbacks and render props (exported from `@ramka/react` / the Lightbox module):
 
-- `NavigationSource` — `'trigger' | 'keyboard' | 'thumbnail' | 'button' | 'scroll' | 'imperative'` . Second argument to Root `onValueChange`. Handle `open` /`goTo` use `'imperative'`; scroll-driven Slides use `'scroll'`.
+- `NavigationSource` — `'trigger' | 'keyboard' | 'thumbnail' | 'button' | 'scroll' | 'imperative'`. `details.source` in Root `onValueChange(itemId, details)`. Handle `open` /`goTo` use `'imperative'`; scroll-driven Slides use `'scroll'`.
 - `LightboxCrossfade` — `'open' | 'close' | 'both'` for Trigger `crossfade`. See [View transitions → crossfade](docs/lightbox/view-transitions.md#crossfade).
 - Render-state types such as `LightboxTriggerRenderState` and Item render args (`active`, `visible`, refs) — documented on [Trigger](docs/lightbox/api.md#api-trigger) / [Item](docs/lightbox/api.md#api-item).
 
@@ -1913,7 +1929,7 @@ Optional contexts for nested wrapper components.
 
 ### useLightboxPayload
 
-Payload of the current open (the opening Trigger’s payload, or handle.open({ payload })), for a viewer rendered as a plain Root child — so one Root can wrap a whole feed. Re-renders its caller only when an open brings a new payload, never on navigation, zoom or close. Performance: call it (and useLightboxContext) in the viewer, not in feed rows — a row that reads lightbox state re-renders on every change.
+Payload of the current open (the opening Trigger’s payload, or handle.open(itemId, { payload })), for a viewer rendered as a plain Root child — so one Root can wrap a whole feed. Re-renders its caller only when an open brings a new payload, never on navigation, zoom or close. Performance: call it (and useLightboxContext) in the viewer, not in feed rows — a row that reads lightbox state re-renders on every change.
 
 #### Props
 
@@ -1973,9 +1989,9 @@ Imperative handle from Lightbox.createHandle(). Pass to Root (and optional detac
 
 | Name | Type | Default | Description |
 | --- | --- | --- | --- |
-| open | `((index?: number, options?: LightboxHandleOpenOptions<Payload>) => void) \| ((options: LightboxHandleOpenOptions<Payload>) => void)` |  | Open the lightbox. Optional `index` sets the active item. Pass `options.triggerId` to associate the open with a registered Trigger so view-transition morph / placeholders can use that element, and `options.payload` / `options.itemId` to open a payload-driven gallery. Opening by `itemId` morphs from that item's mounted keyed Trigger, if any. Call only from an event handler or effect — not during render. |
+| open | `(itemId?: string, options?: LightboxHandleOpenOptions<Payload>) => void` |  | Open the lightbox at the `Lightbox.Item` with this `itemId` (or at the current item when omitted). The item's position is resolved once the payload's items mount, and the open morphs from that item's mounted Trigger, if any. Call only from an event handler or effect — not during render. |
 | close | `() => void` |  | Close the lightbox. |
-| goTo | `((index: number) => void) \| ((target: { itemId: string }) => void)` |  | Navigate to an index, or to the mounted `Lightbox.Item` with this `itemId` (source: `imperative`). Does not open. |
+| goTo | `(itemId: string) => void` |  | Navigate to the mounted `Lightbox.Item` with this `itemId` (source: `imperative`). Does not open. |
 | isOpen | `boolean` |  | Whether the bound Root is currently open. |
 
 ### LightboxZoomRef
@@ -2021,6 +2037,7 @@ type StyledLightbox = (typeof lightboxVariants)[PresetVariant];
 /** Demo seed data — dims are explicit (package Gallery requires them). */
 const trip: LightboxItem[] = [
   {
+    id: 'trip-a',
     src: '/photos/preset-trip-a.jpg',
     thumb: '/photos/preset-trip-a-thumb.jpg',
     alt: 'Maya on the ridge',
@@ -2029,6 +2046,7 @@ const trip: LightboxItem[] = [
     height: 1200,
   },
   {
+    id: 'trip-b',
     src: '/photos/preset-trip-b.jpg',
     thumb: '/photos/preset-trip-b-thumb.jpg',
     alt: 'Cliffside road at sunset',
@@ -2037,6 +2055,7 @@ const trip: LightboxItem[] = [
     height: 1000,
   },
   {
+    id: 'trip-c',
     src: '/photos/preset-trip-c.jpg',
     thumb: '/photos/preset-trip-c-thumb.jpg',
     alt: 'Turquoise cove',
@@ -2045,6 +2064,7 @@ const trip: LightboxItem[] = [
     height: 1000,
   },
   {
+    id: 'trip-d',
     src: '/photos/preset-trip-d.jpg',
     thumb: '/photos/preset-trip-d-thumb.jpg',
     alt: 'Trail through pines',
@@ -2053,6 +2073,7 @@ const trip: LightboxItem[] = [
     height: 1500,
   },
   {
+    id: 'trip-e',
     src: '/photos/preset-trip-e.jpg',
     thumb: '/photos/preset-trip-e-thumb.jpg',
     alt: 'Camp under the stars',
@@ -2061,6 +2082,7 @@ const trip: LightboxItem[] = [
     height: 1000,
   },
   {
+    id: 'trip-f',
     src: '/photos/preset-trip-f.jpg',
     thumb: '/photos/preset-trip-f-thumb.jpg',
     alt: 'Morning coffee on the rocks',
@@ -2069,6 +2091,7 @@ const trip: LightboxItem[] = [
     height: 1200,
   },
   {
+    id: 'trip-g',
     src: '/photos/preset-trip-g.jpg',
     thumb: '/photos/preset-trip-g-thumb.jpg',
     alt: 'Waterfall in the canyon',
@@ -2077,6 +2100,7 @@ const trip: LightboxItem[] = [
     height: 1000,
   },
   {
+    id: 'trip-h',
     src: '/photos/preset-trip-h.jpg',
     thumb: '/photos/preset-trip-h-thumb.jpg',
     alt: 'Wildflowers on the hillside',
@@ -2085,6 +2109,7 @@ const trip: LightboxItem[] = [
     height: 1500,
   },
   {
+    id: 'trip-i',
     src: '/photos/preset-trip-i.jpg',
     thumb: '/photos/preset-trip-i-thumb.jpg',
     alt: 'Kayaks on calm water',
@@ -2093,6 +2118,7 @@ const trip: LightboxItem[] = [
     height: 1000,
   },
   {
+    id: 'trip-j',
     src: '/photos/preset-trip-j.jpg',
     thumb: '/photos/preset-trip-j-thumb.jpg',
     alt: 'Sunset over the lake',
@@ -2101,6 +2127,7 @@ const trip: LightboxItem[] = [
     height: 1200,
   },
   {
+    id: 'trip-k',
     src: '/photos/preset-trip-k.jpg',
     thumb: '/photos/preset-trip-k-thumb.jpg',
     alt: 'Boardwalk through the marsh',
@@ -2109,6 +2136,7 @@ const trip: LightboxItem[] = [
     height: 1000,
   },
   {
+    id: 'trip-l',
     src: '/photos/preset-trip-l.jpg',
     thumb: '/photos/preset-trip-l-thumb.jpg',
     alt: 'Fire lookout tower',
@@ -2147,11 +2175,9 @@ function UserCardMorph({ Lightbox }: { Lightbox: StyledLightbox }) {
     // lower res (same file + aspect), so the placeholder bridge is seamless
     // and the morph can start immediately instead of waiting on decode.
     <Lightbox.Root awaitImageDecode={false}>
-      <p className="mb-2 text-xs font-medium tracking-wide text-neutral-500 uppercase">
-        Whole trigger morph
-      </p>
+      <p className="mb-2 text-xs font-medium tracking-wide text-neutral-500 uppercase">Whole trigger morph</p>
       <Lightbox.Trigger
-        index={0}
+        itemId={portrait.id}
         crossfade="both"
         className="flex w-44 flex-col items-center gap-3 rounded-2xl border border-neutral-300 bg-white p-4 text-center shadow-[0_1px_2px_rgb(0_0_0/0.06),0_4px_12px_rgb(0_0_0/0.06)] dark:border-neutral-600 dark:bg-neutral-800 dark:shadow-[0_1px_2px_rgb(0_0_0/0.4),0_4px_16px_rgb(0_0_0/0.35)]"
       >
@@ -2166,13 +2192,9 @@ function UserCardMorph({ Lightbox }: { Lightbox: StyledLightbox }) {
               className="size-16 rounded-full object-cover"
             />
             <span className="min-w-0">
-              <span className="block text-sm font-semibold text-neutral-900 dark:text-neutral-50">
-                Maya Chen
-              </span>
+              <span className="block text-sm font-semibold text-neutral-900 dark:text-neutral-50">Maya Chen</span>
               <span className="block text-xs text-neutral-500">@mayachen</span>
-              <span className="mt-1 block text-xs text-neutral-600 dark:text-neutral-400">
-                Photographer
-              </span>
+              <span className="mt-1 block text-xs text-neutral-600 dark:text-neutral-400">Photographer</span>
             </span>
           </>
         )}
@@ -2191,11 +2213,9 @@ function ListingCardMorph({ Lightbox }: { Lightbox: StyledLightbox }) {
 
   return (
     <Lightbox.Root awaitImageDecode={false}>
-      <p className="mb-2 text-xs font-medium tracking-wide text-neutral-500 uppercase">
-        Child morph via morphRef
-      </p>
+      <p className="mb-2 text-xs font-medium tracking-wide text-neutral-500 uppercase">Child morph via morphRef</p>
       <Lightbox.Trigger
-        index={0}
+        itemId={listing.id}
         className="w-full overflow-hidden rounded-2xl border border-neutral-300 bg-white text-start shadow-[0_1px_2px_rgb(0_0_0/0.06),0_4px_12px_rgb(0_0_0/0.06)] dark:border-neutral-600 dark:bg-neutral-800 dark:shadow-[0_1px_2px_rgb(0_0_0/0.4),0_4px_16px_rgb(0_0_0/0.35)]"
       >
         {({ imageRef, morphRef }) => (
@@ -2256,16 +2276,14 @@ function AlbumPlusNMorph({ Lightbox }: { Lightbox: StyledLightbox }) {
 
   return (
     <Lightbox.Root morphTo="closest" awaitImageDecode={false}>
-      <p className="mb-2 text-xs font-medium tracking-wide text-neutral-500 uppercase">
-        +N overlay with crossfade
-      </p>
+      <p className="mb-2 text-xs font-medium tracking-wide text-neutral-500 uppercase">+N overlay with crossfade</p>
       <div className="grid aspect-[3/2] w-full grid-cols-2 grid-rows-2 gap-0.5 overflow-hidden rounded-xl">
         {trip.slice(0, 4).map((img, i) => {
           const showOverlay = i === 3 && extra > 0;
           return (
             <Lightbox.Trigger
-              key={img.src}
-              index={i}
+              key={img.id}
+              itemId={img.id}
               crossfade={showOverlay ? 'both' : undefined}
               className={`relative block min-h-0 min-w-0 overflow-hidden border-0 bg-transparent p-0 ${tileCornerClass(i)}`}
             >
@@ -2325,13 +2343,7 @@ function AlbumPlusNMorph({ Lightbox }: { Lightbox: StyledLightbox }) {
  */
 
 import * as React from 'react';
-import {
-  GalleryHorizontalIcon,
-  RectangleHorizontalIcon,
-  XIcon,
-  ZoomInIcon,
-  ZoomOutIcon,
-} from 'lucide-react';
+import { GalleryHorizontalIcon, RectangleHorizontalIcon, XIcon, ZoomInIcon, ZoomOutIcon } from 'lucide-react';
 import { useLightboxContext } from '@ramka/react';
 import * as RamkaLightbox from '@ramka/react/lightbox';
 
@@ -2339,7 +2351,8 @@ import { cn } from '@/lib/utils';
 
 /** Item shape for `Lightbox.Gallery` — pass real intrinsic pixel size. */
 export type LightboxItem = {
-  id?: string | number;
+  /** Stable id for this photo — becomes the Item's `itemId`; Triggers open it by this id. */
+  id: string;
   src: string;
   thumb: string;
   alt: string;
@@ -2565,10 +2578,7 @@ function Slides({ className, ...props }: React.ComponentProps<typeof RamkaLightb
   return (
     <RamkaLightbox.Slides
       data-slot="lightbox-slides"
-      className={cn(
-        'flex-1 gap-5 md:gap-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
-        className,
-      )}
+      className={cn('flex-1 gap-5 md:gap-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden', className)}
       {...props}
     />
   );
@@ -2689,10 +2699,7 @@ function ThumbnailStrip({ className, ...props }: React.ComponentProps<typeof Ram
   );
 }
 
-function ThumbnailStripTrack({
-  className,
-  ...props
-}: React.ComponentProps<typeof RamkaLightbox.ThumbnailStripTrack>) {
+function ThumbnailStripTrack({ className, ...props }: React.ComponentProps<typeof RamkaLightbox.ThumbnailStripTrack>) {
   return (
     <RamkaLightbox.ThumbnailStripTrack
       data-slot="lightbox-thumbnail-strip-track"
@@ -2817,7 +2824,7 @@ function GalleryThumbnailStrip({ items }: { items: LightboxItem[] }) {
     <ThumbnailStrip className="max-md:hidden">
       <ThumbnailStripTrack aria-label="Photo thumbnails">
         {items.map((item, i) => (
-          <Thumbnail key={item.id ?? i} index={i}>
+          <Thumbnail key={item.id} index={i}>
             <img src={item.thumb} alt={item.alt} draggable={false} />
           </Thumbnail>
         ))}
@@ -2953,11 +2960,7 @@ function Gallery({
             aria-label={snug ? 'Switch to theater layout' : 'Switch to peek layout'}
             onClick={toggleSlidesLayout}
           >
-            {snug ? (
-              <GalleryHorizontalIcon strokeWidth={2.25} />
-            ) : (
-              <RectangleHorizontalIcon strokeWidth={2.25} />
-            )}
+            {snug ? <GalleryHorizontalIcon strokeWidth={2.25} /> : <RectangleHorizontalIcon strokeWidth={2.25} />}
           </button>
           {/* Zoom −/+ share one capsule with a hairline divider. */}
           <div className={cn(controlGroupClass, 'max-md:hidden')}>
@@ -2988,12 +2991,13 @@ function Gallery({
             const ratio = itemAspectRatio(item);
             return (
               <Slide
-                key={item.id ?? i}
+                key={item.id}
                 className={snug ? snugSlideClass : undefined}
                 style={snug ? ({ '--lb-snug-ratio': ratio } as React.CSSProperties) : undefined}
               >
                 <Item
                   index={i}
+                  itemId={item.id}
                   caption={item.caption ?? item.alt}
                   className={snug ? snugItemClass : undefined}
                   aria-roledescription="slide"
@@ -3148,7 +3152,8 @@ function IconLayoutBleed() {
 
 /** Item shape for `Lightbox.Gallery` — pass real intrinsic pixel size. */
 export type LightboxItem = {
-  id?: string | number;
+  /** Stable id for this photo — becomes the Item's `itemId`; Triggers open it by this id. */
+  id: string;
   src: string;
   thumb: string;
   alt: string;
@@ -3296,7 +3301,7 @@ function GalleryThumbnailStrip({ items }: { items: LightboxItem[] }) {
     <ThumbnailStrip className="lb-thumbnail-strip-desktop">
       <ThumbnailStripTrack aria-label="Photo thumbnails">
         {items.map((item, i) => (
-          <Thumbnail key={item.id ?? i} index={i}>
+          <Thumbnail key={item.id} index={i}>
             <img src={item.thumb} alt={item.alt} draggable={false} />
           </Thumbnail>
         ))}
@@ -3425,12 +3430,13 @@ function Gallery({
             const ratio = itemAspectRatio(item);
             return (
               <Slide
-                key={item.id ?? i}
+                key={item.id}
                 className={snug ? 'lb-slide-snug' : undefined}
                 style={snug ? ({ '--lb-snug-ratio': ratio } as React.CSSProperties) : undefined}
               >
                 <Item
                   index={i}
+                  itemId={item.id}
                   caption={item.caption ?? item.alt}
                   aria-roledescription="slide"
                   // With the strip the item is a `tabpanel` its thumbnail tab
@@ -4347,7 +4353,11 @@ function IconReply() {
 function IconRepost() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} aria-hidden>
-      <path d="M4.5 9.5 9 5l4.5 4.5M9 5v11.5M19.5 14.5 15 19l-4.5-4.5M15 19V7.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path
+        d="M4.5 9.5 9 5l4.5 4.5M9 5v11.5M19.5 14.5 15 19l-4.5-4.5M15 19V7.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
@@ -4387,7 +4397,8 @@ function IconShare() {
 /* ── Public types ────────────────────────────────────────────────────────── */
 
 export type LightboxItem = {
-  id?: string | number;
+  /** Stable id for this photo — becomes the Item's `itemId`; Triggers open it by this id. */
+  id: string;
   src: string;
   thumb: string;
   alt: string;
@@ -4455,11 +4466,7 @@ function Stage({ className, ...props }: React.ComponentProps<typeof RamkaLightbo
   return <RamkaLightbox.Stage className={cx('xlb-media-pane', className)} {...props} />;
 }
 
-function Close({
-  className,
-  children,
-  ...props
-}: React.ComponentProps<typeof RamkaLightbox.Close>) {
+function Close({ className, children, ...props }: React.ComponentProps<typeof RamkaLightbox.Close>) {
   return (
     <RamkaLightbox.Close className={cx('xlb-control', 'xlb-close', className)} aria-label="Close" {...props}>
       {children ?? <IconX />}
@@ -4487,11 +4494,7 @@ function Zoom(props: React.ComponentProps<typeof RamkaLightbox.Zoom>) {
   return <RamkaLightbox.Zoom {...props} />;
 }
 
-function Previous({
-  className,
-  children,
-  ...props
-}: React.ComponentProps<typeof RamkaLightbox.Previous>) {
+function Previous({ className, children, ...props }: React.ComponentProps<typeof RamkaLightbox.Previous>) {
   return (
     <RamkaLightbox.Previous
       className={cx('xlb-control', 'xlb-nav', 'xlb-nav-prev', className)}
@@ -4516,20 +4519,12 @@ function Next({ className, children, ...props }: React.ComponentProps<typeof Ram
 }
 
 function Counter({ className, ...props }: React.ComponentProps<typeof RamkaLightbox.Counter>) {
-  return (
-    <RamkaLightbox.Counter className={cx('xlb-counter', 'xlb-chrome-pull-hide', className)} {...props} />
-  );
+  return <RamkaLightbox.Counter className={cx('xlb-counter', 'xlb-chrome-pull-hide', className)} {...props} />;
 }
 
 /* ── Mobile engagement bar ───────────────────────────────────────────────── */
 
-function MobileActionBar({
-  stats,
-  onOpenThread,
-}: {
-  stats: ThreadPost['stats'];
-  onOpenThread: () => void;
-}) {
+function MobileActionBar({ stats, onOpenThread }: { stats: ThreadPost['stats']; onOpenThread: () => void }) {
   return (
     <div className="xlb-mobile-bar xlb-chrome-pull-hide" aria-label="Post actions">
       <button type="button" className="xlb-mobile-action" aria-label="View comments" onClick={onOpenThread}>
@@ -4610,25 +4605,14 @@ function ThreadPanel({
       onKeyDown={handleKeyDown}
     >
       <div className="xlb-thread-header">
-        <button
-          type="button"
-          className="xlb-thread-back"
-          aria-label="Close thread"
-          onClick={onClose}
-        >
+        <button type="button" className="xlb-thread-back" aria-label="Close thread" onClick={onClose}>
           <IconX />
         </button>
         <h2 className="xlb-thread-title">Post</h2>
         <span className="xlb-thread-header-spacer" aria-hidden />
       </div>
 
-      <div
-        ref={scrollRef}
-        className="xlb-thread-scroll"
-        tabIndex={0}
-        role="region"
-        aria-label="Thread"
-      >
+      <div ref={scrollRef} className="xlb-thread-scroll" tabIndex={0} role="region" aria-label="Thread">
         <div className="xlb-thread-body">
           <div className="xlb-author">
             <img src={thread.author.avatar} alt="" className="xlb-avatar" draggable={false} />
@@ -4660,8 +4644,7 @@ function ThreadPanel({
 
           {stats ? (
             <p className="xlb-post-meta">
-              <strong>{formatCount(stats.reposts)}</strong> Reposts ·{' '}
-              <strong>{formatCount(stats.likes)}</strong> Likes
+              <strong>{formatCount(stats.reposts)}</strong> Reposts · <strong>{formatCount(stats.likes)}</strong> Likes
             </p>
           ) : null}
 
@@ -4686,12 +4669,7 @@ function ThreadPanel({
 
         <div className="xlb-reply-box">
           <img src={thread.author.avatar} alt="" className="xlb-avatar xlb-reply-avatar" draggable={false} />
-          <input
-            type="text"
-            className="xlb-reply-input"
-            placeholder="Post your reply"
-            aria-label="Post your reply"
-          />
+          <input type="text" className="xlb-reply-input" placeholder="Post your reply" aria-label="Post your reply" />
         </div>
 
         <ul className="xlb-replies" aria-label="Replies">
@@ -4717,15 +4695,7 @@ function ThreadPanel({
 /**
  * Twitter-style split viewer — dark media pane + thread (sidebar / mobile sheet).
  */
-function Gallery({
-  items,
-  thread,
-  ariaLabel,
-}: {
-  items: LightboxItem[];
-  thread: ThreadPost;
-  ariaLabel: string;
-}) {
+function Gallery({ items, thread, ariaLabel }: { items: LightboxItem[]; thread: ThreadPost; ariaLabel: string }) {
   const showNav = items.length > 1;
   const [threadOpen, setThreadOpen] = React.useState(false);
 
@@ -4735,10 +4705,7 @@ function Gallery({
   return (
     <Portal>
       <Backdrop />
-      <Content
-        aria-label={ariaLabel}
-        className={threadOpen ? 'xlb-content-thread-open' : undefined}
-      >
+      <Content aria-label={ariaLabel} className={threadOpen ? 'xlb-content-thread-open' : undefined}>
         <Stage>
           <Close className="xlb-chrome-pull-hide" />
 
@@ -4750,9 +4717,10 @@ function Gallery({
             preload={1}
           >
             {items.map((item, i) => (
-              <Slide key={item.id ?? i}>
+              <Slide key={item.id}>
                 <Item
                   index={i}
+                  itemId={item.id}
                   aria-roledescription="slide"
                   aria-label={`${i + 1} of ${items.length}`}
                 >
@@ -5597,13 +5565,62 @@ const feed: FeedPost[] = [
       ],
     },
     images: [
-      { src: '/photos/rg-6a.jpg', thumb: '/photos/rg-6a-thumb.jpg', alt: 'Dramatic cliffside road at sunset', width: 1600, height: 1000 },
-      { src: '/photos/rg-6b.jpg', thumb: '/photos/rg-6b-thumb.jpg', alt: 'Turquoise cove with fishing boats', width: 1600, height: 1000 },
-      { src: '/photos/rg-6c.jpg', thumb: '/photos/rg-6c-thumb.jpg', alt: 'Terraced vineyards in morning mist', width: 1600, height: 1000 },
-      { src: '/photos/rg-6d.jpg', thumb: '/photos/rg-6d-thumb.jpg', alt: 'Old lighthouse on a rocky headland', width: 900, height: 1400 },
-      { src: '/photos/rg-6e.jpg', thumb: '/photos/rg-6e-thumb.jpg', alt: 'Wild horses grazing on a dune', width: 1600, height: 1000 },
-      { src: '/photos/rg-6f.jpg', thumb: '/photos/rg-6f-thumb.jpg', alt: 'Street musicians in a coastal town square', width: 1200, height: 1200 },
-      { src: '/photos/rg-6g.jpg', thumb: '/photos/rg-6g-thumb.jpg', alt: 'Milky Way over a deserted beach', width: 1600, height: 1000 },
+      {
+        id: 'rg-6a',
+        src: '/photos/rg-6a.jpg',
+        thumb: '/photos/rg-6a-thumb.jpg',
+        alt: 'Dramatic cliffside road at sunset',
+        width: 1600,
+        height: 1000,
+      },
+      {
+        id: 'rg-6b',
+        src: '/photos/rg-6b.jpg',
+        thumb: '/photos/rg-6b-thumb.jpg',
+        alt: 'Turquoise cove with fishing boats',
+        width: 1600,
+        height: 1000,
+      },
+      {
+        id: 'rg-6c',
+        src: '/photos/rg-6c.jpg',
+        thumb: '/photos/rg-6c-thumb.jpg',
+        alt: 'Terraced vineyards in morning mist',
+        width: 1600,
+        height: 1000,
+      },
+      {
+        id: 'rg-6d',
+        src: '/photos/rg-6d.jpg',
+        thumb: '/photos/rg-6d-thumb.jpg',
+        alt: 'Old lighthouse on a rocky headland',
+        width: 900,
+        height: 1400,
+      },
+      {
+        id: 'rg-6e',
+        src: '/photos/rg-6e.jpg',
+        thumb: '/photos/rg-6e-thumb.jpg',
+        alt: 'Wild horses grazing on a dune',
+        width: 1600,
+        height: 1000,
+      },
+      {
+        id: 'rg-6f',
+        src: '/photos/rg-6f.jpg',
+        thumb: '/photos/rg-6f-thumb.jpg',
+        alt: 'Street musicians in a coastal town square',
+        width: 1200,
+        height: 1200,
+      },
+      {
+        id: 'rg-6g',
+        src: '/photos/rg-6g.jpg',
+        thumb: '/photos/rg-6g-thumb.jpg',
+        alt: 'Milky Way over a deserted beach',
+        width: 1600,
+        height: 1000,
+      },
     ],
   },
   {
@@ -5628,9 +5645,30 @@ const feed: FeedPost[] = [
       ],
     },
     images: [
-      { src: '/photos/rg-3a.jpg', thumb: '/photos/rg-3a-thumb.jpg', alt: 'Rolling fields at golden hour', width: 1600, height: 900 },
-      { src: '/photos/rg-3b.jpg', thumb: '/photos/rg-3b-thumb.jpg', alt: 'Dense forest canopy from below', width: 1000, height: 1400 },
-      { src: '/photos/rg-3c.jpg', thumb: '/photos/rg-3c-thumb.jpg', alt: 'Quiet lake reflecting the hills', width: 1500, height: 1000 },
+      {
+        id: 'rg-3a',
+        src: '/photos/rg-3a.jpg',
+        thumb: '/photos/rg-3a-thumb.jpg',
+        alt: 'Rolling fields at golden hour',
+        width: 1600,
+        height: 900,
+      },
+      {
+        id: 'rg-3b',
+        src: '/photos/rg-3b.jpg',
+        thumb: '/photos/rg-3b-thumb.jpg',
+        alt: 'Dense forest canopy from below',
+        width: 1000,
+        height: 1400,
+      },
+      {
+        id: 'rg-3c',
+        src: '/photos/rg-3c.jpg',
+        thumb: '/photos/rg-3c-thumb.jpg',
+        alt: 'Quiet lake reflecting the hills',
+        width: 1500,
+        height: 1000,
+      },
     ],
   },
   {
@@ -5655,7 +5693,14 @@ const feed: FeedPost[] = [
       ],
     },
     images: [
-      { src: '/photos/rg-1.jpg', thumb: '/photos/rg-1-thumb.jpg', alt: 'Mountain range under a wide morning sky', width: 1600, height: 1000 },
+      {
+        id: 'rg-1',
+        src: '/photos/rg-1.jpg',
+        thumb: '/photos/rg-1-thumb.jpg',
+        alt: 'Mountain range under a wide morning sky',
+        width: 1600,
+        height: 1000,
+      },
     ],
   },
 ];
@@ -5669,13 +5714,7 @@ const actionClass =
   'flex items-center gap-1.5 rounded-full px-2 py-1.5 text-xs transition-colors hover:bg-neutral-100 hover:text-neutral-900 dark:hover:bg-neutral-800 dark:hover:text-neutral-100';
 
 /** Reply / repost / like / share row. Reply opens the viewer (thread beside it). */
-function ActionBar({
-  stats,
-  onReply,
-}: {
-  stats: ThreadPost['stats'];
-  onReply: () => void;
-}) {
+function ActionBar({ stats, onReply }: { stats: ThreadPost['stats']; onReply: () => void }) {
   return (
     <div className="-mb-1.5 -ms-2 mt-1 flex items-center gap-1 text-neutral-500">
       <button type="button" className={actionClass} aria-label="View replies" onClick={onReply}>
@@ -5719,7 +5758,7 @@ function cornerClass(index: number, count: number): string {
 /**
  * Facebook-style trigger grid: 1 image fills the width, 2–4 tile into a
  * grid, and 5+ collapse the extras behind a `+N` overlay tile. Every tile is
- * a `Lightbox.Trigger`, so tapping one morphs into the viewer at that index.
+ * a `Lightbox.Trigger`, so tapping one morphs into the viewer at that photo.
  */
 function ImageGrid({ imgs }: { imgs: LightboxItem[] }) {
   const count = imgs.length;
@@ -5727,7 +5766,7 @@ function ImageGrid({ imgs }: { imgs: LightboxItem[] }) {
   if (count === 1) {
     const only = imgs[0]!;
     return (
-      <Lightbox.Trigger index={0} className="block w-full overflow-hidden rounded-xl bg-transparent p-0">
+      <Lightbox.Trigger itemId={only.id} className="block w-full overflow-hidden rounded-xl bg-transparent p-0">
         {({ imageRef }) => (
           <img
             ref={imageRef}
@@ -5748,8 +5787,8 @@ function ImageGrid({ imgs }: { imgs: LightboxItem[] }) {
       <div className="grid grid-cols-2 gap-0.5 overflow-hidden rounded-xl">
         {imgs.map((img, i) => (
           <Lightbox.Trigger
-            key={img.src}
-            index={i}
+            key={img.id}
+            itemId={img.id}
             className={`block overflow-hidden bg-transparent p-0 ${cornerClass(i, 2)}`}
           >
             {({ imageRef }) => (
@@ -5774,7 +5813,7 @@ function ImageGrid({ imgs }: { imgs: LightboxItem[] }) {
     return (
       <div className="grid aspect-3/2 grid-cols-2 grid-rows-2 gap-0.5 overflow-hidden rounded-xl">
         <Lightbox.Trigger
-          index={0}
+          itemId={first.id}
           className={`row-span-2 block overflow-hidden bg-transparent p-0 ${cornerClass(0, 3)}`}
         >
           {({ imageRef }) => (
@@ -5793,8 +5832,8 @@ function ImageGrid({ imgs }: { imgs: LightboxItem[] }) {
           const i = idx + 1;
           return (
             <Lightbox.Trigger
-              key={img.src}
-              index={i}
+              key={img.id}
+              itemId={img.id}
               className={`block overflow-hidden bg-transparent p-0 ${cornerClass(i, 3)}`}
             >
               {({ imageRef }) => (
@@ -5822,8 +5861,8 @@ function ImageGrid({ imgs }: { imgs: LightboxItem[] }) {
         const showOverlay = i === 3 && extra > 0;
         return (
           <Lightbox.Trigger
-            key={img.src}
-            index={i}
+            key={img.id}
+            itemId={img.id}
             crossfade={showOverlay ? 'both' : undefined}
             className={`block overflow-hidden bg-transparent p-0 ${cornerClass(i, 4)}`}
           >
@@ -5889,15 +5928,11 @@ function FeedPostGallery({ post }: { post: FeedPost }) {
 
           <ImageGrid imgs={post.images} />
 
-          <ActionBar stats={stats} onReply={() => handle.open(0)} />
+          <ActionBar stats={stats} onReply={() => handle.open(post.images[0]!.id)} />
         </div>
       </article>
 
-      <Lightbox.Gallery
-        items={post.images}
-        thread={post.thread}
-        ariaLabel={`Photos by ${author.name}`}
-      />
+      <Lightbox.Gallery items={post.images} thread={post.thread} ariaLabel={`Photos by ${author.name}`} />
     </Lightbox.Root>
   );
 }
@@ -5991,7 +6026,8 @@ function IconZoomOut() {
 
 /** Item shape for `Lightbox.Gallery` — pass real intrinsic pixel size. */
 export type LightboxItem = {
-  id?: string | number;
+  /** Stable id for this photo — becomes the Item's `itemId`; Triggers open it by this id. */
+  id: string;
   src: string;
   thumb: string;
   alt: string;
@@ -6090,11 +6126,7 @@ function Counter({ className, ...props }: React.ComponentProps<typeof RamkaLight
 
 function Previous({ className, children, ...props }: React.ComponentProps<typeof RamkaLightbox.Previous>) {
   return (
-    <RamkaLightbox.Previous
-      className={cx('slb-control', 'slb-nav', className)}
-      aria-label="Previous"
-      {...props}
-    >
+    <RamkaLightbox.Previous className={cx('slb-control', 'slb-nav', className)} aria-label="Previous" {...props}>
       {children ?? <IconChevronLeft />}
     </RamkaLightbox.Previous>
   );
@@ -6102,11 +6134,7 @@ function Previous({ className, children, ...props }: React.ComponentProps<typeof
 
 function Next({ className, children, ...props }: React.ComponentProps<typeof RamkaLightbox.Next>) {
   return (
-    <RamkaLightbox.Next
-      className={cx('slb-control', 'slb-nav', className)}
-      aria-label="Next"
-      {...props}
-    >
+    <RamkaLightbox.Next className={cx('slb-control', 'slb-nav', className)} aria-label="Next" {...props}>
       {children ?? <IconChevronRight />}
     </RamkaLightbox.Next>
   );
@@ -6175,9 +6203,10 @@ function Gallery({
             preload={2}
           >
             {items.map((item, i) => (
-              <Slide key={item.id ?? i}>
+              <Slide key={item.id}>
                 <Item
                   index={i}
+                  itemId={item.id}
                   aria-roledescription="slide"
                   // With the rail the item is a `tabpanel` its thumbnail tab
                   // already names, so only the single-image shape needs a name.
@@ -6205,7 +6234,7 @@ function Gallery({
           {multiple ? (
             <ThumbnailGroup className={cx('slb-rail', 'slb-chrome-gesture-hide')} aria-label="Product images">
               {items.map((item, i) => (
-                <Thumbnail key={item.id ?? i} index={i} className="slb-rail-thumb">
+                <Thumbnail key={item.id} index={i} className="slb-rail-thumb">
                   <img src={item.thumb} alt={item.alt} draggable={false} />
                 </Thumbnail>
               ))}
@@ -7038,6 +7067,7 @@ const product: ProductInfo = {
 
 const images: LightboxItem[] = [
   {
+    id: 'pack-front',
     src: '/photos/store-pack-a.jpg',
     thumb: '/photos/store-pack-a-thumb.jpg',
     alt: 'Terra 27L backpack, front view',
@@ -7045,6 +7075,7 @@ const images: LightboxItem[] = [
     height: 1500,
   },
   {
+    id: 'pack-side',
     src: '/photos/store-pack-b.jpg',
     thumb: '/photos/store-pack-b-thumb.jpg',
     alt: 'Terra 27L backpack, side profile',
@@ -7052,6 +7083,7 @@ const images: LightboxItem[] = [
     height: 1500,
   },
   {
+    id: 'pack-detail',
     src: '/photos/store-pack-c.jpg',
     thumb: '/photos/store-pack-c-thumb.jpg',
     alt: 'Detail of the waxed canvas and zippers',
@@ -7059,6 +7091,7 @@ const images: LightboxItem[] = [
     height: 1200,
   },
   {
+    id: 'pack-trail',
     src: '/photos/store-pack-d.jpg',
     thumb: '/photos/store-pack-d-thumb.jpg',
     alt: 'The backpack on a trail at golden hour',
@@ -7066,6 +7099,7 @@ const images: LightboxItem[] = [
     height: 1000,
   },
   {
+    id: 'pack-interior',
     src: '/photos/store-pack-e.jpg',
     thumb: '/photos/store-pack-e-thumb.jpg',
     alt: 'Interior compartments, laptop sleeve visible',
@@ -7075,15 +7109,15 @@ const images: LightboxItem[] = [
 ];
 
 export function StorePresetDemo() {
-  const [selected, setSelected] = React.useState(0);
+  const [selectedId, setSelectedId] = React.useState(images[0]!.id);
   const [added, setAdded] = React.useState(false);
-  const current = images[selected]!;
+  const current = images.find((img) => img.id === selectedId) ?? images[0]!;
 
   return (
     <div className="w-full max-w-2xl">
       <Lightbox.Root
         loop
-        onValueChange={(value) => setSelected(value)}
+        onValueChange={(itemId) => setSelectedId(itemId)}
         // Thumbs are the same product shots at lower res (same file + aspect),
         // so the placeholder bridge is seamless — skip the decode wait and
         // start the morph immediately.
@@ -7093,13 +7127,13 @@ export function StorePresetDemo() {
           {/* Gallery column */}
           <div className="min-w-0 flex-1">
             <Lightbox.Trigger
-              index={selected}
+              itemId={current.id}
               className="block w-full overflow-hidden bg-neutral-100 p-0 dark:bg-neutral-800"
             >
               {({ imageRef }) => (
                 <img
                   ref={imageRef}
-                  key={current.src}
+                  key={current.id}
                   src={current.thumb}
                   alt={current.alt}
                   width={current.width}
@@ -7111,16 +7145,16 @@ export function StorePresetDemo() {
             </Lightbox.Trigger>
 
             <div className="mt-3 flex gap-2" role="listbox" aria-label="Select product image">
-              {images.map((img, i) => (
+              {images.map((img) => (
                 <button
-                  key={img.src}
+                  key={img.id}
                   type="button"
                   role="option"
-                  aria-selected={i === selected}
+                  aria-selected={img.id === current.id}
                   aria-label={img.alt}
-                  onClick={() => setSelected(i)}
+                  onClick={() => setSelectedId(img.id)}
                   className={`block size-14 shrink-0 overflow-hidden border p-0 transition ${
-                    i === selected
+                    img.id === current.id
                       ? 'border-neutral-900 dark:border-neutral-100'
                       : 'border-neutral-200 opacity-70 hover:opacity-100 dark:border-neutral-700'
                   }`}
@@ -7225,7 +7259,8 @@ function IconChevronRight() {
 
 /** Item shape for `Lightbox.Gallery` — pass real intrinsic pixel size. */
 export type LightboxItem = {
-  id?: string | number;
+  /** Stable id for this photo — becomes the Item's `itemId`; Triggers open it by this id. */
+  id: string;
   src: string;
   thumb?: string;
   alt: string;
@@ -7340,9 +7375,10 @@ function Gallery({ items, ariaLabel }: { items: LightboxItem[]; ariaLabel: strin
           preload={2}
         >
           {items.map((item, i) => (
-            <Slide key={item.id ?? i}>
+            <Slide key={item.id}>
               <Item
                 index={i}
+                itemId={item.id}
                 caption={figureCaption(item)}
                 aria-roledescription="slide"
                 aria-label={`${i + 1} of ${items.length}`}
@@ -7757,6 +7793,7 @@ import { Lightbox, type LightboxItem } from './lightbox';
 
 const figures: LightboxItem[] = [
   {
+    id: 'harbor',
     src: '/photos/edit-harbor.jpg',
     thumb: '/photos/edit-harbor-thumb.jpg',
     alt: 'The old harbor at dawn, boats resting in still water',
@@ -7766,6 +7803,7 @@ const figures: LightboxItem[] = [
     height: 1000,
   },
   {
+    id: 'nets',
     src: '/photos/edit-nets.jpg',
     thumb: '/photos/edit-nets-thumb.jpg',
     alt: 'Fishing nets stacked on the pier',
@@ -7775,6 +7813,7 @@ const figures: LightboxItem[] = [
     height: 1400,
   },
   {
+    id: 'market',
     src: '/photos/edit-market.jpg',
     thumb: '/photos/edit-market-thumb.jpg',
     alt: 'The near-empty fish market hall in the early morning',
@@ -7785,11 +7824,13 @@ const figures: LightboxItem[] = [
   },
 ];
 
-function Figure({ index, className }: { index: number; className?: string }) {
-  const item = figures[index]!;
+function Figure({ item, className }: { item: LightboxItem; className?: string }) {
   return (
     <figure className={className}>
-      <Lightbox.Trigger index={index} className="block w-full overflow-hidden rounded-lg bg-transparent p-0 scroll-my-5">
+      <Lightbox.Trigger
+        itemId={item.id}
+        className="block w-full overflow-hidden rounded-lg bg-transparent p-0 scroll-my-5"
+      >
         {({ imageRef }) => (
           <img
             ref={imageRef}
@@ -7840,7 +7881,7 @@ export function EditorialPresetDemo() {
           mornings, only three engines cough to life along the whole quay.
         </p>
 
-        <Figure index={0} className="mt-6" />
+        <Figure item={figures[0]!} className="mt-6" />
 
         <p className="mt-6 text-[15px] leading-7 text-neutral-700 dark:text-neutral-300">
           Ask anyone here when it changed and they will not name a year. The harbor emptied the way harbors do — one
@@ -7848,8 +7889,8 @@ export function EditorialPresetDemo() {
         </p>
 
         <div className="mt-6 grid grid-cols-2 gap-4">
-          <Figure index={1} />
-          <Figure index={2} />
+          <Figure item={figures[1]!} />
+          <Figure item={figures[2]!} />
         </div>
 
         <Lightbox.Gallery items={figures} ariaLabel="Article photographs" />
@@ -7917,7 +7958,8 @@ function IconChevronRight() {
 
 /** Item shape for `Lightbox.Gallery` — pass real intrinsic pixel size. */
 export type LightboxItem = {
-  id?: string | number;
+  /** Stable id for this story — becomes the Item's `itemId`; Triggers open it by this id. */
+  id: string;
   name: string;
   avatar: string;
   video: string;
@@ -7938,17 +7980,12 @@ function pauseDialogVideos(scope: Element | null) {
   }
 }
 
-function Root({
-  onBeforeClose,
-  ...props
-}: React.ComponentProps<typeof RamkaLightbox.Root>) {
+function Root({ onBeforeClose, ...props }: React.ComponentProps<typeof RamkaLightbox.Root>) {
   return (
     <RamkaLightbox.Root
       {...props}
       onBeforeClose={(ctx) => {
-        pauseDialogVideos(
-          ctx.destination?.closest('[data-ramka-content]') ?? ctx.destination,
-        );
+        pauseDialogVideos(ctx.destination?.closest('[data-ramka-content]') ?? ctx.destination);
         onBeforeClose?.(ctx);
       }}
     />
@@ -8015,11 +8052,7 @@ function Media({ className, ...props }: React.ComponentProps<typeof RamkaLightbo
 
 function Previous({ className, children, ...props }: React.ComponentProps<typeof RamkaLightbox.Previous>) {
   return (
-    <RamkaLightbox.Previous
-      className={cx('stl-nav', 'stl-nav-prev', className)}
-      aria-label="Previous"
-      {...props}
-    >
+    <RamkaLightbox.Previous className={cx('stl-nav', 'stl-nav-prev', className)} aria-label="Previous" {...props}>
       {children ?? <IconChevronLeft />}
     </RamkaLightbox.Previous>
   );
@@ -8027,11 +8060,7 @@ function Previous({ className, children, ...props }: React.ComponentProps<typeof
 
 function Next({ className, children, ...props }: React.ComponentProps<typeof RamkaLightbox.Next>) {
   return (
-    <RamkaLightbox.Next
-      className={cx('stl-nav', 'stl-nav-next', className)}
-      aria-label="Next"
-      {...props}
-    >
+    <RamkaLightbox.Next className={cx('stl-nav', 'stl-nav-next', className)} aria-label="Next" {...props}>
       {children ?? <IconChevronRight />}
     </RamkaLightbox.Next>
   );
@@ -8065,9 +8094,7 @@ function StoryVideo({
     const el = videoRef.current;
     if (!el) return;
     const content = dialogElementRef.current;
-    const pulling =
-      !!content &&
-      (content.hasAttribute('data-pulling') || content.hasAttribute('data-pull-dismissing'));
+    const pulling = !!content && (content.hasAttribute('data-pulling') || content.hasAttribute('data-pull-dismissing'));
     if (active && open && !pulling) {
       el.play().catch(() => {});
     } else {
@@ -8150,9 +8177,10 @@ function Gallery({ items, ariaLabel }: { items: LightboxItem[]; ariaLabel: strin
             preload={1}
           >
             {items.map((item, i) => (
-              <Slide key={item.id ?? i}>
+              <Slide key={item.id}>
                 <Item
                   index={i}
+                  itemId={item.id}
                   aria-roledescription="slide"
                   aria-label={`${i + 1} of ${items.length}`}
                 >
@@ -8887,16 +8915,11 @@ export function StoriesPresetDemo() {
           { type: 'onChange', behavior: 'instant', inline: 'nearest' },
         ]}
       >
-        <p className="px-1 text-[13px] font-semibold tracking-tight text-neutral-900 dark:text-neutral-50">
-          Stories
-        </p>
+        <p className="px-1 text-[13px] font-semibold tracking-tight text-neutral-900 dark:text-neutral-50">Stories</p>
         <ul className="mt-3 flex snap-x snap-proximity gap-4 overflow-x-auto px-1 pb-1 scrollbar-none">
-          {stories.map((story, i) => (
-            <li
-              key={story.id}
-              className="flex w-16 shrink-0 snap-center scroll-mx-4 flex-col items-center gap-1.5"
-            >
-              <Lightbox.Trigger index={i} aria-label={`${story.name}’s story`} crossfade="both">
+          {stories.map((story) => (
+            <li key={story.id} className="flex w-16 shrink-0 snap-center scroll-mx-4 flex-col items-center gap-1.5">
+              <Lightbox.Trigger itemId={story.id} aria-label={`${story.name}’s story`} crossfade="both">
                 {({ imageRef }) => (
                   <img
                     ref={imageRef}
@@ -9089,10 +9112,7 @@ import { usePathname } from 'next/navigation';
 import * as Lightbox from '@ramka/react/lightbox';
 
 import { ExampleShell } from '../../../../_components/example-shell';
-import {
-  LightboxGallery,
-  triggerFocusClass,
-} from '../../../../_components/lightbox-chrome';
+import { LightboxGallery, triggerFocusClass } from '../../../../_components/lightbox-chrome';
 import { GALLERY_PAGE_TITLE, galleryPhotos, photoPageTitle } from './photos';
 
 /**
@@ -9109,9 +9129,15 @@ const items = galleryPhotos.map((photo) => ({
   thumb: photo.image,
 }));
 
-/** `/…/url-synced-state/5` → 4; the bare grid URL (or an unknown id) → -1. */
-function photoIndexFromPathname(pathname: string): number {
-  if (!pathname.startsWith(`${BASE_PATH}/`)) return -1;
+const photoIds = galleryPhotos.map((photo) => photo.id);
+
+function photoById(id: string) {
+  return galleryPhotos.find((photo) => photo.id === id);
+}
+
+/** `/…/url-synced-state/5` → '5'; the bare grid URL (or an unknown id) → null. */
+function photoIdFromPathname(pathname: string): string | null {
+  if (!pathname.startsWith(`${BASE_PATH}/`)) return null;
   // decodeURIComponent throws on malformed percent-sequences. Navigation can't
   // deliver one (the server 400s those before rendering), but any code calling
   // pushState with an arbitrary string can — treat it as "not a photo URL".
@@ -9119,9 +9145,9 @@ function photoIndexFromPathname(pathname: string): number {
   try {
     id = decodeURIComponent(pathname.slice(BASE_PATH.length + 1));
   } catch {
-    return -1;
+    return null;
   }
-  return galleryPhotos.findIndex((photo) => photo.id === id);
+  return photoById(id) ? id : null;
 }
 
 /**
@@ -9147,7 +9173,7 @@ export function UrlSyncedStateDemo() {
   // (Next.js shallow routing) AND on browser back/forward, so one hook covers
   // deep links, swipes, and the Back button.
   const pathname = usePathname();
-  const urlIndex = photoIndexFromPathname(pathname);
+  const urlPhotoId = photoIdFromPathname(pathname);
 
   // Local state is the lightbox's source of truth; the URL mirrors it. Driving
   // `open` straight from the pathname would also work, but a trigger tap would
@@ -9162,8 +9188,8 @@ export function UrlSyncedStateDemo() {
   // portal target like `document.body` does not exist during server rendering,
   // so a server render with `open={true}` plus a real portal is a guaranteed
   // hydration mismatch. In-place rendering is deterministic on both sides.
-  const [open, setOpen] = React.useState(urlIndex !== -1);
-  const [index, setIndex] = React.useState(urlIndex === -1 ? 0 : urlIndex);
+  const [open, setOpen] = React.useState(urlPhotoId !== null);
+  const [photoId, setPhotoId] = React.useState(urlPhotoId ?? photoIds[0]!);
 
   // Decided ONCE per mount, never mid-session: swapping `container` would
   // reparent the portal subtree and remount an open viewer. Deep-link visits
@@ -9174,13 +9200,13 @@ export function UrlSyncedStateDemo() {
   // must NOT carry a z-index (it would stack above body-level tooltips).
   // Note this branch isn't strictly "the server rendered this": a client-side
   // remount at a photo URL (open a photo, navigate to another docs page, press
-  // Back without bfcache) also mounts with `urlIndex !== -1` and takes the
+  // Back without bfcache) also mounts with a photo id in the URL and takes the
   // in-place path. That's fine — it renders identically — the only difference
   // is the SSR flags below briefly suppress an open fade nobody would see.
-  const [deepLinkVisit] = React.useState(urlIndex !== -1);
+  const [deepLinkVisit] = React.useState(urlPhotoId !== null);
 
   // Destination blur is the ONE exception to the Next.js Image guide's rule
-  // ("index has a trigger image → no destination blur"). That rule exists
+  // ("item has a trigger image → no destination blur"). That rule exists
   // because on gesture opens Ramka paints the trigger's already-decoded image
   // behind the destination, and an LQIP would cover that sharp bridge with a
   // blurry one. A deep-link visit has no gesture: the bridge can't paint
@@ -9221,10 +9247,10 @@ export function UrlSyncedStateDemo() {
     return () => cancelAnimationFrame(raf);
   }, []);
 
-  // `handleOpenChange` needs the freshest active index when it writes the
-  // opened URL: a trigger tap reports its index (onValueChange) before the
+  // `handleOpenChange` needs the freshest active photo id when it writes the
+  // opened URL: a trigger tap reports its item (onValueChange) before the
   // open commits, and state from the previous render would lag behind it.
-  const indexRef = React.useRef(index);
+  const photoIdRef = React.useRef(photoId);
   // Same discipline for `open` in `handleValueChange`: render-scope `open`
   // is the last COMMITTED value, so if a close and a value change ever landed
   // in the same task the guard below would see stale `true` and strand a
@@ -9240,19 +9266,19 @@ export function UrlSyncedStateDemo() {
   // flips render without the morph by design — Back closing the viewer fades,
   // it doesn't morph, matching how photo viewers behave elsewhere.
   React.useEffect(() => {
-    if (urlIndex !== -1) {
-      indexRef.current = urlIndex;
+    if (urlPhotoId !== null) {
+      photoIdRef.current = urlPhotoId;
       openRef.current = true;
       // Adjusting state during render instead would have to write the refs
       // during render too.
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      setIndex(urlIndex);
+      setPhotoId(urlPhotoId);
       setOpen(true);
     } else {
       openRef.current = false;
       setOpen(false);
     }
-  }, [urlIndex]);
+  }, [urlPhotoId]);
 
   // The tab title follows the URL. Shallow History writes (below) never re-run
   // Next.js metadata — `generateMetadata` ran once, for the URL this page
@@ -9263,9 +9289,10 @@ export function UrlSyncedStateDemo() {
   // mirrors the root layout's title template, which only applies server-side.
   // An effect (not the callbacks) so Back/Forward flips retitle as well.
   React.useEffect(() => {
-    const base = open ? photoPageTitle(galleryPhotos[index]!) : GALLERY_PAGE_TITLE;
+    const photo = photoById(photoId);
+    const base = open && photo ? photoPageTitle(photo) : GALLERY_PAGE_TITLE;
     document.title = `${base} — ramka`;
-  }, [open, index]);
+  }, [open, photoId]);
 
   // Lightbox → URL, written from the gesture callbacks — never from an effect,
   // so URL-driven prop flips can't echo back into history. The writes use the
@@ -9278,7 +9305,7 @@ export function UrlSyncedStateDemo() {
     if (nextOpen) {
       // Opening pushes ONE history entry, so the browser Back button closes
       // the viewer instead of leaving the page.
-      window.history.pushState(null, '', `${BASE_PATH}/${galleryPhotos[indexRef.current]!.id}`);
+      window.history.pushState(null, '', `${BASE_PATH}/${photoIdRef.current}`);
     } else {
       // Gesture closes REWRITE the entry instead of popping it. Never call
       // history.back() here: on a morph close this callback fires inside the
@@ -9303,14 +9330,14 @@ export function UrlSyncedStateDemo() {
     }
   };
 
-  const handleValueChange = (nextIndex: number) => {
-    indexRef.current = nextIndex;
-    setIndex(nextIndex);
+  const handleValueChange = (nextPhotoId: string) => {
+    photoIdRef.current = nextPhotoId;
+    setPhotoId(nextPhotoId);
     // Swiping / arrow keys REPLACE the current entry — no history spam.
     // Skipped while closed (via openRef, see above): a trigger tap reports its
-    // index before the open commits, and handleOpenChange writes that URL.
+    // item before the open commits, and handleOpenChange writes that URL.
     if (openRef.current) {
-      window.history.replaceState(null, '', `${BASE_PATH}/${galleryPhotos[nextIndex]!.id}`);
+      window.history.replaceState(null, '', `${BASE_PATH}/${nextPhotoId}`);
     }
   };
 
@@ -9324,12 +9351,12 @@ export function UrlSyncedStateDemo() {
       <Lightbox.Root
         open={open}
         onOpenChange={handleOpenChange}
-        value={index}
+        value={photoId}
         onValueChange={handleValueChange}
         // Items register through effects, which never run on the server — so
         // without this an SSR-open page paints the counter as "6 of 0" until
-        // hydration. `count` is the pre-registration fallback.
-        count={galleryPhotos.length}
+        // hydration. `itemIds` is the pre-registration fallback.
+        itemIds={photoIds}
         loop
         scrollTriggerIntoView={[
           { type: 'onChange', behavior: 'instant' },
@@ -9346,10 +9373,10 @@ export function UrlSyncedStateDemo() {
             column-major bucketing zigzagged). */}
         <div className="lightbox-demo-masonry max-w-2xl">
           <div className="lightbox-demo-masonry-grid">
-            {items.map((tile, tileIndex) => (
+            {items.map((tile) => (
               <Lightbox.Trigger
                 key={tile.id}
-                index={tileIndex}
+                itemId={tile.id}
                 className={`block w-full cursor-pointer overflow-hidden rounded-xl border-none bg-transparent p-0 ${triggerFocusClass}`}
                 style={{
                   gridRowEnd: `span ${masonrySpan(tile.image)}`,
@@ -9386,7 +9413,7 @@ export function UrlSyncedStateDemo() {
           // without this a deep-link visit paints an empty caption placard.
           // Fallback children render only until the registry fills, so it can't
           // go stale after a swipe.
-          captionFallback={deepLinkVisit ? galleryPhotos[index]?.caption : undefined}
+          captionFallback={deepLinkVisit ? photoById(photoId)?.caption : undefined}
           // Server-rendered deep links paint the deep-linked slide, not slide 0
           // (library feature — forwarded to `Lightbox.Slides`). Inert for
           // regular visits: the stand-in only renders for server paint.
@@ -9395,9 +9422,7 @@ export function UrlSyncedStateDemo() {
             deepLinkVisit
               ? {
                   container: null,
-                  className: `relative z-50${
-                    ssrNoTransitions ? ' lightbox-demo-ssr-no-transitions' : ''
-                  }`,
+                  className: `relative z-50${ssrNoTransitions ? ' lightbox-demo-ssr-no-transitions' : ''}`,
                 }
               : undefined
           }
@@ -9738,23 +9763,20 @@ import { useRouter } from 'next/navigation';
 import * as Lightbox from '@ramka/react/lightbox';
 
 import { LightboxGallery } from '../../../../_components/lightbox-chrome';
-import {
-  EXAMPLE_BASE_PATH,
-  EXAMPLE_PAGE_TITLE,
-  interceptedPhotos,
-  interceptedPhotoTitle,
-} from './photos';
+import { EXAMPLE_BASE_PATH, EXAMPLE_PAGE_TITLE, interceptedPhotos, interceptedPhotoTitle } from './photos';
 
 const items = interceptedPhotos.map((photo) => ({
   ...photo,
   src: photo.image,
   thumb: photo.image,
   // No `Lightbox.Trigger`s exist anywhere in this pattern (the grid is plain
-  // Links), so no index has a trigger image and Ramka has nothing to bridge —
+  // Links), so no item has a trigger image and Ramka has nothing to bridge —
   // per the Next.js Image guide, the destination LQIP is the only loading
   // placeholder and belongs on every item.
   destinationBlur: true,
 }));
+
+const photoIds = interceptedPhotos.map((photo) => photo.id);
 
 /**
  * The viewer the intercepting route mounts: a self-contained, ALREADY-OPEN
@@ -9768,7 +9790,7 @@ const items = interceptedPhotos.map((photo) => ({
  * navigation, where `document.body` exists. Nothing about this component is
  * ever server-painted into the page.
  */
-export function PhotoModal({ initialIndex }: { initialIndex: number }) {
+export function PhotoModal({ initialPhotoId }: { initialPhotoId: string }) {
   const router = useRouter();
 
   // Local `open` so a close gesture (Escape, ✕, pull-to-dismiss) can play the
@@ -9777,20 +9799,17 @@ export function PhotoModal({ initialIndex }: { initialIndex: number }) {
   // DOM mid-frame. Browser Back does exactly that — popstate unmounts the
   // slot with no exit animation — which is unavoidable in this pattern.
   const [open, setOpen] = React.useState(true);
-  const [index, setIndex] = React.useState(initialIndex);
+  const [photoId, setPhotoId] = React.useState(initialPhotoId);
+  const photo = interceptedPhotos.find((p) => p.id === photoId);
 
   // Swipes REPLACE the current history entry with the new photo URL — no
   // history spam, and the grid entry underneath stays intact so one Back
   // always closes the viewer. replaceState is a shallow write: Next.js keeps
   // rendering this same mounted route (usePathname-style readers update, but
   // no navigation happens), so the viewer never remounts mid-swipe.
-  const handleValueChange = (nextIndex: number) => {
-    setIndex(nextIndex);
-    window.history.replaceState(
-      null,
-      '',
-      `${EXAMPLE_BASE_PATH}/photos/${interceptedPhotos[nextIndex]!.id}`,
-    );
+  const handleValueChange = (nextPhotoId: string) => {
+    setPhotoId(nextPhotoId);
+    window.history.replaceState(null, '', `${EXAMPLE_BASE_PATH}/photos/${nextPhotoId}`);
   };
 
   // Close = leave the photo route. router.back() (not push) pops the entry
@@ -9807,8 +9826,8 @@ export function PhotoModal({ initialIndex }: { initialIndex: number }) {
   // ` — ramka` suffix mirrors the root layout's title template, which only
   // applies server-side.
   React.useEffect(() => {
-    document.title = `${interceptedPhotoTitle(interceptedPhotos[index]!)} — ramka`;
-  }, [index]);
+    if (photo) document.title = `${interceptedPhotoTitle(photo)} — ramka`;
+  }, [photo]);
 
   // Closing needs the same care: router.back() pops to the grid URL, but the
   // grid page in the `children` slot never changed, so Next.js has no
@@ -9826,11 +9845,11 @@ export function PhotoModal({ initialIndex }: { initialIndex: number }) {
       open={open}
       onOpenChange={setOpen}
       onOpenChangeComplete={handleOpenChangeComplete}
-      value={index}
+      value={photoId}
       onValueChange={handleValueChange}
-      // The Root mounts already open; `count` covers the render before the
+      // The Root mounts already open; `itemIds` covers the render before the
       // items' registration effects run so the counter never reads "n of 0".
-      count={interceptedPhotos.length}
+      itemIds={photoIds}
       loop
     >
       <LightboxGallery
@@ -9839,7 +9858,7 @@ export function PhotoModal({ initialIndex }: { initialIndex: number }) {
         backdrop="solid"
         // The Root mounts already open and captions register in effects (after
         // the first paint) — the fallback covers that first-paint window.
-        captionFallback={interceptedPhotos[index]?.caption}
+        captionFallback={photo?.caption}
       />
     </Lightbox.Root>
   );
@@ -9924,15 +9943,10 @@ import { interceptedPhotos } from '../../../photos';
  * the grid stays mounted underneath. Hard loads never come here (interception
  * is client-navigation-only); they get `photos/[id]/page.tsx`.
  */
-export default async function InterceptedPhotoRoute({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+export default async function InterceptedPhotoRoute({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const index = interceptedPhotos.findIndex((photo) => photo.id === id);
-  if (index === -1) notFound();
-  return <PhotoModal initialIndex={index} />;
+  if (!interceptedPhotos.some((photo) => photo.id === id)) notFound();
+  return <PhotoModal initialPhotoId={id} />;
 }
 ```
 
@@ -10026,7 +10040,7 @@ export default async function StandalonePhotoPage({ params }: PhotoPageProps) {
 
 # Text message
 
-Virtualized 1,000-message chat with one global Root: keyed triggers carry a payload per message, "+N" grids close onto their tile, and revealTrigger brings unmounted rows back for the close morph.
+Virtualized 1,000-message chat with one global Root: triggers carry a payload per message, "+N" grids close onto their tile, and revealTrigger brings unmounted rows back for the close morph.
 
 ## Source
 
@@ -10045,13 +10059,12 @@ export default function TextMessagePage() {
       description={
         <>
           A virtualized group chat with a thousand messages and one <code className={code}>Lightbox.Root</code> wrapping
-          all of them. Every photo is a keyed <code className={code}>Lightbox.Trigger</code> (
-          <code className={code}>itemId</code> + <code className={code}>payload</code>), so tiles in different messages
-          never collide and each one still morphs. The viewer reads the opening message with{' '}
-          <code className={code}>useLightboxPayload()</code>; opening, swiping and closing never re-render the feed. A
-          &ldquo;+N&rdquo; tile stands in for the photos behind it with <code className={code}>overflowItemIds</code>,
-          and <code className={code}>revealTrigger</code> scrolls an unmounted row back so the close morph has somewhere
-          to land.
+          all of them. Every photo&apos;s <code className={code}>Lightbox.Trigger</code> carries its message as a{' '}
+          <code className={code}>payload</code>, and the viewer reads it with{' '}
+          <code className={code}>useLightboxPayload()</code>; opening, swiping and closing never re-render the feed.
+          With <code className={code}>morphTo=&quot;closest&quot;</code>, closing on a photo behind &ldquo;+N&rdquo;
+          lands on the &ldquo;+N&rdquo; tile, and <code className={code}>revealTrigger</code> scrolls an unmounted row
+          back so the close morph has somewhere to land.
         </>
       }
     >
@@ -10138,6 +10151,9 @@ export function ChatFeed() {
   // (which reads the payload) update.
   return (
     <Lightbox.Root
+      // Photos behind "+N" have no tile; closing on one lands on the closest
+      // tile before it, the "+N" one.
+      morphTo="closest"
       revealTrigger={revealTrigger}
       scrollTriggerIntoView={[
         { type: 'onChange', behavior: 'instant' },
@@ -10176,7 +10192,6 @@ function ChatViewer() {
   );
   return (
     <LightboxGallery
-      keyed
       items={items}
       ariaLabel={payload ? `Photos from ${payload.sender.name}` : 'Chat photos'}
       overlay={payload ? <SenderBadge sender={payload.sender} sentAt={payload.sentAt} /> : null}
@@ -10360,10 +10375,8 @@ function PhotoGrid({ message, payload }: { message: ChatMessage; payload: Viewer
             key={image.id}
             image={image}
             payload={payload}
-            // The "+N" tile opens its own photo and stands in for the hidden
-            // ones: closing on any of them lands back here. Crossfade so the
-            // dark overlay dissolves into the photo instead of popping.
-            overflowItemIds={overflow ? hidden.map((h) => h.id) : undefined}
+            // Crossfade so the "+N" overlay dissolves into the photo instead
+            // of popping.
             crossfade={overflow ? 'both' : undefined}
             label={overflow ? `Open ${image.alt}, ${hidden.length} more` : `Open ${image.alt}`}
             // Half-width tiles; the tall one is cropped from a full-height image.
@@ -10386,7 +10399,6 @@ function PhotoGrid({ message, payload }: { message: ChatMessage; payload: Viewer
 function PhotoTrigger({
   image,
   payload,
-  overflowItemIds,
   crossfade,
   label,
   sizes,
@@ -10396,7 +10408,6 @@ function PhotoTrigger({
 }: {
   image: ChatImage;
   payload: ViewerPayload;
-  overflowItemIds?: string[];
   crossfade?: 'both';
   label: string;
   sizes: string;
@@ -10408,7 +10419,6 @@ function PhotoTrigger({
     <Lightbox.Trigger
       itemId={image.id}
       payload={payload}
-      overflowItemIds={overflowItemIds}
       crossfade={crossfade}
       aria-label={label}
       // Room when Ramka scrolls the trigger into view: clear of the list's
@@ -10636,10 +10646,7 @@ import * as Lightbox from '@ramka/react/lightbox';
 import { Play } from 'lucide-react';
 
 import { ExampleShell } from '../../../../_components/example-shell';
-import {
-  LightboxGallery,
-  triggerFocusClass,
-} from '../../../../_components/lightbox-chrome';
+import { LightboxGallery, triggerFocusClass } from '../../../../_components/lightbox-chrome';
 import { bbbPoster, edPoster, sintelPoster, tosPoster } from './images.generated';
 
 /**
@@ -10762,7 +10769,7 @@ function FilmLightbox({ film }: { film: (typeof films)[number] }) {
       }}
     >
       <Lightbox.Trigger
-        index={0}
+        itemId={film.id}
         // Hard-cut open (poster → video poster), dissolve on close (live frame → trigger).
         crossfade="close"
         className={`group block w-full cursor-pointer rounded-xl border-none bg-transparent p-0 text-left ${triggerFocusClass}`}
@@ -10770,10 +10777,7 @@ function FilmLightbox({ film }: { film: (typeof films)[number] }) {
         {({ morphRef }) => (
           <>
             {/* morphRef on the wrapper so poster + play affordance morph together. */}
-            <div
-              ref={morphRef}
-              className={`relative overflow-hidden rounded-xl`}
-            >
+            <div ref={morphRef} className={`relative overflow-hidden rounded-xl`}>
               <Image
                 src={film.poster}
                 alt={film.title}
@@ -10838,7 +10842,9 @@ export default function FilmTrailersPage() {
           single-item gallery and{' '}
           <code className="rounded bg-neutral-100 px-1 py-0.5 text-xs dark:bg-neutral-800">renderItem</code> for the
           video.{' '}
-          <code className="rounded bg-neutral-100 px-1 py-0.5 text-xs dark:bg-neutral-800">crossfade=&quot;close&quot;</code>{' '}
+          <code className="rounded bg-neutral-100 px-1 py-0.5 text-xs dark:bg-neutral-800">
+            crossfade=&quot;close&quot;
+          </code>{' '}
           hard-cuts the open morph into the video and dissolves the live frame back into the poster on close. Video
           autoplays (muted) only after{' '}
           <code className="rounded bg-neutral-100 px-1 py-0.5 text-xs dark:bg-neutral-800">onOpenChangeComplete</code>.
@@ -10847,9 +10853,7 @@ export default function FilmTrailersPage() {
     >
       <div className="max-w-3xl">
         <div className="py-5">
-          <div className="text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">
-            Now Streaming
-          </div>
+          <div className="text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">Now Streaming</div>
           <h2 className="mt-1 text-2xl font-semibold tracking-tight">Blender Open Movies</h2>
           <p className="mt-2 max-w-md text-sm text-muted-foreground">
             Four Creative Commons shorts from the Blender Foundation. Click any poster to watch fullscreen.
@@ -10884,13 +10888,9 @@ import { TrackballControls } from 'three/examples/jsm/controls/TrackballControls
 import * as Lightbox from '@ramka/react/lightbox';
 
 import { ExampleShell } from '../../../../_components/example-shell';
-import {
-  LightboxGallery,
-  triggerFocusClass,
-} from '../../../../_components/lightbox-chrome';
+import { LightboxGallery, triggerFocusClass } from '../../../../_components/lightbox-chrome';
 
-const assetBase =
-  'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models';
+const assetBase = 'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models';
 
 /** Shared square frame for every trigger + Media so tiles match in the grid. */
 const FRAME_SIZE = 1024;
@@ -10932,12 +10932,7 @@ function getGltfPromise(url: string): Promise<THREE.Group> {
   let hit = gltfCache.get(url);
   if (!hit) {
     hit = new Promise((resolve, reject) => {
-      new GLTFLoader().load(
-        url,
-        (gltf) => resolve(gltf.scene),
-        undefined,
-        reject,
-      );
+      new GLTFLoader().load(url, (gltf) => resolve(gltf.scene), undefined, reject);
     });
     gltfCache.set(url, hit);
   }
@@ -11031,13 +11026,9 @@ function normalizeModel(model: THREE.Object3D): THREE.Group {
 }
 
 /** Fixed framing for {@link normalizeModel} unit-sized roots (target at origin). */
-function fitCameraToUnitObject(
-  camera: THREE.PerspectiveCamera,
-  controls: TrackballControls,
-) {
+function fitCameraToUnitObject(camera: THREE.PerspectiveCamera, controls: TrackballControls) {
   const maxSize = 1;
-  const fitHeightDistance =
-    maxSize / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2));
+  const fitHeightDistance = maxSize / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2));
   const fitWidthDistance = fitHeightDistance / Math.max(camera.aspect, 0.001);
   const distance = 1.45 * Math.max(fitHeightDistance, fitWidthDistance);
   camera.near = distance / 100;
@@ -11118,11 +11109,7 @@ const TARGET_SPIN_RAD_PER_SEC = ((2 * Math.PI) / 60) * TRIGGER_AUTO_ROTATE_SPEED
 const SPIN_SPEED_BLEND = 2.2;
 
 /** Unit look-direction + up; radius stays local to each canvas. */
-function readViewPose(
-  camera: THREE.PerspectiveCamera,
-  controls: TrackballControls,
-  spin: SpinState,
-): ViewPose {
+function readViewPose(camera: THREE.PerspectiveCamera, controls: TrackballControls, spin: SpinState): ViewPose {
   _direction.copy(camera.position).sub(controls.target).normalize();
   _up.copy(camera.up).normalize();
   return {
@@ -11133,12 +11120,7 @@ function readViewPose(
   };
 }
 
-function applyViewPose(
-  camera: THREE.PerspectiveCamera,
-  controls: TrackballControls,
-  pose: ViewPose,
-  spin: SpinState,
-) {
+function applyViewPose(camera: THREE.PerspectiveCamera, controls: TrackballControls, pose: ViewPose, spin: SpinState) {
   const tb = controls as TrackballInertia;
   const radius = camera.position.distanceTo(controls.target) || 1;
   _direction.fromArray(pose.direction).normalize();
@@ -11159,11 +11141,7 @@ function applyViewPose(
 }
 
 /** Sample flick axis + rad/s from Trackball, then clear its private damping. */
-function captureFlickIntoSpin(
-  controls: TrackballControls,
-  spin: SpinState,
-  dt: number,
-) {
+function captureFlickIntoSpin(controls: TrackballControls, spin: SpinState, dt: number) {
   const tb = controls as TrackballInertia;
   if (tb._lastAxis.lengthSq() > 1e-8) {
     spin.axis.copy(tb._lastAxis).normalize();
@@ -11176,12 +11154,7 @@ function captureFlickIntoSpin(
   tb._lastAngle = 0;
 }
 
-function applySpinStep(
-  camera: THREE.PerspectiveCamera,
-  controls: TrackballControls,
-  spin: SpinState,
-  dt: number,
-) {
+function applySpinStep(camera: THREE.PerspectiveCamera, controls: TrackballControls, spin: SpinState, dt: number) {
   // Ease flick velocity toward the cruise auto-spin — never drops through zero.
   const blend = 1 - Math.exp(-SPIN_SPEED_BLEND * dt);
   spin.speed += (TARGET_SPIN_RAD_PER_SEC - spin.speed) * blend;
@@ -11445,13 +11418,7 @@ function useThreeCanvas(
   }, [interactive]);
 }
 
-function TriggerScene({
-  product,
-  autoRotate,
-}: {
-  product: Product;
-  autoRotate: boolean;
-}) {
+function TriggerScene({ product, autoRotate }: { product: Product; autoRotate: boolean }) {
   const hostRef = React.useRef<HTMLDivElement | null>(null);
   // Grid tiles are view-only — orbit only in the lightbox.
   useThreeCanvas(hostRef, product, false, autoRotate, 'trigger');
@@ -11504,16 +11471,13 @@ function ProductLightbox({ product }: { product: Product }) {
       }}
     >
       <Lightbox.Trigger
-        index={0}
+        itemId={product.id}
         className={`group block w-full cursor-pointer rounded-xl border-none bg-transparent p-0 text-center ${triggerFocusClass}`}
         crossfade="both"
       >
         {({ morphRef }) => (
           <>
-            <div
-              ref={morphRef}
-              className={`relative aspect-square w-full overflow-hidden rounded-xl bg-transparent`}
-            >
+            <div ref={morphRef} className={`relative aspect-square w-full overflow-hidden rounded-xl bg-transparent`}>
               {/* Pause grid spin while this lightbox is open. */}
               <TriggerScene product={product} autoRotate={!open} />
             </div>
@@ -11569,18 +11533,12 @@ export default function ThreeDModelsPage() {
       description={
         <>
           Each tile is its own{' '}
-          <code className="rounded bg-neutral-100 px-1 py-0.5 text-xs dark:bg-neutral-800">
-            Lightbox.Root
-          </code>{' '}
-          with a single-item gallery — Three.js canvases in the trigger and{' '}
-          <code className="rounded bg-neutral-100 px-1 py-0.5 text-xs dark:bg-neutral-800">
-            Lightbox.Media
-          </code>
-          . <code className="rounded bg-neutral-100 px-1 py-0.5 text-xs dark:bg-neutral-800">
-            onBeforeOpen
-          </code>{' '}
-          waits for the prepared lightbox canvas to paint a synced frame before the morph (spin
-          stays live, like close). Rotate only (no zoom); orbit stays in sync with the grid tile.{' '}
+          <code className="rounded bg-neutral-100 px-1 py-0.5 text-xs dark:bg-neutral-800">Lightbox.Root</code> with a
+          single-item gallery — Three.js canvases in the trigger and{' '}
+          <code className="rounded bg-neutral-100 px-1 py-0.5 text-xs dark:bg-neutral-800">Lightbox.Media</code>.{' '}
+          <code className="rounded bg-neutral-100 px-1 py-0.5 text-xs dark:bg-neutral-800">onBeforeOpen</code> waits for
+          the prepared lightbox canvas to paint a synced frame before the morph (spin stays live, like close). Rotate
+          only (no zoom); orbit stays in sync with the grid tile.{' '}
           <code className="rounded bg-neutral-100 px-1 py-0.5 text-xs dark:bg-neutral-800">
             pullToClose={'{false}'}
           </code>{' '}
@@ -11590,9 +11548,7 @@ export default function ThreeDModelsPage() {
     >
       <div className="max-w-3xl">
         <div className="py-5">
-          <div className="text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">
-            Object studio
-          </div>
+          <div className="text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">Object studio</div>
           <h2 className="mt-1 text-2xl font-semibold tracking-tight">Khronos sample assets</h2>
           <p className="mt-2 max-w-md text-sm text-muted-foreground">
             Open any model. Orbit stays in sync with the grid tile.

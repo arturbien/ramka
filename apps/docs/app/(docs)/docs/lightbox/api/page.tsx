@@ -101,15 +101,15 @@ export default function LightboxApiPage() {
       description={
         <>
           Props, data attributes, and CSS variables for every{' '}
-          <DocsLink href={lightboxDocsPages.overview.href}>Lightbox</DocsLink> part. Tables are
-          generated from package TypeScript + JSDoc.
+          <DocsLink href={lightboxDocsPages.overview.href}>Lightbox</DocsLink> part. Tables are generated from package
+          TypeScript + JSDoc.
         </>
       }
       toc={toc}
     >
       <p className="text-sm leading-relaxed text-neutral-600 dark:text-neutral-400">
-        Each part accepts native element props for its default host (via Base UI{' '}
-        <code className="text-xs">render</code> where noted). Custom props are listed below. Guides:{' '}
+        Each part accepts native element props for its default host (via Base UI <code className="text-xs">render</code>{' '}
+        where noted). Custom props are listed below. Guides:{' '}
         <DocsLink href={lightboxDocsPages.composition.href}>Composition</DocsLink>,{' '}
         <DocsLink href={lightboxDocsPages.viewTransitions.href}>View transitions</DocsLink>,{' '}
         <DocsLink href={lightboxDocsPages.gestures.href}>Gestures</DocsLink>.
@@ -119,9 +119,7 @@ export default function LightboxApiPage() {
         <ul className="space-y-3">
           {byConcern.map((group) => (
             <li key={group.label}>
-              <div className="text-xs font-semibold uppercase tracking-wider text-neutral-500">
-                {group.label}
-              </div>
+              <div className="text-xs font-semibold uppercase tracking-wider text-neutral-500">{group.label}</div>
               <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-sm">
                 {group.links.map((link) => (
                   <DocsLink key={link.href} href={link.href}>
@@ -152,24 +150,25 @@ export default function LightboxApiPage() {
               &apos;trigger&apos; | &apos;keyboard&apos; | &apos;thumbnail&apos; | &apos;button&apos; |
               &apos;scroll&apos; | &apos;imperative&apos;
             </code>
-            . Second argument to Root <code className="text-xs">onValueChange</code>. Handle{' '}
+            . <code className="text-xs">details.source</code> in Root{' '}
+            <code className="text-xs">onValueChange(itemId, details)</code>. Handle{' '}
             <code className="text-xs">open</code>/<code className="text-xs">goTo</code> use{' '}
             <code className="text-xs">&apos;imperative&apos;</code>; scroll-driven Slides use{' '}
             <code className="text-xs">&apos;scroll&apos;</code>.
           </li>
           <li>
             <code className="text-xs">LightboxCrossfade</code> —{' '}
-            <code className="text-xs">&apos;open&apos; | &apos;close&apos; | &apos;both&apos;</code> for
-            Trigger <code className="text-xs">crossfade</code>. See{' '}
+            <code className="text-xs">&apos;open&apos; | &apos;close&apos; | &apos;both&apos;</code> for Trigger{' '}
+            <code className="text-xs">crossfade</code>. See{' '}
             <DocsLink href={`${lightboxDocsPages.viewTransitions.href}#crossfade`}>
               View transitions → crossfade
             </DocsLink>
             .
           </li>
           <li>
-            Render-state types such as <code className="text-xs">LightboxTriggerRenderState</code> and Item
-            render args (<code className="text-xs">active</code>, <code className="text-xs">visible</code>,
-            refs) — documented on <DocsLink href={lightboxApiHref.trigger}>Trigger</DocsLink> /{' '}
+            Render-state types such as <code className="text-xs">LightboxTriggerRenderState</code> and Item render args
+            (<code className="text-xs">active</code>, <code className="text-xs">visible</code>, refs) — documented on{' '}
+            <DocsLink href={lightboxApiHref.trigger}>Trigger</DocsLink> /{' '}
             <DocsLink href={lightboxApiHref.item}>Item</DocsLink>.
           </li>
         </ul>
@@ -184,8 +183,8 @@ export default function LightboxApiPage() {
 
       <DocsSection id="imperative" title="Imperative handles">
         <p>
-          Use <code className="text-xs">Lightbox.createHandle()</code> on Root (and optional detached
-          Triggers). Zoom exposes zoom controls via <code className="text-xs">ref</code>.
+          Use <code className="text-xs">Lightbox.createHandle()</code> on Root (and optional detached Triggers). Zoom
+          exposes zoom controls via <code className="text-xs">ref</code>.
         </p>
       </DocsSection>
       {imperativeApi.map((part) => (

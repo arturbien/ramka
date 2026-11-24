@@ -22,7 +22,7 @@ const guideLinks: {
 }[] = [
   {
     title: 'State & lifecycle',
-    description: 'Controlled open/index, createHandle, and open-change callbacks.',
+    description: 'Controlled open/value, createHandle, and open-change callbacks.',
     href: lightboxDocsPages.stateLifecycle.href,
   },
   {
@@ -78,19 +78,18 @@ export default function LightboxOverviewPage() {
         <p>Work through these decisions in order:</p>
         <ol className="list-decimal space-y-3 pl-5">
           <li>
-            <strong className="font-medium text-neutral-800 dark:text-neutral-200">State</strong> —
-            controlled props, createHandle, or both? See{' '}
+            <strong className="font-medium text-neutral-800 dark:text-neutral-200">State</strong> — controlled props,
+            createHandle, or both? See{' '}
             <DocsLink href={lightboxDocsPages.stateLifecycle.href}>State & lifecycle</DocsLink>.
           </li>
           <li>
-            <strong className="font-medium text-neutral-800 dark:text-neutral-200">Layout</strong> —
-            default to the swipe carousel (
-            <DocsLink href={`${lightboxDocsPages.composition.href}#slides`}>Slides + Zoom</DocsLink>
+            <strong className="font-medium text-neutral-800 dark:text-neutral-200">Layout</strong> — default to the
+            swipe carousel (<DocsLink href={`${lightboxDocsPages.composition.href}#slides`}>Slides + Zoom</DocsLink>
             ). See <DocsLink href={lightboxDocsPages.composition.href}>Composition</DocsLink>.
           </li>
           <li>
-            <strong className="font-medium text-neutral-800 dark:text-neutral-200">Morph</strong> — on by
-            default; wrap destination media in <code className="text-xs">Lightbox.Media</code> (and{' '}
+            <strong className="font-medium text-neutral-800 dark:text-neutral-200">Morph</strong> — on by default; wrap
+            destination media in <code className="text-xs">Lightbox.Media</code> (and{' '}
             <code className="text-xs">imageRef</code> on Trigger thumbs), choose{' '}
             <code className="text-xs">crossfade</code> / <code className="text-xs">morphTo</code>, or pass{' '}
             <code className="text-xs">viewTransition={'{false}'}</code> to opt out. See{' '}
@@ -102,12 +101,9 @@ export default function LightboxOverviewPage() {
             <DocsLink href={lightboxDocsPages.gestures.href}>Gestures</DocsLink>.
           </li>
           <li>
-            <strong className="font-medium text-neutral-800 dark:text-neutral-200">
-              Cosmetics vs mechanics
-            </strong>{' '}
-            — colors, chrome, and radius <em>values</em> are yours. Structural styles (view-transition
-            morph CSS, morph host box, zoom overflow, slide snap alignment, placeholders) are applied by
-            the library or via Media{' '}
+            <strong className="font-medium text-neutral-800 dark:text-neutral-200">Cosmetics vs mechanics</strong> —
+            colors, chrome, and radius <em>values</em> are yours. Structural styles (view-transition morph CSS, morph
+            host box, zoom overflow, slide snap alignment, placeholders) are applied by the library or via Media{' '}
             <code className="text-xs">width</code>/<code className="text-xs">height</code>; slide track width
             (full-bleed vs snug cards) is consumer CSS — see{' '}
             <DocsLink href={`${lightboxDocsPages.composition.href}#slides`}>Composition → Slides + Zoom</DocsLink>.
@@ -119,8 +115,8 @@ export default function LightboxOverviewPage() {
 
       <DocsSection id="anatomy" title="Anatomy">
         <p>
-          Import the namespace and compose parts. The sketch below is the default gallery shape (Slides
-          + Zoom + chrome). Every part is optional except Root for state.
+          Import the namespace and compose parts. The sketch below is the default gallery shape (Slides + Zoom +
+          chrome). Every part is optional except Root for state.
         </p>
         <CodeBlock code={lightboxExcerpts.anatomy.code} title={lightboxExcerpts.anatomy.title} />
       </DocsSection>
@@ -133,18 +129,15 @@ export default function LightboxOverviewPage() {
                 href={ex.href}
                 className="block h-full rounded-xl border border-neutral-200 bg-white p-4 transition hover:border-neutral-300 hover:bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-900 dark:hover:border-neutral-700 dark:hover:bg-neutral-800"
               >
-                <div className="text-sm font-semibold text-neutral-900 dark:text-neutral-50">
-                  {ex.title}
-                </div>
+                <div className="text-sm font-semibold text-neutral-900 dark:text-neutral-50">{ex.title}</div>
                 <p className="mt-1 text-xs text-neutral-600 dark:text-neutral-400">{ex.description}</p>
               </Link>
             </li>
           ))}
         </ul>
         <p className="mt-4">
-          Browse product demos under{' '}
-          <DocsLink href="/examples/lightbox/photos-app">Examples</DocsLink>. Guides above are
-          canonical for behavior; examples are compositions.
+          Browse product demos under <DocsLink href="/examples/lightbox/photos-app">Examples</DocsLink>. Guides above
+          are canonical for behavior; examples are compositions.
         </p>
       </DocsSection>
 

@@ -9,10 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { ExampleShell } from '../../../_components/example-shell';
-import {
-  LightboxGallery,
-  triggerFocusClass,
-} from '../../../_components/lightbox-chrome';
+import { LightboxGallery, triggerFocusClass } from '../../../_components/lightbox-chrome';
 import {
   agentClaire,
   propBath,
@@ -28,16 +25,86 @@ import {
 } from './images.generated';
 
 const propertyPhotos = [
-  { id: 'prop-hero', src: propHero, thumb: propHero, alt: 'Living room with floor-to-ceiling windows', label: 'Living Room', caption: 'Living Room — The Olive Grove Residence' },
-  { id: 'prop-kitchen', src: propKitchen, thumb: propKitchen, alt: 'Modern kitchen with marble island', label: 'Kitchen', caption: 'Kitchen — The Olive Grove Residence' },
-  { id: 'prop-bedroom', src: propBed, thumb: propBed, alt: 'Primary bedroom with en-suite balcony', label: 'Primary Bedroom', caption: 'Primary Bedroom — The Olive Grove Residence' },
-  { id: 'prop-bath', src: propBath, thumb: propBath, alt: 'Spa-style bathroom with freestanding tub', label: 'Bathroom', caption: 'Bathroom — The Olive Grove Residence' },
-  { id: 'prop-terrace', src: propTerrace, thumb: propTerrace, alt: 'Rooftop terrace with city views', label: 'Terrace', caption: 'Terrace — The Olive Grove Residence' },
-  { id: 'prop-dining', src: propDining, thumb: propDining, alt: 'Dining area with designer lighting', label: 'Dining', caption: 'Dining — The Olive Grove Residence' },
-  { id: 'prop-office', src: propOffice, thumb: propOffice, alt: 'Home office with built-in shelving', label: 'Office', caption: 'Office — The Olive Grove Residence' },
-  { id: 'prop-pool', src: propPool, thumb: propPool, alt: 'Infinity pool overlooking the valley', label: 'Pool', caption: 'Pool — The Olive Grove Residence' },
-  { id: 'prop-garden', src: propGarden, thumb: propGarden, alt: 'Landscaped garden with mature olive trees', label: 'Garden', caption: 'Garden — The Olive Grove Residence' },
-  { id: 'prop-exterior', src: propExt, thumb: propExt, alt: 'Front elevation at dusk with warm lighting', label: 'Exterior', caption: 'Exterior — The Olive Grove Residence' },
+  {
+    id: 'prop-hero',
+    src: propHero,
+    thumb: propHero,
+    alt: 'Living room with floor-to-ceiling windows',
+    label: 'Living Room',
+    caption: 'Living Room — The Olive Grove Residence',
+  },
+  {
+    id: 'prop-kitchen',
+    src: propKitchen,
+    thumb: propKitchen,
+    alt: 'Modern kitchen with marble island',
+    label: 'Kitchen',
+    caption: 'Kitchen — The Olive Grove Residence',
+  },
+  {
+    id: 'prop-bedroom',
+    src: propBed,
+    thumb: propBed,
+    alt: 'Primary bedroom with en-suite balcony',
+    label: 'Primary Bedroom',
+    caption: 'Primary Bedroom — The Olive Grove Residence',
+  },
+  {
+    id: 'prop-bath',
+    src: propBath,
+    thumb: propBath,
+    alt: 'Spa-style bathroom with freestanding tub',
+    label: 'Bathroom',
+    caption: 'Bathroom — The Olive Grove Residence',
+  },
+  {
+    id: 'prop-terrace',
+    src: propTerrace,
+    thumb: propTerrace,
+    alt: 'Rooftop terrace with city views',
+    label: 'Terrace',
+    caption: 'Terrace — The Olive Grove Residence',
+  },
+  {
+    id: 'prop-dining',
+    src: propDining,
+    thumb: propDining,
+    alt: 'Dining area with designer lighting',
+    label: 'Dining',
+    caption: 'Dining — The Olive Grove Residence',
+  },
+  {
+    id: 'prop-office',
+    src: propOffice,
+    thumb: propOffice,
+    alt: 'Home office with built-in shelving',
+    label: 'Office',
+    caption: 'Office — The Olive Grove Residence',
+  },
+  {
+    id: 'prop-pool',
+    src: propPool,
+    thumb: propPool,
+    alt: 'Infinity pool overlooking the valley',
+    label: 'Pool',
+    caption: 'Pool — The Olive Grove Residence',
+  },
+  {
+    id: 'prop-garden',
+    src: propGarden,
+    thumb: propGarden,
+    alt: 'Landscaped garden with mature olive trees',
+    label: 'Garden',
+    caption: 'Garden — The Olive Grove Residence',
+  },
+  {
+    id: 'prop-exterior',
+    src: propExt,
+    thumb: propExt,
+    alt: 'Front elevation at dusk with warm lighting',
+    label: 'Exterior',
+    caption: 'Exterior — The Olive Grove Residence',
+  },
 ];
 
 const amenities = [
@@ -74,7 +141,7 @@ function HeroGrid() {
   return (
     <div className="grid aspect-[2.2/1] grid-cols-[2fr_1fr_1fr] grid-rows-2 gap-1">
       <Lightbox.Trigger
-        index={0}
+        itemId={hero.id}
         className={`row-span-2 block cursor-pointer border-none bg-transparent p-0 ${triggerFocusClass} ${heroCornerClass[0]}`}
       >
         {({ imageRef }) => (
@@ -91,7 +158,7 @@ function HeroGrid() {
       {propertyPhotos.slice(1, 5).map((photo, i) => (
         <Lightbox.Trigger
           key={photo.id}
-          index={i + 1}
+          itemId={photo.id}
           className={`block cursor-pointer border-none bg-transparent p-0 ${triggerFocusClass} ${heroCornerClass[i + 1] ?? ''}`}
         >
           {({ imageRef }) => (
@@ -124,10 +191,10 @@ function RemainingPhotosGrid() {
     <div>
       <h3 className="mb-4 text-xl font-semibold tracking-tight">All Photos</h3>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
-        {propertyPhotos.slice(5).map((photo, i) => (
+        {propertyPhotos.slice(5).map((photo) => (
           <Lightbox.Trigger
             key={photo.id}
-            index={i + 5}
+            itemId={photo.id}
             crossfade="both"
             className={`block rounded-lg bg-transparent p-0 ${triggerFocusClass}`}
           >
@@ -163,19 +230,16 @@ export default function RealEstateListingPage() {
       title="Real estate listing"
       description={
         <>
-          A property page in the style of Airbnb or Zillow: a hero grid for the first five photos, then an &quot;all photos&quot;
-          gallery below. The lightbox opens a horizontally-snapping{' '}
-          <code className="rounded bg-neutral-100 px-1 py-0.5 text-xs dark:bg-neutral-800">Lightbox.Slides</code> viewport over
-          all 10 photos, with{' '}
+          A property page in the style of Airbnb or Zillow: a hero grid for the first five photos, then an &quot;all
+          photos&quot; gallery below. The lightbox opens a horizontally-snapping{' '}
+          <code className="rounded bg-neutral-100 px-1 py-0.5 text-xs dark:bg-neutral-800">Lightbox.Slides</code>{' '}
+          viewport over all 10 photos, with{' '}
           <code className="rounded bg-neutral-100 px-1 py-0.5 text-xs dark:bg-neutral-800">scrollTriggerIntoView</code>{' '}
           set to instant on close so the morph target is always on screen.
         </>
       }
     >
-      <Lightbox.Root
-        loop
-        scrollTriggerIntoView={{ type: 'onClose', behavior: 'instant' }}
-      >
+      <Lightbox.Root loop scrollTriggerIntoView={{ type: 'onClose', behavior: 'instant' }}>
         <div className="max-w-5xl py-4 pb-12">
           <HeroGrid />
 
@@ -187,9 +251,7 @@ export default function RealEstateListingPage() {
               </div>
 
               <h1 className="mb-1 text-3xl font-semibold tracking-tight">The Olive Grove Residence</h1>
-              <p className="mb-4 text-sm text-muted-foreground">
-                742 Hillcrest Drive, Montecito, CA 93108
-              </p>
+              <p className="mb-4 text-sm text-muted-foreground">742 Hillcrest Drive, Montecito, CA 93108</p>
 
               <div className="flex gap-6 border-y border-border py-4">
                 <StatItem value="5" label="Bedrooms" />
@@ -230,9 +292,9 @@ export default function RealEstateListingPage() {
             </p>
             <p className="mb-3 text-sm leading-relaxed">
               The open-plan living and dining area features 12-foot ceilings, white oak floors, and a sculptural
-              fireplace that anchors the space. The chef&apos;s kitchen is outfitted with Gaggenau appliances, a waterfall
-              marble island, and a butler&apos;s pantry with wine refrigeration. Five bedroom suites are spread across two
-              levels, with the primary occupying the entire upper wing.
+              fireplace that anchors the space. The chef&apos;s kitchen is outfitted with Gaggenau appliances, a
+              waterfall marble island, and a butler&apos;s pantry with wine refrigeration. Five bedroom suites are
+              spread across two levels, with the primary occupying the entire upper wing.
             </p>
           </div>
 
@@ -257,11 +319,7 @@ export default function RealEstateListingPage() {
           </div>
         </div>
 
-        <LightboxGallery
-          items={propertyPhotos}
-          ariaLabel="Property photos"
-          backdrop="solid"
-        />
+        <LightboxGallery items={propertyPhotos} ariaLabel="Property photos" backdrop="solid" />
       </Lightbox.Root>
     </ExampleShell>
   );

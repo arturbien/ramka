@@ -37,7 +37,7 @@ export function LightTableGallery() {
         ]}
       >
         <div className="flex flex-col gap-3">
-          <Lightbox.Trigger index={0} className={triggerClassName}>
+          <Lightbox.Trigger itemId={hero.id} className={triggerClassName}>
             {({ imageRef }) => (
               <Image
                 ref={imageRef}
@@ -51,8 +51,8 @@ export function LightTableGallery() {
             )}
           </Lightbox.Trigger>
           <div className="grid grid-cols-3 gap-3">
-            {rest.map((img, i) => (
-              <Lightbox.Trigger key={img.id} index={i + 1} className={triggerClassName}>
+            {rest.map((img) => (
+              <Lightbox.Trigger key={img.id} itemId={img.id} className={triggerClassName}>
                 {({ imageRef }) => (
                   <Image
                     ref={imageRef}
@@ -97,7 +97,7 @@ export function LightTableGallery() {
             >
               {LIGHT_TABLE_IMAGES.map((img, i) => (
                 <Lightbox.Slide key={img.id} className="lightbox-demo-slide-pad h-full">
-                  <Lightbox.Item index={i} caption={img.label}>
+                  <Lightbox.Item index={i} itemId={img.id} caption={img.label}>
                     <Lightbox.Zoom maxZoom={4}>
                       <Lightbox.Media width={img.src.width} height={img.src.height} className="lt-media">
                         <Image
@@ -105,7 +105,7 @@ export function LightTableGallery() {
                           alt={img.alt}
                           sizes="100vw"
                           loading="eager"
-                          // No placeholder: every index here has a trigger image, so
+                          // No placeholder: every item here has a trigger image, so
                           // Ramka paints the open bridge (docs/lightbox/nextjs-image).
                           draggable={false}
                           className="select-none"

@@ -93,7 +93,7 @@ interface LightboxRootProps<Payload = unknown> {
    */
   handle?: LightboxHandle<Payload>;
   /**
-   * Bring an unmounted keyed trigger back so the close morph has somewhere to
+   * Bring an unmounted trigger back so the close morph has somewhere to
    * land — for triggers inside a virtualized list, whose rows unmount when
    * they scroll away. Called with the active item's `itemId` when the close
    * target has no mounted trigger. Scroll the row that holds the item into
@@ -110,8 +110,7 @@ interface LightboxRootProps<Payload = unknown> {
    *
    * Without view transitions nothing waits: the trigger is revealed and
    * focus returns to it once it mounts. Use `behavior: 'instant'` scrolling;
-   * a smooth scroll outlasts the wait. Only keyed Triggers (`itemId`) are
-   * revealed.
+   * a smooth scroll outlasts the wait.
    */
   revealTrigger?: LightboxRevealTrigger<Payload>;
   /**
@@ -207,9 +206,9 @@ interface LightboxRootProps<Payload = unknown> {
    *
    * - `null` (default) — no automatic scrolling
    * - `{ type: "onChange" }` — scroll to the trigger the close morph will land
-   *   on whenever the active index changes while the lightbox is open
+   *   on whenever the active item changes while the lightbox is open
    *   (preemptive; respects `morphTo`, so `closest` scrolls the nearest
-   *   registered trigger when the active index has none)
+   *   trigger when the active item has none)
    * - `{ type: "onOpenComplete" }` — scroll to that same trigger once the open
    *   transition finishes. The viewer covers the page and scroll is locked, so
    *   this reposition is invisible — it only pays off by ensuring the close
@@ -238,12 +237,13 @@ interface LightboxRootProps<Payload = unknown> {
   /**
    * Controls which trigger receives the View Transition morph on close.
    *
-   * - `'active'` (default) — morph to the trigger matching the current
-   *   active index. No morph if no trigger exists for that index.
+   * - `'active'` (default) — morph to the active item's trigger. No morph if
+   *   it has none.
    * - `'origin'` — always morph back to the trigger that originally
    *   opened the lightbox, regardless of which item is active.
-   * - `'closest'` — morph to the trigger at the active index if it
-   *   exists, otherwise fall back to the nearest registered trigger.
+   * - `'closest'` — morph to the active item's trigger if it has one,
+   *   otherwise to the trigger of the nearest item that does (a "+N" tile
+   *   for the photos behind it).
    *
    * @default 'active'
    */

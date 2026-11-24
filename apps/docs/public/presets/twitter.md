@@ -72,7 +72,11 @@ function IconReply() {
 function IconRepost() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} aria-hidden>
-      <path d="M4.5 9.5 9 5l4.5 4.5M9 5v11.5M19.5 14.5 15 19l-4.5-4.5M15 19V7.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path
+        d="M4.5 9.5 9 5l4.5 4.5M9 5v11.5M19.5 14.5 15 19l-4.5-4.5M15 19V7.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
@@ -112,7 +116,8 @@ function IconShare() {
 /* ── Public types ────────────────────────────────────────────────────────── */
 
 export type LightboxItem = {
-  id?: string | number;
+  /** Stable id for this photo — becomes the Item's `itemId`; Triggers open it by this id. */
+  id: string;
   src: string;
   thumb: string;
   alt: string;
@@ -180,11 +185,7 @@ function Stage({ className, ...props }: React.ComponentProps<typeof RamkaLightbo
   return <RamkaLightbox.Stage className={cx('xlb-media-pane', className)} {...props} />;
 }
 
-function Close({
-  className,
-  children,
-  ...props
-}: React.ComponentProps<typeof RamkaLightbox.Close>) {
+function Close({ className, children, ...props }: React.ComponentProps<typeof RamkaLightbox.Close>) {
   return (
     <RamkaLightbox.Close className={cx('xlb-control', 'xlb-close', className)} aria-label="Close" {...props}>
       {children ?? <IconX />}
@@ -212,11 +213,7 @@ function Zoom(props: React.ComponentProps<typeof RamkaLightbox.Zoom>) {
   return <RamkaLightbox.Zoom {...props} />;
 }
 
-function Previous({
-  className,
-  children,
-  ...props
-}: React.ComponentProps<typeof RamkaLightbox.Previous>) {
+function Previous({ className, children, ...props }: React.ComponentProps<typeof RamkaLightbox.Previous>) {
   return (
     <RamkaLightbox.Previous
       className={cx('xlb-control', 'xlb-nav', 'xlb-nav-prev', className)}
@@ -241,20 +238,12 @@ function Next({ className, children, ...props }: React.ComponentProps<typeof Ram
 }
 
 function Counter({ className, ...props }: React.ComponentProps<typeof RamkaLightbox.Counter>) {
-  return (
-    <RamkaLightbox.Counter className={cx('xlb-counter', 'xlb-chrome-pull-hide', className)} {...props} />
-  );
+  return <RamkaLightbox.Counter className={cx('xlb-counter', 'xlb-chrome-pull-hide', className)} {...props} />;
 }
 
 /* ── Mobile engagement bar ───────────────────────────────────────────────── */
 
-function MobileActionBar({
-  stats,
-  onOpenThread,
-}: {
-  stats: ThreadPost['stats'];
-  onOpenThread: () => void;
-}) {
+function MobileActionBar({ stats, onOpenThread }: { stats: ThreadPost['stats']; onOpenThread: () => void }) {
   return (
     <div className="xlb-mobile-bar xlb-chrome-pull-hide" aria-label="Post actions">
       <button type="button" className="xlb-mobile-action" aria-label="View comments" onClick={onOpenThread}>
@@ -335,25 +324,14 @@ function ThreadPanel({
       onKeyDown={handleKeyDown}
     >
       <div className="xlb-thread-header">
-        <button
-          type="button"
-          className="xlb-thread-back"
-          aria-label="Close thread"
-          onClick={onClose}
-        >
+        <button type="button" className="xlb-thread-back" aria-label="Close thread" onClick={onClose}>
           <IconX />
         </button>
         <h2 className="xlb-thread-title">Post</h2>
         <span className="xlb-thread-header-spacer" aria-hidden />
       </div>
 
-      <div
-        ref={scrollRef}
-        className="xlb-thread-scroll"
-        tabIndex={0}
-        role="region"
-        aria-label="Thread"
-      >
+      <div ref={scrollRef} className="xlb-thread-scroll" tabIndex={0} role="region" aria-label="Thread">
         <div className="xlb-thread-body">
           <div className="xlb-author">
             <img src={thread.author.avatar} alt="" className="xlb-avatar" draggable={false} />
@@ -385,8 +363,7 @@ function ThreadPanel({
 
           {stats ? (
             <p className="xlb-post-meta">
-              <strong>{formatCount(stats.reposts)}</strong> Reposts ·{' '}
-              <strong>{formatCount(stats.likes)}</strong> Likes
+              <strong>{formatCount(stats.reposts)}</strong> Reposts · <strong>{formatCount(stats.likes)}</strong> Likes
             </p>
           ) : null}
 
@@ -411,12 +388,7 @@ function ThreadPanel({
 
         <div className="xlb-reply-box">
           <img src={thread.author.avatar} alt="" className="xlb-avatar xlb-reply-avatar" draggable={false} />
-          <input
-            type="text"
-            className="xlb-reply-input"
-            placeholder="Post your reply"
-            aria-label="Post your reply"
-          />
+          <input type="text" className="xlb-reply-input" placeholder="Post your reply" aria-label="Post your reply" />
         </div>
 
         <ul className="xlb-replies" aria-label="Replies">
@@ -442,15 +414,7 @@ function ThreadPanel({
 /**
  * Twitter-style split viewer — dark media pane + thread (sidebar / mobile sheet).
  */
-function Gallery({
-  items,
-  thread,
-  ariaLabel,
-}: {
-  items: LightboxItem[];
-  thread: ThreadPost;
-  ariaLabel: string;
-}) {
+function Gallery({ items, thread, ariaLabel }: { items: LightboxItem[]; thread: ThreadPost; ariaLabel: string }) {
   const showNav = items.length > 1;
   const [threadOpen, setThreadOpen] = React.useState(false);
 
@@ -460,10 +424,7 @@ function Gallery({
   return (
     <Portal>
       <Backdrop />
-      <Content
-        aria-label={ariaLabel}
-        className={threadOpen ? 'xlb-content-thread-open' : undefined}
-      >
+      <Content aria-label={ariaLabel} className={threadOpen ? 'xlb-content-thread-open' : undefined}>
         <Stage>
           <Close className="xlb-chrome-pull-hide" />
 
@@ -475,9 +436,10 @@ function Gallery({
             preload={1}
           >
             {items.map((item, i) => (
-              <Slide key={item.id ?? i}>
+              <Slide key={item.id}>
                 <Item
                   index={i}
+                  itemId={item.id}
                   aria-roledescription="slide"
                   aria-label={`${i + 1} of ${items.length}`}
                 >
@@ -1322,13 +1284,62 @@ const feed: FeedPost[] = [
       ],
     },
     images: [
-      { src: '/photos/rg-6a.jpg', thumb: '/photos/rg-6a-thumb.jpg', alt: 'Dramatic cliffside road at sunset', width: 1600, height: 1000 },
-      { src: '/photos/rg-6b.jpg', thumb: '/photos/rg-6b-thumb.jpg', alt: 'Turquoise cove with fishing boats', width: 1600, height: 1000 },
-      { src: '/photos/rg-6c.jpg', thumb: '/photos/rg-6c-thumb.jpg', alt: 'Terraced vineyards in morning mist', width: 1600, height: 1000 },
-      { src: '/photos/rg-6d.jpg', thumb: '/photos/rg-6d-thumb.jpg', alt: 'Old lighthouse on a rocky headland', width: 900, height: 1400 },
-      { src: '/photos/rg-6e.jpg', thumb: '/photos/rg-6e-thumb.jpg', alt: 'Wild horses grazing on a dune', width: 1600, height: 1000 },
-      { src: '/photos/rg-6f.jpg', thumb: '/photos/rg-6f-thumb.jpg', alt: 'Street musicians in a coastal town square', width: 1200, height: 1200 },
-      { src: '/photos/rg-6g.jpg', thumb: '/photos/rg-6g-thumb.jpg', alt: 'Milky Way over a deserted beach', width: 1600, height: 1000 },
+      {
+        id: 'rg-6a',
+        src: '/photos/rg-6a.jpg',
+        thumb: '/photos/rg-6a-thumb.jpg',
+        alt: 'Dramatic cliffside road at sunset',
+        width: 1600,
+        height: 1000,
+      },
+      {
+        id: 'rg-6b',
+        src: '/photos/rg-6b.jpg',
+        thumb: '/photos/rg-6b-thumb.jpg',
+        alt: 'Turquoise cove with fishing boats',
+        width: 1600,
+        height: 1000,
+      },
+      {
+        id: 'rg-6c',
+        src: '/photos/rg-6c.jpg',
+        thumb: '/photos/rg-6c-thumb.jpg',
+        alt: 'Terraced vineyards in morning mist',
+        width: 1600,
+        height: 1000,
+      },
+      {
+        id: 'rg-6d',
+        src: '/photos/rg-6d.jpg',
+        thumb: '/photos/rg-6d-thumb.jpg',
+        alt: 'Old lighthouse on a rocky headland',
+        width: 900,
+        height: 1400,
+      },
+      {
+        id: 'rg-6e',
+        src: '/photos/rg-6e.jpg',
+        thumb: '/photos/rg-6e-thumb.jpg',
+        alt: 'Wild horses grazing on a dune',
+        width: 1600,
+        height: 1000,
+      },
+      {
+        id: 'rg-6f',
+        src: '/photos/rg-6f.jpg',
+        thumb: '/photos/rg-6f-thumb.jpg',
+        alt: 'Street musicians in a coastal town square',
+        width: 1200,
+        height: 1200,
+      },
+      {
+        id: 'rg-6g',
+        src: '/photos/rg-6g.jpg',
+        thumb: '/photos/rg-6g-thumb.jpg',
+        alt: 'Milky Way over a deserted beach',
+        width: 1600,
+        height: 1000,
+      },
     ],
   },
   {
@@ -1353,9 +1364,30 @@ const feed: FeedPost[] = [
       ],
     },
     images: [
-      { src: '/photos/rg-3a.jpg', thumb: '/photos/rg-3a-thumb.jpg', alt: 'Rolling fields at golden hour', width: 1600, height: 900 },
-      { src: '/photos/rg-3b.jpg', thumb: '/photos/rg-3b-thumb.jpg', alt: 'Dense forest canopy from below', width: 1000, height: 1400 },
-      { src: '/photos/rg-3c.jpg', thumb: '/photos/rg-3c-thumb.jpg', alt: 'Quiet lake reflecting the hills', width: 1500, height: 1000 },
+      {
+        id: 'rg-3a',
+        src: '/photos/rg-3a.jpg',
+        thumb: '/photos/rg-3a-thumb.jpg',
+        alt: 'Rolling fields at golden hour',
+        width: 1600,
+        height: 900,
+      },
+      {
+        id: 'rg-3b',
+        src: '/photos/rg-3b.jpg',
+        thumb: '/photos/rg-3b-thumb.jpg',
+        alt: 'Dense forest canopy from below',
+        width: 1000,
+        height: 1400,
+      },
+      {
+        id: 'rg-3c',
+        src: '/photos/rg-3c.jpg',
+        thumb: '/photos/rg-3c-thumb.jpg',
+        alt: 'Quiet lake reflecting the hills',
+        width: 1500,
+        height: 1000,
+      },
     ],
   },
   {
@@ -1380,7 +1412,14 @@ const feed: FeedPost[] = [
       ],
     },
     images: [
-      { src: '/photos/rg-1.jpg', thumb: '/photos/rg-1-thumb.jpg', alt: 'Mountain range under a wide morning sky', width: 1600, height: 1000 },
+      {
+        id: 'rg-1',
+        src: '/photos/rg-1.jpg',
+        thumb: '/photos/rg-1-thumb.jpg',
+        alt: 'Mountain range under a wide morning sky',
+        width: 1600,
+        height: 1000,
+      },
     ],
   },
 ];
@@ -1394,13 +1433,7 @@ const actionClass =
   'flex items-center gap-1.5 rounded-full px-2 py-1.5 text-xs transition-colors hover:bg-neutral-100 hover:text-neutral-900 dark:hover:bg-neutral-800 dark:hover:text-neutral-100';
 
 /** Reply / repost / like / share row. Reply opens the viewer (thread beside it). */
-function ActionBar({
-  stats,
-  onReply,
-}: {
-  stats: ThreadPost['stats'];
-  onReply: () => void;
-}) {
+function ActionBar({ stats, onReply }: { stats: ThreadPost['stats']; onReply: () => void }) {
   return (
     <div className="-mb-1.5 -ms-2 mt-1 flex items-center gap-1 text-neutral-500">
       <button type="button" className={actionClass} aria-label="View replies" onClick={onReply}>
@@ -1444,7 +1477,7 @@ function cornerClass(index: number, count: number): string {
 /**
  * Facebook-style trigger grid: 1 image fills the width, 2–4 tile into a
  * grid, and 5+ collapse the extras behind a `+N` overlay tile. Every tile is
- * a `Lightbox.Trigger`, so tapping one morphs into the viewer at that index.
+ * a `Lightbox.Trigger`, so tapping one morphs into the viewer at that photo.
  */
 function ImageGrid({ imgs }: { imgs: LightboxItem[] }) {
   const count = imgs.length;
@@ -1452,7 +1485,7 @@ function ImageGrid({ imgs }: { imgs: LightboxItem[] }) {
   if (count === 1) {
     const only = imgs[0]!;
     return (
-      <Lightbox.Trigger index={0} className="block w-full overflow-hidden rounded-xl bg-transparent p-0">
+      <Lightbox.Trigger itemId={only.id} className="block w-full overflow-hidden rounded-xl bg-transparent p-0">
         {({ imageRef }) => (
           <img
             ref={imageRef}
@@ -1473,8 +1506,8 @@ function ImageGrid({ imgs }: { imgs: LightboxItem[] }) {
       <div className="grid grid-cols-2 gap-0.5 overflow-hidden rounded-xl">
         {imgs.map((img, i) => (
           <Lightbox.Trigger
-            key={img.src}
-            index={i}
+            key={img.id}
+            itemId={img.id}
             className={`block overflow-hidden bg-transparent p-0 ${cornerClass(i, 2)}`}
           >
             {({ imageRef }) => (
@@ -1499,7 +1532,7 @@ function ImageGrid({ imgs }: { imgs: LightboxItem[] }) {
     return (
       <div className="grid aspect-3/2 grid-cols-2 grid-rows-2 gap-0.5 overflow-hidden rounded-xl">
         <Lightbox.Trigger
-          index={0}
+          itemId={first.id}
           className={`row-span-2 block overflow-hidden bg-transparent p-0 ${cornerClass(0, 3)}`}
         >
           {({ imageRef }) => (
@@ -1518,8 +1551,8 @@ function ImageGrid({ imgs }: { imgs: LightboxItem[] }) {
           const i = idx + 1;
           return (
             <Lightbox.Trigger
-              key={img.src}
-              index={i}
+              key={img.id}
+              itemId={img.id}
               className={`block overflow-hidden bg-transparent p-0 ${cornerClass(i, 3)}`}
             >
               {({ imageRef }) => (
@@ -1547,8 +1580,8 @@ function ImageGrid({ imgs }: { imgs: LightboxItem[] }) {
         const showOverlay = i === 3 && extra > 0;
         return (
           <Lightbox.Trigger
-            key={img.src}
-            index={i}
+            key={img.id}
+            itemId={img.id}
             crossfade={showOverlay ? 'both' : undefined}
             className={`block overflow-hidden bg-transparent p-0 ${cornerClass(i, 4)}`}
           >
@@ -1614,15 +1647,11 @@ function FeedPostGallery({ post }: { post: FeedPost }) {
 
           <ImageGrid imgs={post.images} />
 
-          <ActionBar stats={stats} onReply={() => handle.open(0)} />
+          <ActionBar stats={stats} onReply={() => handle.open(post.images[0]!.id)} />
         </div>
       </article>
 
-      <Lightbox.Gallery
-        items={post.images}
-        thread={post.thread}
-        ariaLabel={`Photos by ${author.name}`}
-      />
+      <Lightbox.Gallery items={post.images} thread={post.thread} ariaLabel={`Photos by ${author.name}`} />
     </Lightbox.Root>
   );
 }

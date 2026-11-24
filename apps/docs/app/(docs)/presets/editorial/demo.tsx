@@ -12,6 +12,7 @@ import { Lightbox, type LightboxItem } from './lightbox';
 
 const figures: LightboxItem[] = [
   {
+    id: 'harbor',
     src: '/photos/edit-harbor.jpg',
     thumb: '/photos/edit-harbor-thumb.jpg',
     alt: 'The old harbor at dawn, boats resting in still water',
@@ -21,6 +22,7 @@ const figures: LightboxItem[] = [
     height: 1000,
   },
   {
+    id: 'nets',
     src: '/photos/edit-nets.jpg',
     thumb: '/photos/edit-nets-thumb.jpg',
     alt: 'Fishing nets stacked on the pier',
@@ -30,6 +32,7 @@ const figures: LightboxItem[] = [
     height: 1400,
   },
   {
+    id: 'market',
     src: '/photos/edit-market.jpg',
     thumb: '/photos/edit-market-thumb.jpg',
     alt: 'The near-empty fish market hall in the early morning',
@@ -40,11 +43,13 @@ const figures: LightboxItem[] = [
   },
 ];
 
-function Figure({ index, className }: { index: number; className?: string }) {
-  const item = figures[index]!;
+function Figure({ item, className }: { item: LightboxItem; className?: string }) {
   return (
     <figure className={className}>
-      <Lightbox.Trigger index={index} className="block w-full overflow-hidden rounded-lg bg-transparent p-0 scroll-my-5">
+      <Lightbox.Trigger
+        itemId={item.id}
+        className="block w-full overflow-hidden rounded-lg bg-transparent p-0 scroll-my-5"
+      >
         {({ imageRef }) => (
           <img
             ref={imageRef}
@@ -95,7 +100,7 @@ export function EditorialPresetDemo() {
           mornings, only three engines cough to life along the whole quay.
         </p>
 
-        <Figure index={0} className="mt-6" />
+        <Figure item={figures[0]!} className="mt-6" />
 
         <p className="mt-6 text-[15px] leading-7 text-neutral-700 dark:text-neutral-300">
           Ask anyone here when it changed and they will not name a year. The harbor emptied the way harbors do — one
@@ -103,8 +108,8 @@ export function EditorialPresetDemo() {
         </p>
 
         <div className="mt-6 grid grid-cols-2 gap-4">
-          <Figure index={1} />
-          <Figure index={2} />
+          <Figure item={figures[1]!} />
+          <Figure item={figures[2]!} />
         </div>
 
         <Lightbox.Gallery items={figures} ariaLabel="Article photographs" />

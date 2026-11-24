@@ -59,13 +59,62 @@ const feed: FeedPost[] = [
       ],
     },
     images: [
-      { src: '/photos/rg-6a.jpg', thumb: '/photos/rg-6a-thumb.jpg', alt: 'Dramatic cliffside road at sunset', width: 1600, height: 1000 },
-      { src: '/photos/rg-6b.jpg', thumb: '/photos/rg-6b-thumb.jpg', alt: 'Turquoise cove with fishing boats', width: 1600, height: 1000 },
-      { src: '/photos/rg-6c.jpg', thumb: '/photos/rg-6c-thumb.jpg', alt: 'Terraced vineyards in morning mist', width: 1600, height: 1000 },
-      { src: '/photos/rg-6d.jpg', thumb: '/photos/rg-6d-thumb.jpg', alt: 'Old lighthouse on a rocky headland', width: 900, height: 1400 },
-      { src: '/photos/rg-6e.jpg', thumb: '/photos/rg-6e-thumb.jpg', alt: 'Wild horses grazing on a dune', width: 1600, height: 1000 },
-      { src: '/photos/rg-6f.jpg', thumb: '/photos/rg-6f-thumb.jpg', alt: 'Street musicians in a coastal town square', width: 1200, height: 1200 },
-      { src: '/photos/rg-6g.jpg', thumb: '/photos/rg-6g-thumb.jpg', alt: 'Milky Way over a deserted beach', width: 1600, height: 1000 },
+      {
+        id: 'rg-6a',
+        src: '/photos/rg-6a.jpg',
+        thumb: '/photos/rg-6a-thumb.jpg',
+        alt: 'Dramatic cliffside road at sunset',
+        width: 1600,
+        height: 1000,
+      },
+      {
+        id: 'rg-6b',
+        src: '/photos/rg-6b.jpg',
+        thumb: '/photos/rg-6b-thumb.jpg',
+        alt: 'Turquoise cove with fishing boats',
+        width: 1600,
+        height: 1000,
+      },
+      {
+        id: 'rg-6c',
+        src: '/photos/rg-6c.jpg',
+        thumb: '/photos/rg-6c-thumb.jpg',
+        alt: 'Terraced vineyards in morning mist',
+        width: 1600,
+        height: 1000,
+      },
+      {
+        id: 'rg-6d',
+        src: '/photos/rg-6d.jpg',
+        thumb: '/photos/rg-6d-thumb.jpg',
+        alt: 'Old lighthouse on a rocky headland',
+        width: 900,
+        height: 1400,
+      },
+      {
+        id: 'rg-6e',
+        src: '/photos/rg-6e.jpg',
+        thumb: '/photos/rg-6e-thumb.jpg',
+        alt: 'Wild horses grazing on a dune',
+        width: 1600,
+        height: 1000,
+      },
+      {
+        id: 'rg-6f',
+        src: '/photos/rg-6f.jpg',
+        thumb: '/photos/rg-6f-thumb.jpg',
+        alt: 'Street musicians in a coastal town square',
+        width: 1200,
+        height: 1200,
+      },
+      {
+        id: 'rg-6g',
+        src: '/photos/rg-6g.jpg',
+        thumb: '/photos/rg-6g-thumb.jpg',
+        alt: 'Milky Way over a deserted beach',
+        width: 1600,
+        height: 1000,
+      },
     ],
   },
   {
@@ -90,9 +139,30 @@ const feed: FeedPost[] = [
       ],
     },
     images: [
-      { src: '/photos/rg-3a.jpg', thumb: '/photos/rg-3a-thumb.jpg', alt: 'Rolling fields at golden hour', width: 1600, height: 900 },
-      { src: '/photos/rg-3b.jpg', thumb: '/photos/rg-3b-thumb.jpg', alt: 'Dense forest canopy from below', width: 1000, height: 1400 },
-      { src: '/photos/rg-3c.jpg', thumb: '/photos/rg-3c-thumb.jpg', alt: 'Quiet lake reflecting the hills', width: 1500, height: 1000 },
+      {
+        id: 'rg-3a',
+        src: '/photos/rg-3a.jpg',
+        thumb: '/photos/rg-3a-thumb.jpg',
+        alt: 'Rolling fields at golden hour',
+        width: 1600,
+        height: 900,
+      },
+      {
+        id: 'rg-3b',
+        src: '/photos/rg-3b.jpg',
+        thumb: '/photos/rg-3b-thumb.jpg',
+        alt: 'Dense forest canopy from below',
+        width: 1000,
+        height: 1400,
+      },
+      {
+        id: 'rg-3c',
+        src: '/photos/rg-3c.jpg',
+        thumb: '/photos/rg-3c-thumb.jpg',
+        alt: 'Quiet lake reflecting the hills',
+        width: 1500,
+        height: 1000,
+      },
     ],
   },
   {
@@ -117,7 +187,14 @@ const feed: FeedPost[] = [
       ],
     },
     images: [
-      { src: '/photos/rg-1.jpg', thumb: '/photos/rg-1-thumb.jpg', alt: 'Mountain range under a wide morning sky', width: 1600, height: 1000 },
+      {
+        id: 'rg-1',
+        src: '/photos/rg-1.jpg',
+        thumb: '/photos/rg-1-thumb.jpg',
+        alt: 'Mountain range under a wide morning sky',
+        width: 1600,
+        height: 1000,
+      },
     ],
   },
 ];
@@ -131,13 +208,7 @@ const actionClass =
   'flex items-center gap-1.5 rounded-full px-2 py-1.5 text-xs transition-colors hover:bg-neutral-100 hover:text-neutral-900 dark:hover:bg-neutral-800 dark:hover:text-neutral-100';
 
 /** Reply / repost / like / share row. Reply opens the viewer (thread beside it). */
-function ActionBar({
-  stats,
-  onReply,
-}: {
-  stats: ThreadPost['stats'];
-  onReply: () => void;
-}) {
+function ActionBar({ stats, onReply }: { stats: ThreadPost['stats']; onReply: () => void }) {
   return (
     <div className="-mb-1.5 -ms-2 mt-1 flex items-center gap-1 text-neutral-500">
       <button type="button" className={actionClass} aria-label="View replies" onClick={onReply}>
@@ -181,7 +252,7 @@ function cornerClass(index: number, count: number): string {
 /**
  * Facebook-style trigger grid: 1 image fills the width, 2–4 tile into a
  * grid, and 5+ collapse the extras behind a `+N` overlay tile. Every tile is
- * a `Lightbox.Trigger`, so tapping one morphs into the viewer at that index.
+ * a `Lightbox.Trigger`, so tapping one morphs into the viewer at that photo.
  */
 function ImageGrid({ imgs }: { imgs: LightboxItem[] }) {
   const count = imgs.length;
@@ -189,7 +260,7 @@ function ImageGrid({ imgs }: { imgs: LightboxItem[] }) {
   if (count === 1) {
     const only = imgs[0]!;
     return (
-      <Lightbox.Trigger index={0} className="block w-full overflow-hidden rounded-xl bg-transparent p-0">
+      <Lightbox.Trigger itemId={only.id} className="block w-full overflow-hidden rounded-xl bg-transparent p-0">
         {({ imageRef }) => (
           <img
             ref={imageRef}
@@ -210,8 +281,8 @@ function ImageGrid({ imgs }: { imgs: LightboxItem[] }) {
       <div className="grid grid-cols-2 gap-0.5 overflow-hidden rounded-xl">
         {imgs.map((img, i) => (
           <Lightbox.Trigger
-            key={img.src}
-            index={i}
+            key={img.id}
+            itemId={img.id}
             className={`block overflow-hidden bg-transparent p-0 ${cornerClass(i, 2)}`}
           >
             {({ imageRef }) => (
@@ -236,7 +307,7 @@ function ImageGrid({ imgs }: { imgs: LightboxItem[] }) {
     return (
       <div className="grid aspect-3/2 grid-cols-2 grid-rows-2 gap-0.5 overflow-hidden rounded-xl">
         <Lightbox.Trigger
-          index={0}
+          itemId={first.id}
           className={`row-span-2 block overflow-hidden bg-transparent p-0 ${cornerClass(0, 3)}`}
         >
           {({ imageRef }) => (
@@ -255,8 +326,8 @@ function ImageGrid({ imgs }: { imgs: LightboxItem[] }) {
           const i = idx + 1;
           return (
             <Lightbox.Trigger
-              key={img.src}
-              index={i}
+              key={img.id}
+              itemId={img.id}
               className={`block overflow-hidden bg-transparent p-0 ${cornerClass(i, 3)}`}
             >
               {({ imageRef }) => (
@@ -284,8 +355,8 @@ function ImageGrid({ imgs }: { imgs: LightboxItem[] }) {
         const showOverlay = i === 3 && extra > 0;
         return (
           <Lightbox.Trigger
-            key={img.src}
-            index={i}
+            key={img.id}
+            itemId={img.id}
             crossfade={showOverlay ? 'both' : undefined}
             className={`block overflow-hidden bg-transparent p-0 ${cornerClass(i, 4)}`}
           >
@@ -351,15 +422,11 @@ function FeedPostGallery({ post }: { post: FeedPost }) {
 
           <ImageGrid imgs={post.images} />
 
-          <ActionBar stats={stats} onReply={() => handle.open(0)} />
+          <ActionBar stats={stats} onReply={() => handle.open(post.images[0]!.id)} />
         </div>
       </article>
 
-      <Lightbox.Gallery
-        items={post.images}
-        thread={post.thread}
-        ariaLabel={`Photos by ${author.name}`}
-      />
+      <Lightbox.Gallery items={post.images} thread={post.thread} ariaLabel={`Photos by ${author.name}`} />
     </Lightbox.Root>
   );
 }

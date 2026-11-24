@@ -107,10 +107,13 @@ function Placard({ title, lines }: { title: string; lines: string[] }) {
 /* ------------------------------------------------------------------ */
 
 /** Replica of the landing bento card, as a Lightbox.Trigger with a Try-me pill. */
-function CardTrigger({ crossfade }: { crossfade?: 'open' | 'close' | 'both' }) {
+/** Item id of `SoloSlide` — the one-item eggs' only slide. */
+const SOLO_ITEM_ID = 'exhibit';
+
+function CardTrigger({ crossfade, itemId = SOLO_ITEM_ID }: { crossfade?: 'open' | 'close' | 'both'; itemId?: string }) {
   return (
     <Lightbox.Trigger
-      index={0}
+      itemId={itemId}
       crossfade={crossfade}
       className="block w-full max-w-md rounded-3xl border border-neutral-200 bg-white p-7 text-left transition hover:border-neutral-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 dark:border-neutral-800 dark:bg-neutral-950 dark:hover:border-neutral-700"
     >
@@ -159,7 +162,11 @@ function SoloSlide({ children }: { children: (refs: SlideRefs) => ReactNode }) {
   return (
     <Lightbox.Slides aria-label="Showcase" className="flex-1 [&::-webkit-scrollbar]:hidden">
       <Lightbox.Slide className="h-full min-w-full flex-[0_0_100%]">
-        <Lightbox.Item index={0} className="flex h-full w-full items-center justify-center px-6 py-14">
+        <Lightbox.Item
+          index={0}
+          itemId={SOLO_ITEM_ID}
+          className="flex h-full w-full items-center justify-center px-6 py-14"
+        >
           {({ imageRef, morphRef }) => children({ imageRef, morphRef })}
         </Lightbox.Item>
       </Lightbox.Slide>
@@ -244,7 +251,7 @@ function RecursionLevel({ depth }: { depth: number }) {
         <CardTrigger crossfade="both" />
       ) : (
         <Lightbox.Trigger
-          index={0}
+          itemId={SOLO_ITEM_ID}
           aria-label={`Open lightbox level ${depth}`}
           className={`pointer-events-auto block shrink-0 overflow-hidden shadow-lg ring-1 ring-white/30 transition hover:scale-105 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400 ${level.thumbClass}`}
         >
@@ -400,7 +407,7 @@ const MUSEUM_EXHIBITS = [
 function MuseumWingEgg() {
   return (
     <Lightbox.Root morphTo="closest">
-      <CardTrigger crossfade="both" />
+      <CardTrigger crossfade="both" itemId={MUSEUM_EXHIBITS[0]!.id} />
       <EggViewer ariaLabel="The ramka museum wing">
         <Lightbox.Slides
           aria-label="Exhibits"
@@ -411,6 +418,7 @@ function MuseumWingEgg() {
             <Lightbox.Slide key={exhibit.id} className="h-full min-w-full flex-[0_0_100%]">
               <Lightbox.Item
                 index={i}
+                itemId={exhibit.id}
                 aria-roledescription="slide"
                 aria-label={`${i + 1} of ${MUSEUM_EXHIBITS.length}`}
                 className="flex h-full w-full items-center justify-center px-6 py-14"

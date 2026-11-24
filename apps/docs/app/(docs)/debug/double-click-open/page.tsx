@@ -82,28 +82,25 @@ export default function DoubleClickOpenDebugPage() {
         </h1>
         <p className="mt-3 max-w-2xl text-base leading-relaxed text-neutral-600 dark:text-neutral-400">
           Custom open gestures use <code className="text-sm">Lightbox.createHandle()</code> and{' '}
-          <code className="text-sm">handle.open(index, {'{ triggerId }'})</code> — not overlays or
-          synthetic clicks. Each tile keeps a real <code className="text-sm">Lightbox.Trigger</code>{' '}
-          as the single-pointer control (WCAG 2.5.1); double-click on the preview is an optional
-          pointer shortcut.
+          <code className="text-sm">handle.open(itemId)</code> — not overlays or synthetic clicks. Each tile keeps a
+          real <code className="text-sm">Lightbox.Trigger</code> as the single-pointer control (WCAG 2.5.1);
+          double-click on the preview is an optional pointer shortcut.
         </p>
       </header>
 
       <section className="space-y-3">
-        <h2 className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
-          What to verify
-        </h2>
+        <h2 className="text-sm font-medium text-neutral-900 dark:text-neutral-100">What to verify</h2>
         <ul className="list-disc space-y-1 pl-5 text-sm text-neutral-600 dark:text-neutral-400">
           <li>Single click on the photo preview does nothing</li>
           <li>
-            The preview hides while it carries <code className="text-xs">data-morph-target</code>{' '}
-            (library-injected hide — no consumer CSS needed)
+            The preview hides while it carries <code className="text-xs">data-morph-target</code> (library-injected hide
+            — no consumer CSS needed)
           </li>
           <li>
-            Each <strong className="font-medium text-neutral-800 dark:text-neutral-200">Open …</strong>{' '}
-            button opens on single click, Enter, and Space
+            Each <strong className="font-medium text-neutral-800 dark:text-neutral-200">Open …</strong> button opens on
+            single click, Enter, and Space
           </li>
-          <li>Closing returns focus to the Open button that owns that tile&apos;s trigger id</li>
+          <li>Closing returns focus to the Open button of the photo you closed on</li>
           <li>Touch / single-tap users can open via the Open button (no double-click required)</li>
         </ul>
       </section>
@@ -112,30 +109,29 @@ export default function DoubleClickOpenDebugPage() {
         <p className="font-medium text-neutral-900 dark:text-neutral-100">Accessibility pattern</p>
         <ul className="mt-2 list-disc space-y-1 pl-5">
           <li>
-            <strong className="font-medium text-neutral-900 dark:text-neutral-100">WCAG 2.5.1</strong>{' '}
-            — double-click alone is not sufficient; the labeled{' '}
-            <code className="text-xs">Lightbox.Trigger</code> button is the single-pointer alternative.
+            <strong className="font-medium text-neutral-900 dark:text-neutral-100">WCAG 2.5.1</strong> — double-click
+            alone is not sufficient; the labeled <code className="text-xs">Lightbox.Trigger</code> button is the
+            single-pointer alternative.
           </li>
           <li>
-            Preview uses <code className="text-xs">{'role="group"'}</code> + screen-reader label; the
-            decorative image is <code className="text-xs">aria-hidden</code>.
+            Preview uses <code className="text-xs">{'role="group"'}</code> + screen-reader label; the decorative image
+            is <code className="text-xs">aria-hidden</code>.
           </li>
           <li>
-            <code className="text-xs">morphRef</code> points at the visible preview; the library
-            sets <code className="text-xs">data-morph-target</code> there and hides it while the
-            morph runs.
+            <code className="text-xs">morphRef</code> points at the visible preview; the library sets{' '}
+            <code className="text-xs">data-morph-target</code> there and hides it while the morph runs.
           </li>
           <li>
-            Default <code className="text-xs">Lightbox.Trigger</code> (single click) remains the
-            recommended production default when no custom gesture is required.
+            Default <code className="text-xs">Lightbox.Trigger</code> (single click) remains the recommended production
+            default when no custom gesture is required.
           </li>
         </ul>
       </section>
 
       <Lightbox.Root handle={handle} loop morphTo="closest" viewTransition>
         <div className="grid max-w-lg grid-cols-2 gap-4 sm:grid-cols-3">
-          {PHOTOS.map((photo, i) => (
-            <AccessibleDoubleClickTile key={photo.id} handle={handle} photo={photo} index={i} />
+          {PHOTOS.map((photo) => (
+            <AccessibleDoubleClickTile key={photo.id} handle={handle} photo={photo} />
           ))}
         </div>
         <p className="mt-3 text-xs text-neutral-500">
@@ -156,7 +152,7 @@ export default function DoubleClickOpenDebugPage() {
             >
               {PHOTOS.map((photo, i) => (
                 <Lightbox.Slide key={photo.id} className="lightbox-demo-slide-pad h-full">
-                  <Lightbox.Item index={i} caption={photo.caption ?? photo.alt}>
+                  <Lightbox.Item index={i} itemId={photo.id} caption={photo.caption ?? photo.alt}>
                     <Lightbox.Zoom maxZoom={4}>
                       <Lightbox.Media
                         {...(galleryItemDims(photo) ?? {})}

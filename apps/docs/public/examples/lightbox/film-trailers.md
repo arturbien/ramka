@@ -13,10 +13,7 @@ import * as Lightbox from '@ramka/react/lightbox';
 import { Play } from 'lucide-react';
 
 import { ExampleShell } from '../../../../_components/example-shell';
-import {
-  LightboxGallery,
-  triggerFocusClass,
-} from '../../../../_components/lightbox-chrome';
+import { LightboxGallery, triggerFocusClass } from '../../../../_components/lightbox-chrome';
 import { bbbPoster, edPoster, sintelPoster, tosPoster } from './images.generated';
 
 /**
@@ -139,7 +136,7 @@ function FilmLightbox({ film }: { film: (typeof films)[number] }) {
       }}
     >
       <Lightbox.Trigger
-        index={0}
+        itemId={film.id}
         // Hard-cut open (poster → video poster), dissolve on close (live frame → trigger).
         crossfade="close"
         className={`group block w-full cursor-pointer rounded-xl border-none bg-transparent p-0 text-left ${triggerFocusClass}`}
@@ -147,10 +144,7 @@ function FilmLightbox({ film }: { film: (typeof films)[number] }) {
         {({ morphRef }) => (
           <>
             {/* morphRef on the wrapper so poster + play affordance morph together. */}
-            <div
-              ref={morphRef}
-              className={`relative overflow-hidden rounded-xl`}
-            >
+            <div ref={morphRef} className={`relative overflow-hidden rounded-xl`}>
               <Image
                 src={film.poster}
                 alt={film.title}
@@ -215,7 +209,9 @@ export default function FilmTrailersPage() {
           single-item gallery and{' '}
           <code className="rounded bg-neutral-100 px-1 py-0.5 text-xs dark:bg-neutral-800">renderItem</code> for the
           video.{' '}
-          <code className="rounded bg-neutral-100 px-1 py-0.5 text-xs dark:bg-neutral-800">crossfade=&quot;close&quot;</code>{' '}
+          <code className="rounded bg-neutral-100 px-1 py-0.5 text-xs dark:bg-neutral-800">
+            crossfade=&quot;close&quot;
+          </code>{' '}
           hard-cuts the open morph into the video and dissolves the live frame back into the poster on close. Video
           autoplays (muted) only after{' '}
           <code className="rounded bg-neutral-100 px-1 py-0.5 text-xs dark:bg-neutral-800">onOpenChangeComplete</code>.
@@ -224,9 +220,7 @@ export default function FilmTrailersPage() {
     >
       <div className="max-w-3xl">
         <div className="py-5">
-          <div className="text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">
-            Now Streaming
-          </div>
+          <div className="text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">Now Streaming</div>
           <h2 className="mt-1 text-2xl font-semibold tracking-tight">Blender Open Movies</h2>
           <p className="mt-2 max-w-md text-sm text-muted-foreground">
             Four Creative Commons shorts from the Blender Foundation. Click any poster to watch fullscreen.

@@ -88,7 +88,7 @@ export function InfiniteScrollFeed() {
 
   // Refs so the stable callbacks below never go stale: the next page to
   // request, an in-flight guard, and the current list length (read by the
-  // viewer's load-ahead check on every index change).
+  // viewer's load-ahead check on every slide change).
   const nextPageRef = React.useRef(1);
   const pendingRef = React.useRef(false);
   const countRef = React.useRef(photos.length);
@@ -105,7 +105,8 @@ export function InfiniteScrollFeed() {
       nextPageRef.current = page + 1;
       pendingRef.current = false;
       setLoading(false);
-      // Append-only: existing indices (and existing snap offsets) never move.
+      // Append-only: existing snap offsets never move. Each photo keeps its
+      // own id, so the open viewer stays on the same photo either way.
       setPhotos((prev) => [...prev, ...nextPhotos]);
     });
   }, []);
@@ -131,10 +132,11 @@ export function InfiniteScrollFeed() {
 
   // Viewer pagination: `onValueChange` fires for every navigation source —
   // swipe, arrow keys, the Previous/Next buttons, and the opening trigger —
-  // so nearing the end by any route requests the next page.
+  // so nearing the end by any route requests the next page. The value is the
+  // photo's id; `details.index` is its position in the list.
   const handleValueChange = React.useCallback(
-    (value: number) => {
-      if (value >= countRef.current - LOAD_AHEAD) loadMore();
+    (_photoId: string, details: { index: number }) => {
+      if (details.index >= countRef.current - LOAD_AHEAD) loadMore();
     },
     [loadMore],
   );
@@ -167,10 +169,10 @@ export function InfiniteScrollFeed() {
         {/* Every tile is a Trigger; new pages render new tiles AND new slides
             from the same array, so the viewer and the feed can never drift. */}
         <div className="grid grid-cols-3 gap-0.5 md:grid-cols-4 lg:grid-cols-5">
-          {photos.map((photo, i) => (
+          {photos.map((photo) => (
             <Lightbox.Trigger
               key={photo.id}
-              index={i}
+              itemId={photo.id}
               className={`relative block aspect-square cursor-pointer overflow-hidden bg-transparent p-0 md:scroll-mt-16 ${triggerFocusClass}`}
             >
               {({ imageRef }) => (
@@ -212,6 +214,7 @@ export function InfiniteScrollFeed() {
                 <Lightbox.Slide key={photo.id} className="lightbox-demo-slide-pad h-full">
                   <Lightbox.Item
                     index={i}
+                    itemId={photo.id}
                     aria-roledescription="slide"
                     aria-label={`${i + 1} of ${photos.length}`}
                   >
@@ -221,7 +224,7 @@ export function InfiniteScrollFeed() {
                         height={photo.image.height}
                         className="overflow-hidden rounded-none md:rounded-lg"
                       >
-                        {/* Destination image: no blur placeholder — every index
+                        {/* Destination image: no blur placeholder — every photo
                             has a trigger thumb, so Ramka bridges the open. */}
                         <Image
                           src={photo.image}

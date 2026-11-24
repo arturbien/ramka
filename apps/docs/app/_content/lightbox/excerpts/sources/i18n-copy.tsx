@@ -21,10 +21,7 @@ export function I18nCopyExcerpt() {
               default. Name the carousel itself with `aria-label`, and leave
               the word "carousel" out of that name; the roledescription
               already says it. */}
-          <Lightbox.Slides
-            aria-label={t('viewer.photos')}
-            aria-roledescription={t('viewer.carousel')}
-          >
+          <Lightbox.Slides aria-label={t('viewer.photos')} aria-roledescription={t('viewer.carousel')}>
             {items.map((item, i) => (
               <Lightbox.Slide key={item.id}>
                 {/* A slide is a `group`, and a group is not named by the text
@@ -33,6 +30,7 @@ export function I18nCopyExcerpt() {
                     the index and the count already. */}
                 <Lightbox.Item
                   index={i}
+                  itemId={item.id}
                   aria-roledescription={t('viewer.slide')}
                   aria-label={t('viewer.position', { current: i + 1, total: items.length })}
                 >
@@ -47,11 +45,7 @@ export function I18nCopyExcerpt() {
           {/* Counter renders "1 / 7" by default. Digits are not English, but
               their formatting is a locale decision — pass children to run the
               numbers through Intl. */}
-          <Lightbox.Counter>
-            {({ current, total }) =>
-              t('viewer.position', { current, total })
-            }
-          </Lightbox.Counter>
+          <Lightbox.Counter>{({ current, total }) => t('viewer.position', { current, total })}</Lightbox.Counter>
 
           <Lightbox.Previous aria-label={t('viewer.previous')} />
           <Lightbox.Next aria-label={t('viewer.next')} />

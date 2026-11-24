@@ -12,7 +12,7 @@ declare const photo: StaticImageData;
 export function NextjsImageNonImageTriggerExcerpt() {
   return (
     <Lightbox.Root>
-      <Lightbox.Trigger index={0} crossfade="both">
+      <Lightbox.Trigger itemId="portrait" crossfade="both">
         <div className="flex size-16 items-center justify-center rounded-full bg-sky-700 text-white">AC</div>
       </Lightbox.Trigger>
 
@@ -21,7 +21,7 @@ export function NextjsImageNonImageTriggerExcerpt() {
         <Lightbox.Content>
           <Lightbox.Slides>
             <Lightbox.Slide>
-              <Lightbox.Item index={0}>
+              <Lightbox.Item index={0} itemId="portrait">
                 <Lightbox.Zoom>
                   <Lightbox.Media width={photo.width} height={photo.height}>
                     <Image src={photo} alt="Portrait" sizes="100vw" priority placeholder="blur" />

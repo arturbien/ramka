@@ -206,7 +206,7 @@ import * as Lightbox from '@ramka/react/lightbox';
 
       <Lightbox.Slides>
         <Lightbox.Slide>
-          <Lightbox.Item index={0}>
+          <Lightbox.Item index={0} itemId="photo">
             <Lightbox.Zoom>
               <Lightbox.Media>
                 <img src={src} alt={alt} />

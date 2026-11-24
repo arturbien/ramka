@@ -201,8 +201,8 @@ interface LightboxMorphSlice {
   destinationMorphElementRef: React.MutableRefObject<HTMLElement | null>;
   openingTriggerIndexRef: React.MutableRefObject<number>;
   /**
-   * The exact trigger element that opened the lightbox (click or
-   * `handle.open(..., { triggerId })`). Cleared (null) on opens with no
+   * The exact trigger element that opened the lightbox (the clicked one, or
+   * the item's mounted trigger for `handle.open(itemId)`). Cleared (null) on opens with no
    * originating element. Unlike `triggerElementsRef` (keyed by index,
    * last-registered wins), this disambiguates the origin when several
    * triggers share one index.

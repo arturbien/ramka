@@ -89,10 +89,7 @@ import { usePathname } from 'next/navigation';
 import * as Lightbox from '@ramka/react/lightbox';
 
 import { ExampleShell } from '../../../../_components/example-shell';
-import {
-  LightboxGallery,
-  triggerFocusClass,
-} from '../../../../_components/lightbox-chrome';
+import { LightboxGallery, triggerFocusClass } from '../../../../_components/lightbox-chrome';
 import { GALLERY_PAGE_TITLE, galleryPhotos, photoPageTitle } from './photos';
 
 /**
@@ -109,9 +106,15 @@ const items = galleryPhotos.map((photo) => ({
   thumb: photo.image,
 }));
 
-/** `/…/url-synced-state/5` → 4; the bare grid URL (or an unknown id) → -1. */
-function photoIndexFromPathname(pathname: string): number {
-  if (!pathname.startsWith(`${BASE_PATH}/`)) return -1;
+const photoIds = galleryPhotos.map((photo) => photo.id);
+
+function photoById(id: string) {
+  return galleryPhotos.find((photo) => photo.id === id);
+}
+
+/** `/…/url-synced-state/5` → '5'; the bare grid URL (or an unknown id) → null. */
+function photoIdFromPathname(pathname: string): string | null {
+  if (!pathname.startsWith(`${BASE_PATH}/`)) return null;
   // decodeURIComponent throws on malformed percent-sequences. Navigation can't
   // deliver one (the server 400s those before rendering), but any code calling
   // pushState with an arbitrary string can — treat it as "not a photo URL".
@@ -119,9 +122,9 @@ function photoIndexFromPathname(pathname: string): number {
   try {
     id = decodeURIComponent(pathname.slice(BASE_PATH.length + 1));
   } catch {
-    return -1;
+    return null;
   }
-  return galleryPhotos.findIndex((photo) => photo.id === id);
+  return photoById(id) ? id : null;
 }
 
 /**
@@ -147,7 +150,7 @@ export function UrlSyncedStateDemo() {
   // (Next.js shallow routing) AND on browser back/forward, so one hook covers
   // deep links, swipes, and the Back button.
   const pathname = usePathname();
-  const urlIndex = photoIndexFromPathname(pathname);
+  const urlPhotoId = photoIdFromPathname(pathname);
 
   // Local state is the lightbox's source of truth; the URL mirrors it. Driving
   // `open` straight from the pathname would also work, but a trigger tap would
@@ -162,8 +165,8 @@ export function UrlSyncedStateDemo() {
   // portal target like `document.body` does not exist during server rendering,
   // so a server render with `open={true}` plus a real portal is a guaranteed
   // hydration mismatch. In-place rendering is deterministic on both sides.
-  const [open, setOpen] = React.useState(urlIndex !== -1);
-  const [index, setIndex] = React.useState(urlIndex === -1 ? 0 : urlIndex);
+  const [open, setOpen] = React.useState(urlPhotoId !== null);
+  const [photoId, setPhotoId] = React.useState(urlPhotoId ?? photoIds[0]!);
 
   // Decided ONCE per mount, never mid-session: swapping `container` would
   // reparent the portal subtree and remount an open viewer. Deep-link visits
@@ -174,13 +177,13 @@ export function UrlSyncedStateDemo() {
   // must NOT carry a z-index (it would stack above body-level tooltips).
   // Note this branch isn't strictly "the server rendered this": a client-side
   // remount at a photo URL (open a photo, navigate to another docs page, press
-  // Back without bfcache) also mounts with `urlIndex !== -1` and takes the
+  // Back without bfcache) also mounts with a photo id in the URL and takes the
   // in-place path. That's fine — it renders identically — the only difference
   // is the SSR flags below briefly suppress an open fade nobody would see.
-  const [deepLinkVisit] = React.useState(urlIndex !== -1);
+  const [deepLinkVisit] = React.useState(urlPhotoId !== null);
 
   // Destination blur is the ONE exception to the Next.js Image guide's rule
-  // ("index has a trigger image → no destination blur"). That rule exists
+  // ("item has a trigger image → no destination blur"). That rule exists
   // because on gesture opens Ramka paints the trigger's already-decoded image
   // behind the destination, and an LQIP would cover that sharp bridge with a
   // blurry one. A deep-link visit has no gesture: the bridge can't paint
@@ -221,10 +224,10 @@ export function UrlSyncedStateDemo() {
     return () => cancelAnimationFrame(raf);
   }, []);
 
-  // `handleOpenChange` needs the freshest active index when it writes the
-  // opened URL: a trigger tap reports its index (onValueChange) before the
+  // `handleOpenChange` needs the freshest active photo id when it writes the
+  // opened URL: a trigger tap reports its item (onValueChange) before the
   // open commits, and state from the previous render would lag behind it.
-  const indexRef = React.useRef(index);
+  const photoIdRef = React.useRef(photoId);
   // Same discipline for `open` in `handleValueChange`: render-scope `open`
   // is the last COMMITTED value, so if a close and a value change ever landed
   // in the same task the guard below would see stale `true` and strand a
@@ -240,19 +243,19 @@ export function UrlSyncedStateDemo() {
   // flips render without the morph by design — Back closing the viewer fades,
   // it doesn't morph, matching how photo viewers behave elsewhere.
   React.useEffect(() => {
-    if (urlIndex !== -1) {
-      indexRef.current = urlIndex;
+    if (urlPhotoId !== null) {
+      photoIdRef.current = urlPhotoId;
       openRef.current = true;
       // Adjusting state during render instead would have to write the refs
       // during render too.
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      setIndex(urlIndex);
+      setPhotoId(urlPhotoId);
       setOpen(true);
     } else {
       openRef.current = false;
       setOpen(false);
     }
-  }, [urlIndex]);
+  }, [urlPhotoId]);
 
   // The tab title follows the URL. Shallow History writes (below) never re-run
   // Next.js metadata — `generateMetadata` ran once, for the URL this page
@@ -263,9 +266,10 @@ export function UrlSyncedStateDemo() {
   // mirrors the root layout's title template, which only applies server-side.
   // An effect (not the callbacks) so Back/Forward flips retitle as well.
   React.useEffect(() => {
-    const base = open ? photoPageTitle(galleryPhotos[index]!) : GALLERY_PAGE_TITLE;
+    const photo = photoById(photoId);
+    const base = open && photo ? photoPageTitle(photo) : GALLERY_PAGE_TITLE;
     document.title = `${base} — ramka`;
-  }, [open, index]);
+  }, [open, photoId]);
 
   // Lightbox → URL, written from the gesture callbacks — never from an effect,
   // so URL-driven prop flips can't echo back into history. The writes use the
@@ -278,7 +282,7 @@ export function UrlSyncedStateDemo() {
     if (nextOpen) {
       // Opening pushes ONE history entry, so the browser Back button closes
       // the viewer instead of leaving the page.
-      window.history.pushState(null, '', `${BASE_PATH}/${galleryPhotos[indexRef.current]!.id}`);
+      window.history.pushState(null, '', `${BASE_PATH}/${photoIdRef.current}`);
     } else {
       // Gesture closes REWRITE the entry instead of popping it. Never call
       // history.back() here: on a morph close this callback fires inside the
@@ -303,14 +307,14 @@ export function UrlSyncedStateDemo() {
     }
   };
 
-  const handleValueChange = (nextIndex: number) => {
-    indexRef.current = nextIndex;
-    setIndex(nextIndex);
+  const handleValueChange = (nextPhotoId: string) => {
+    photoIdRef.current = nextPhotoId;
+    setPhotoId(nextPhotoId);
     // Swiping / arrow keys REPLACE the current entry — no history spam.
     // Skipped while closed (via openRef, see above): a trigger tap reports its
-    // index before the open commits, and handleOpenChange writes that URL.
+    // item before the open commits, and handleOpenChange writes that URL.
     if (openRef.current) {
-      window.history.replaceState(null, '', `${BASE_PATH}/${galleryPhotos[nextIndex]!.id}`);
+      window.history.replaceState(null, '', `${BASE_PATH}/${nextPhotoId}`);
     }
   };
 
@@ -324,12 +328,12 @@ export function UrlSyncedStateDemo() {
       <Lightbox.Root
         open={open}
         onOpenChange={handleOpenChange}
-        value={index}
+        value={photoId}
         onValueChange={handleValueChange}
         // Items register through effects, which never run on the server — so
         // without this an SSR-open page paints the counter as "6 of 0" until
-        // hydration. `count` is the pre-registration fallback.
-        count={galleryPhotos.length}
+        // hydration. `itemIds` is the pre-registration fallback.
+        itemIds={photoIds}
         loop
         scrollTriggerIntoView={[
           { type: 'onChange', behavior: 'instant' },
@@ -346,10 +350,10 @@ export function UrlSyncedStateDemo() {
             column-major bucketing zigzagged). */}
         <div className="lightbox-demo-masonry max-w-2xl">
           <div className="lightbox-demo-masonry-grid">
-            {items.map((tile, tileIndex) => (
+            {items.map((tile) => (
               <Lightbox.Trigger
                 key={tile.id}
-                index={tileIndex}
+                itemId={tile.id}
                 className={`block w-full cursor-pointer overflow-hidden rounded-xl border-none bg-transparent p-0 ${triggerFocusClass}`}
                 style={{
                   gridRowEnd: `span ${masonrySpan(tile.image)}`,
@@ -386,7 +390,7 @@ export function UrlSyncedStateDemo() {
           // without this a deep-link visit paints an empty caption placard.
           // Fallback children render only until the registry fills, so it can't
           // go stale after a swipe.
-          captionFallback={deepLinkVisit ? galleryPhotos[index]?.caption : undefined}
+          captionFallback={deepLinkVisit ? photoById(photoId)?.caption : undefined}
           // Server-rendered deep links paint the deep-linked slide, not slide 0
           // (library feature — forwarded to `Lightbox.Slides`). Inert for
           // regular visits: the stand-in only renders for server paint.
@@ -395,9 +399,7 @@ export function UrlSyncedStateDemo() {
             deepLinkVisit
               ? {
                   container: null,
-                  className: `relative z-50${
-                    ssrNoTransitions ? ' lightbox-demo-ssr-no-transitions' : ''
-                  }`,
+                  className: `relative z-50${ssrNoTransitions ? ' lightbox-demo-ssr-no-transitions' : ''}`,
                 }
               : undefined
           }

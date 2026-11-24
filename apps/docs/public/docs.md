@@ -16,8 +16,8 @@ Peer dependencies: `react` and `react-dom` >= 18.
 import * as Lightbox from '@ramka/react/lightbox';
 
 <Lightbox.Root>
-  {items.map((item, i) => (
-    <Lightbox.Trigger key={item.id} index={i}>
+  {items.map((item) => (
+    <Lightbox.Trigger key={item.id} itemId={item.id}>
       {({ imageRef }) => <img ref={imageRef} src={item.thumb} alt={item.alt} />}
     </Lightbox.Trigger>
   ))}
@@ -32,6 +32,7 @@ import * as Lightbox from '@ramka/react/lightbox';
           <Lightbox.Slide key={item.id}>
             <Lightbox.Item
               index={i}
+              itemId={item.id}
               caption={item.caption ?? item.alt}
               aria-roledescription="slide"
               aria-label={`${i + 1} of ${items.length}`}

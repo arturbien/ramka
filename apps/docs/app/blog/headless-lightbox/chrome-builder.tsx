@@ -30,9 +30,19 @@ type Options = {
 const DEFAULTS: Options = { sidebar: true, arrows: true, thumbs: true, caption: true, tooltips: true };
 
 const ITEMS = [
-  { src: ramkaD, alt: 'Airplane crossing a purple sky above the clouds', caption: 'Above the clouds at dusk' },
-  { src: ramkaE, alt: 'Fog rolling over dark hills', caption: 'Fog rolling over the valley' },
-  { src: ramkaG, alt: 'Bride seen through the windows of a vintage car', caption: 'Through the wedding car window' },
+  {
+    id: 'clouds',
+    src: ramkaD,
+    alt: 'Airplane crossing a purple sky above the clouds',
+    caption: 'Above the clouds at dusk',
+  },
+  { id: 'fog', src: ramkaE, alt: 'Fog rolling over dark hills', caption: 'Fog rolling over the valley' },
+  {
+    id: 'wedding-car',
+    src: ramkaG,
+    alt: 'Bride seen through the windows of a vintage car',
+    caption: 'Through the wedding car window',
+  },
 ];
 
 const POST: ThreadPost = {
@@ -90,7 +100,7 @@ function buildSnippet(o: Options): string {
     '      <Lightbox.Slides className="…">',
     '        {items.map((item, i) => (',
     '          <Lightbox.Slide key={item.id}>',
-    '            <Lightbox.Item index={i} caption={item.caption}>',
+    '            <Lightbox.Item index={i} itemId={item.id} caption={item.caption}>',
     '              <img src={item.src} alt={item.alt} />',
     '            </Lightbox.Item>',
     '          </Lightbox.Slide>',
@@ -162,8 +172,7 @@ const tokenClassNames = {
   attr: 'text-[#0550ae] dark:text-[#79c0ff]',
 } as const;
 
-const TOKEN =
-  /(\{\/\*.*?\*\/\})|("(?:[^"\\]|\\.)*")|(`[^`]*`)|(<\/?)([A-Za-z][\w.]*)|([a-zA-Z][\w-]*)(?==)/g;
+const TOKEN = /(\{\/\*.*?\*\/\})|("(?:[^"\\]|\\.)*")|(`[^`]*`)|(<\/?)([A-Za-z][\w.]*)|([a-zA-Z][\w-]*)(?==)/g;
 
 function highlightLine(line: string): React.ReactNode[] {
   const parts: React.ReactNode[] = [];
@@ -174,14 +183,30 @@ function highlightLine(line: string): React.ReactNode[] {
     if (index > last) parts.push(line.slice(last, index));
     const [full, comment, dq, tpl, tagOpen, tagName, attr] = m;
     if (comment) {
-      parts.push(<span key={key++} className={tokenClassNames.comment}>{comment}</span>);
+      parts.push(
+        <span key={key++} className={tokenClassNames.comment}>
+          {comment}
+        </span>,
+      );
     } else if (dq || tpl) {
-      parts.push(<span key={key++} className={tokenClassNames.string}>{dq ?? tpl}</span>);
+      parts.push(
+        <span key={key++} className={tokenClassNames.string}>
+          {dq ?? tpl}
+        </span>,
+      );
     } else if (tagOpen && tagName) {
       parts.push(tagOpen);
-      parts.push(<span key={key++} className={tokenClassNames.tag}>{tagName}</span>);
+      parts.push(
+        <span key={key++} className={tokenClassNames.tag}>
+          {tagName}
+        </span>,
+      );
     } else if (attr) {
-      parts.push(<span key={key++} className={tokenClassNames.attr}>{attr}</span>);
+      parts.push(
+        <span key={key++} className={tokenClassNames.attr}>
+          {attr}
+        </span>,
+      );
     } else {
       parts.push(full);
     }
@@ -225,11 +250,7 @@ const TOGGLES: { key: keyof Options; label: string }[] = [
 ];
 
 /** Per-tile rounding for the 1-tall + 2 grid (morph reads the trigger radius). */
-const tileClasses = [
-  'row-span-2 rounded-s-xl',
-  'rounded-tr-xl',
-  'rounded-br-xl',
-];
+const tileClasses = ['row-span-2 rounded-s-xl', 'rounded-tr-xl', 'rounded-br-xl'];
 
 export function ChromeBuilder() {
   const [options, setOptions] = React.useState<Options>(DEFAULTS);
@@ -279,8 +300,8 @@ export function ChromeBuilder() {
           <div className="grid aspect-3/2 grid-cols-2 grid-rows-2 gap-0.5 overflow-hidden rounded-xl">
             {ITEMS.map((item, i) => (
               <XLB.Trigger
-                key={item.alt}
-                index={i}
+                key={item.id}
+                itemId={item.id}
                 className={`block overflow-hidden bg-transparent p-0 ${tileClasses[i]}`}
               >
                 {({ imageRef }) => (
@@ -308,16 +329,15 @@ export function ChromeBuilder() {
                 {/* 2.5 (not the chevrons' 2.25): long 45° diagonals antialias
                     thinner at 18px, so the X needs extra weight to match. */}
                 <X aria-hidden strokeWidth={2.5} />
-                {options.tooltips ? (
-                  <TooltipBubble label="Close (Esc)" className="inset-s-0 top-full mt-2" />
-                ) : null}
+                {options.tooltips ? <TooltipBubble label="Close (Esc)" className="inset-s-0 top-full mt-2" /> : null}
               </XLB.Close>
 
               <XLB.Slides aria-label="Post media" aria-roledescription="carousel" preload={1}>
                 {ITEMS.map((item, i) => (
-                  <XLB.Slide key={item.alt}>
+                  <XLB.Slide key={item.id}>
                     <XLB.Item
                       index={i}
+                      itemId={item.id}
                       caption={item.caption}
                       aria-roledescription="slide"
                       aria-label={`${i + 1} of ${ITEMS.length}`}
@@ -365,7 +385,7 @@ export function ChromeBuilder() {
                     <Lightbox.ThumbnailStrip className="lightbox-demo-thumbnail-strip pointer-events-auto">
                       <Lightbox.ThumbnailStripTrack aria-label="Photo thumbnails">
                         {ITEMS.map((item, i) => (
-                          <Lightbox.Thumbnail key={item.alt} index={i}>
+                          <Lightbox.Thumbnail key={item.id} index={i}>
                             {/* Strip thumbs are regular images — blur OK, same as triggers. */}
                             <Image src={item.src} alt={item.alt} sizes="96px" placeholder="blur" draggable={false} />
                           </Lightbox.Thumbnail>
@@ -408,11 +428,11 @@ export function ChromeBuilder() {
       </div>
 
       <figcaption className="mt-4 text-[13px] leading-6 text-neutral-500 dark:text-neutral-400">
-        Flip the switches, then open a photo. The viewer and the JSX update together because they cannot
-        drift apart: a piece of chrome exists exactly when you render it. The post sidebar is a plain{' '}
-        <code className="text-[12px]">&lt;aside&gt;</code> with your components in it, the tooltips wrap
-        every icon button in the stage, and none of it is an option. The sidebar layout is desktop-only,
-        like the social apps it mimics.
+        Flip the switches, then open a photo. The viewer and the JSX update together because they cannot drift apart: a
+        piece of chrome exists exactly when you render it. The post sidebar is a plain{' '}
+        <code className="text-[12px]">&lt;aside&gt;</code> with your components in it, the tooltips wrap every icon
+        button in the stage, and none of it is an option. The sidebar layout is desktop-only, like the social apps it
+        mimics.
       </figcaption>
     </figure>
   );

@@ -56,7 +56,8 @@ function IconChevronRight() {
 
 /** Item shape for `Lightbox.Gallery` — pass real intrinsic pixel size. */
 export type LightboxItem = {
-  id?: string | number;
+  /** Stable id for this story — becomes the Item's `itemId`; Triggers open it by this id. */
+  id: string;
   name: string;
   avatar: string;
   video: string;
@@ -77,17 +78,12 @@ function pauseDialogVideos(scope: Element | null) {
   }
 }
 
-function Root({
-  onBeforeClose,
-  ...props
-}: React.ComponentProps<typeof RamkaLightbox.Root>) {
+function Root({ onBeforeClose, ...props }: React.ComponentProps<typeof RamkaLightbox.Root>) {
   return (
     <RamkaLightbox.Root
       {...props}
       onBeforeClose={(ctx) => {
-        pauseDialogVideos(
-          ctx.destination?.closest('[data-ramka-content]') ?? ctx.destination,
-        );
+        pauseDialogVideos(ctx.destination?.closest('[data-ramka-content]') ?? ctx.destination);
         onBeforeClose?.(ctx);
       }}
     />
@@ -154,11 +150,7 @@ function Media({ className, ...props }: React.ComponentProps<typeof RamkaLightbo
 
 function Previous({ className, children, ...props }: React.ComponentProps<typeof RamkaLightbox.Previous>) {
   return (
-    <RamkaLightbox.Previous
-      className={cx('stl-nav', 'stl-nav-prev', className)}
-      aria-label="Previous"
-      {...props}
-    >
+    <RamkaLightbox.Previous className={cx('stl-nav', 'stl-nav-prev', className)} aria-label="Previous" {...props}>
       {children ?? <IconChevronLeft />}
     </RamkaLightbox.Previous>
   );
@@ -166,11 +158,7 @@ function Previous({ className, children, ...props }: React.ComponentProps<typeof
 
 function Next({ className, children, ...props }: React.ComponentProps<typeof RamkaLightbox.Next>) {
   return (
-    <RamkaLightbox.Next
-      className={cx('stl-nav', 'stl-nav-next', className)}
-      aria-label="Next"
-      {...props}
-    >
+    <RamkaLightbox.Next className={cx('stl-nav', 'stl-nav-next', className)} aria-label="Next" {...props}>
       {children ?? <IconChevronRight />}
     </RamkaLightbox.Next>
   );
@@ -204,9 +192,7 @@ function StoryVideo({
     const el = videoRef.current;
     if (!el) return;
     const content = dialogElementRef.current;
-    const pulling =
-      !!content &&
-      (content.hasAttribute('data-pulling') || content.hasAttribute('data-pull-dismissing'));
+    const pulling = !!content && (content.hasAttribute('data-pulling') || content.hasAttribute('data-pull-dismissing'));
     if (active && open && !pulling) {
       el.play().catch(() => {});
     } else {
@@ -289,9 +275,10 @@ function Gallery({ items, ariaLabel }: { items: LightboxItem[]; ariaLabel: strin
             preload={1}
           >
             {items.map((item, i) => (
-              <Slide key={item.id ?? i}>
+              <Slide key={item.id}>
                 <Item
                   index={i}
+                  itemId={item.id}
                   aria-roledescription="slide"
                   aria-label={`${i + 1} of ${items.length}`}
                 >
@@ -1026,16 +1013,11 @@ export function StoriesPresetDemo() {
           { type: 'onChange', behavior: 'instant', inline: 'nearest' },
         ]}
       >
-        <p className="px-1 text-[13px] font-semibold tracking-tight text-neutral-900 dark:text-neutral-50">
-          Stories
-        </p>
+        <p className="px-1 text-[13px] font-semibold tracking-tight text-neutral-900 dark:text-neutral-50">Stories</p>
         <ul className="mt-3 flex snap-x snap-proximity gap-4 overflow-x-auto px-1 pb-1 scrollbar-none">
-          {stories.map((story, i) => (
-            <li
-              key={story.id}
-              className="flex w-16 shrink-0 snap-center scroll-mx-4 flex-col items-center gap-1.5"
-            >
-              <Lightbox.Trigger index={i} aria-label={`${story.name}’s story`} crossfade="both">
+          {stories.map((story) => (
+            <li key={story.id} className="flex w-16 shrink-0 snap-center scroll-mx-4 flex-col items-center gap-1.5">
+              <Lightbox.Trigger itemId={story.id} aria-label={`${story.name}’s story`} crossfade="both">
                 {({ imageRef }) => (
                   <img
                     ref={imageRef}

@@ -49,7 +49,8 @@ function IconChevronRight() {
 
 /** Item shape for `Lightbox.Gallery` — pass real intrinsic pixel size. */
 export type LightboxItem = {
-  id?: string | number;
+  /** Stable id for this photo — becomes the Item's `itemId`; Triggers open it by this id. */
+  id: string;
   src: string;
   thumb?: string;
   alt: string;
@@ -164,9 +165,10 @@ function Gallery({ items, ariaLabel }: { items: LightboxItem[]; ariaLabel: strin
           preload={2}
         >
           {items.map((item, i) => (
-            <Slide key={item.id ?? i}>
+            <Slide key={item.id}>
               <Item
                 index={i}
+                itemId={item.id}
                 caption={figureCaption(item)}
                 aria-roledescription="slide"
                 aria-label={`${i + 1} of ${items.length}`}

@@ -76,7 +76,8 @@ function IconZoomOut() {
 
 /** Item shape for `Lightbox.Gallery` — pass real intrinsic pixel size. */
 export type LightboxItem = {
-  id?: string | number;
+  /** Stable id for this photo — becomes the Item's `itemId`; Triggers open it by this id. */
+  id: string;
   src: string;
   thumb: string;
   alt: string;
@@ -175,11 +176,7 @@ function Counter({ className, ...props }: React.ComponentProps<typeof RamkaLight
 
 function Previous({ className, children, ...props }: React.ComponentProps<typeof RamkaLightbox.Previous>) {
   return (
-    <RamkaLightbox.Previous
-      className={cx('slb-control', 'slb-nav', className)}
-      aria-label="Previous"
-      {...props}
-    >
+    <RamkaLightbox.Previous className={cx('slb-control', 'slb-nav', className)} aria-label="Previous" {...props}>
       {children ?? <IconChevronLeft />}
     </RamkaLightbox.Previous>
   );
@@ -187,11 +184,7 @@ function Previous({ className, children, ...props }: React.ComponentProps<typeof
 
 function Next({ className, children, ...props }: React.ComponentProps<typeof RamkaLightbox.Next>) {
   return (
-    <RamkaLightbox.Next
-      className={cx('slb-control', 'slb-nav', className)}
-      aria-label="Next"
-      {...props}
-    >
+    <RamkaLightbox.Next className={cx('slb-control', 'slb-nav', className)} aria-label="Next" {...props}>
       {children ?? <IconChevronRight />}
     </RamkaLightbox.Next>
   );
@@ -260,9 +253,10 @@ function Gallery({
             preload={2}
           >
             {items.map((item, i) => (
-              <Slide key={item.id ?? i}>
+              <Slide key={item.id}>
                 <Item
                   index={i}
+                  itemId={item.id}
                   aria-roledescription="slide"
                   // With the rail the item is a `tabpanel` its thumbnail tab
                   // already names, so only the single-image shape needs a name.
@@ -290,7 +284,7 @@ function Gallery({
           {multiple ? (
             <ThumbnailGroup className={cx('slb-rail', 'slb-chrome-gesture-hide')} aria-label="Product images">
               {items.map((item, i) => (
-                <Thumbnail key={item.id ?? i} index={i} className="slb-rail-thumb">
+                <Thumbnail key={item.id} index={i} className="slb-rail-thumb">
                   <img src={item.thumb} alt={item.alt} draggable={false} />
                 </Thumbnail>
               ))}
@@ -1123,6 +1117,7 @@ const product: ProductInfo = {
 
 const images: LightboxItem[] = [
   {
+    id: 'pack-front',
     src: '/photos/store-pack-a.jpg',
     thumb: '/photos/store-pack-a-thumb.jpg',
     alt: 'Terra 27L backpack, front view',
@@ -1130,6 +1125,7 @@ const images: LightboxItem[] = [
     height: 1500,
   },
   {
+    id: 'pack-side',
     src: '/photos/store-pack-b.jpg',
     thumb: '/photos/store-pack-b-thumb.jpg',
     alt: 'Terra 27L backpack, side profile',
@@ -1137,6 +1133,7 @@ const images: LightboxItem[] = [
     height: 1500,
   },
   {
+    id: 'pack-detail',
     src: '/photos/store-pack-c.jpg',
     thumb: '/photos/store-pack-c-thumb.jpg',
     alt: 'Detail of the waxed canvas and zippers',
@@ -1144,6 +1141,7 @@ const images: LightboxItem[] = [
     height: 1200,
   },
   {
+    id: 'pack-trail',
     src: '/photos/store-pack-d.jpg',
     thumb: '/photos/store-pack-d-thumb.jpg',
     alt: 'The backpack on a trail at golden hour',
@@ -1151,6 +1149,7 @@ const images: LightboxItem[] = [
     height: 1000,
   },
   {
+    id: 'pack-interior',
     src: '/photos/store-pack-e.jpg',
     thumb: '/photos/store-pack-e-thumb.jpg',
     alt: 'Interior compartments, laptop sleeve visible',
@@ -1160,15 +1159,15 @@ const images: LightboxItem[] = [
 ];
 
 export function StorePresetDemo() {
-  const [selected, setSelected] = React.useState(0);
+  const [selectedId, setSelectedId] = React.useState(images[0]!.id);
   const [added, setAdded] = React.useState(false);
-  const current = images[selected]!;
+  const current = images.find((img) => img.id === selectedId) ?? images[0]!;
 
   return (
     <div className="w-full max-w-2xl">
       <Lightbox.Root
         loop
-        onValueChange={(value) => setSelected(value)}
+        onValueChange={(itemId) => setSelectedId(itemId)}
         // Thumbs are the same product shots at lower res (same file + aspect),
         // so the placeholder bridge is seamless — skip the decode wait and
         // start the morph immediately.
@@ -1178,13 +1177,13 @@ export function StorePresetDemo() {
           {/* Gallery column */}
           <div className="min-w-0 flex-1">
             <Lightbox.Trigger
-              index={selected}
+              itemId={current.id}
               className="block w-full overflow-hidden bg-neutral-100 p-0 dark:bg-neutral-800"
             >
               {({ imageRef }) => (
                 <img
                   ref={imageRef}
-                  key={current.src}
+                  key={current.id}
                   src={current.thumb}
                   alt={current.alt}
                   width={current.width}
@@ -1196,16 +1195,16 @@ export function StorePresetDemo() {
             </Lightbox.Trigger>
 
             <div className="mt-3 flex gap-2" role="listbox" aria-label="Select product image">
-              {images.map((img, i) => (
+              {images.map((img) => (
                 <button
-                  key={img.src}
+                  key={img.id}
                   type="button"
                   role="option"
-                  aria-selected={i === selected}
+                  aria-selected={img.id === current.id}
                   aria-label={img.alt}
-                  onClick={() => setSelected(i)}
+                  onClick={() => setSelectedId(img.id)}
                   className={`block size-14 shrink-0 overflow-hidden border p-0 transition ${
-                    i === selected
+                    img.id === current.id
                       ? 'border-neutral-900 dark:border-neutral-100'
                       : 'border-neutral-200 opacity-70 hover:opacity-100 dark:border-neutral-700'
                   }`}

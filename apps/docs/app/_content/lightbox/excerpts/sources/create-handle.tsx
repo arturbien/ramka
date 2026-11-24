@@ -1,5 +1,6 @@
 import * as Lightbox from '@ramka/react/lightbox';
 
+// ids: 'photo-1', 'photo-2', …
 declare const images: { id: string; src: string; alt: string }[];
 
 /**
@@ -13,12 +14,12 @@ export function CreateHandleExcerpt() {
 
   return (
     <>
-      <button type="button" onClick={() => lightbox.open(0, { triggerId: 'photo-0' })}>
+      <button type="button" onClick={() => lightbox.open('photo-1')}>
         View gallery
       </button>
 
-      {images.map((img, i) => (
-        <Lightbox.Trigger key={img.id} handle={lightbox} id={`photo-${i}`} index={i}>
+      {images.map((img) => (
+        <Lightbox.Trigger key={img.id} handle={lightbox} itemId={img.id}>
           <img src={img.src} alt={img.alt} />
         </Lightbox.Trigger>
       ))}
@@ -30,7 +31,7 @@ export function CreateHandleExcerpt() {
             <Lightbox.Slides>
               {images.map((img, i) => (
                 <Lightbox.Slide key={img.id}>
-                  <Lightbox.Item index={i}>
+                  <Lightbox.Item index={i} itemId={img.id}>
                     <Lightbox.Zoom>
                       <Lightbox.Media>
                         <img src={img.src} alt={img.alt} />

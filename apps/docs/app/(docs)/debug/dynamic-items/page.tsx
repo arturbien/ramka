@@ -6,10 +6,7 @@ import Image, { type StaticImageData } from 'next/image';
 import * as Lightbox from '@ramka/react/lightbox';
 import { useLightboxContext } from '@ramka/react';
 
-import {
-  type LightboxGalleryItem,
-  triggerFocusClass,
-} from '../../../_components/lightbox-chrome';
+import { type LightboxGalleryItem, triggerFocusClass } from '../../../_components/lightbox-chrome';
 
 import { DynamicItemsGallery } from './dynamic-items-gallery';
 import { DynamicItemsPanel } from './dynamic-items-panel';
@@ -95,27 +92,26 @@ export default function DynamicItemsDebugPage() {
   }
 
   const [items, setItems] = React.useState(INITIAL_ITEMS);
-  const [activeIndex, setActiveIndex] = React.useState(0);
+  const [activeId, setActiveId] = React.useState(INITIAL_ITEMS[0]!.id);
   const [autoRecover, setAutoRecover] = React.useState(false);
   const [triggerMode, setTriggerMode] = React.useState<TriggerMode>('synced');
-  const [fixedTriggers, setFixedTriggers] = React.useState(() =>
-    INITIAL_ITEMS.slice(0, INITIAL_TRIGGER_COUNT),
-  );
+  const [fixedTriggers, setFixedTriggers] = React.useState(() => INITIAL_ITEMS.slice(0, INITIAL_TRIGGER_COUNT));
   const itemSeedRef = React.useRef(INITIAL_ITEMS.length);
 
   const { isRemoving, removeAt, clearPending } = useAnimatedItemRemoval({
     items,
     setItems,
-    activeIndex,
-    setActiveIndex,
+    activeId,
+    setActiveId,
     autoRecover,
   });
 
   const removeActive = React.useCallback(() => {
-    const item = items[activeIndex];
-    if (item && isRemoving(item)) return;
-    removeAt(activeIndex);
-  }, [activeIndex, items, isRemoving, removeAt]);
+    const index = items.findIndex((item) => item.id === activeId);
+    const item = items[index];
+    if (!item || isRemoving(item)) return;
+    removeAt(index);
+  }, [activeId, items, isRemoving, removeAt]);
 
   const addItemAtEnd = React.useCallback(() => {
     const seed = itemSeedRef.current++;
@@ -125,7 +121,6 @@ export default function DynamicItemsDebugPage() {
   const addItemAtStart = React.useCallback(() => {
     const seed = itemSeedRef.current++;
     setItems((prev) => [createItem(seed), ...prev]);
-    setActiveIndex((ai) => ai + 1);
   }, []);
 
   const resetItems = React.useCallback(() => {
@@ -135,13 +130,13 @@ export default function DynamicItemsDebugPage() {
     const next = createInitialItems();
     setItems(next);
     setFixedTriggers(next.slice(0, INITIAL_TRIGGER_COUNT));
-    setActiveIndex(0);
+    setActiveId(next[0]!.id);
   }, [clearPending]);
 
   const handleRemoveAt = React.useCallback(
     (index: number) => {
       const item = items[index];
-      if (!item?.id || isRemoving(item)) return;
+      if (!item || isRemoving(item)) return;
       removeAt(index);
     },
     [items, isRemoving, removeAt],
@@ -182,9 +177,8 @@ export default function DynamicItemsDebugPage() {
           Dynamic items
         </h1>
         <p className="mt-3 max-w-2xl text-base leading-relaxed text-neutral-600 dark:text-neutral-400">
-          Open the lightbox, then use the Items dropdown to add or remove slides without
-          closing the viewer. Toggle auto-recover to compare raw library behavior vs.
-          app-level reconciliation when the active slide disappears.
+          Open the lightbox, then use the Items dropdown to add or remove slides without closing the viewer. Toggle
+          auto-recover to compare raw library behavior vs. app-level reconciliation when the active slide disappears.
         </p>
       </header>
 
@@ -192,45 +186,41 @@ export default function DynamicItemsDebugPage() {
         <h2 className="text-sm font-medium text-neutral-900 dark:text-neutral-100">What to verify</h2>
         <ul className="list-disc space-y-1 pl-5 text-sm text-neutral-600 dark:text-neutral-400">
           <li>Counter and thumbnail strip update as items mount/unmount</li>
-          <li>Removing a non-active slide reindexes remaining slides (array-index model)</li>
-          <li>With auto-recover off, deleting the active slide can leave a blank viewer</li>
+          <li>Removing a non-active slide or prepending one keeps the viewer on the same photo (itemId model)</li>
+          <li>
+            With auto-recover off, deleting the active slide leaves <code className="text-xs">value</code> pointing at a
+            removed id (raw library fallback)
+          </li>
           <li>With auto-recover on, deleting the active slide jumps to the nearest neighbor</li>
           <li>Slides and thumbnails dissolve out before unmounting (380ms ease-out)</li>
           <li>With auto-recover on, the viewer steps to a neighbor after the fade completes</li>
           <li>
-            Fixed triggers: page grid stays at {INITIAL_TRIGGER_COUNT} tiles (frozen thumbs,
-            index-bound); synced triggers grow/shrink with the gallery
+            Fixed triggers: page grid stays at {INITIAL_TRIGGER_COUNT} tiles (frozen snapshot, each still opens its own
+            item id); synced triggers grow/shrink with the gallery
           </li>
         </ul>
       </section>
 
       <fieldset className="space-y-3 rounded-lg border border-neutral-200 p-4 dark:border-neutral-800">
-        <legend className="px-1 text-sm font-medium text-neutral-900 dark:text-neutral-100">
-          Trigger mode
-        </legend>
-        <RadioGroup
-          value={triggerMode}
-          onValueChange={handleTriggerModeChange}
-          className="gap-3"
-        >
+        <legend className="px-1 text-sm font-medium text-neutral-900 dark:text-neutral-100">Trigger mode</legend>
+        <RadioGroup value={triggerMode} onValueChange={handleTriggerModeChange} className="gap-3">
           <Label className="cursor-pointer font-normal">
             <RadioGroupItem value="synced" />
             Synced — new page triggers appear when slides are added
           </Label>
           <Label className="cursor-pointer font-normal">
             <RadioGroupItem value="fixed" />
-            Fixed — page triggers stay at {INITIAL_TRIGGER_COUNT} tiles (thumbs frozen, still open
-            by index)
+            Fixed — page triggers stay at {INITIAL_TRIGGER_COUNT} tiles (thumbs frozen, still open by item id)
           </Label>
         </RadioGroup>
       </fieldset>
 
-      <Lightbox.Root value={activeIndex} onValueChange={setActiveIndex}>
+      <Lightbox.Root value={activeId} onValueChange={setActiveId}>
         <div className="grid max-w-md grid-cols-3 gap-3">
-          {triggerItems.map((item, i) => (
+          {triggerItems.map((item) => (
             <Lightbox.Trigger
-              key={triggerMode === 'fixed' ? `fixed-${i}` : item.id}
-              index={i}
+              key={item.id}
+              itemId={item.id}
               className={`block overflow-hidden rounded-2xl ${triggerFocusClass}${
                 triggerMode === 'synced' && isRemoving(item) ? ' dynamic-items-thumb-removing' : ''
               }`}
@@ -249,8 +239,8 @@ export default function DynamicItemsDebugPage() {
           ))}
         </div>
         <p className="mt-2 text-xs text-neutral-500">
-          {triggerItems.length} page trigger{triggerItems.length === 1 ? '' : 's'} (
-          {triggerMode}) · {items.length} slide{items.length === 1 ? '' : 's'} in gallery
+          {triggerItems.length} page trigger{triggerItems.length === 1 ? '' : 's'} ({triggerMode}) · {items.length}{' '}
+          slide{items.length === 1 ? '' : 's'} in gallery
         </p>
 
         <DynamicItemsGallery

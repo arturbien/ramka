@@ -74,6 +74,9 @@ export function ChatFeed() {
   // (which reads the payload) update.
   return (
     <Lightbox.Root
+      // Photos behind "+N" have no tile; closing on one lands on the closest
+      // tile before it, the "+N" one.
+      morphTo="closest"
       revealTrigger={revealTrigger}
       scrollTriggerIntoView={[
         { type: 'onChange', behavior: 'instant' },
@@ -112,7 +115,6 @@ function ChatViewer() {
   );
   return (
     <LightboxGallery
-      keyed
       items={items}
       ariaLabel={payload ? `Photos from ${payload.sender.name}` : 'Chat photos'}
       overlay={payload ? <SenderBadge sender={payload.sender} sentAt={payload.sentAt} /> : null}
@@ -296,10 +298,8 @@ function PhotoGrid({ message, payload }: { message: ChatMessage; payload: Viewer
             key={image.id}
             image={image}
             payload={payload}
-            // The "+N" tile opens its own photo and stands in for the hidden
-            // ones: closing on any of them lands back here. Crossfade so the
-            // dark overlay dissolves into the photo instead of popping.
-            overflowItemIds={overflow ? hidden.map((h) => h.id) : undefined}
+            // Crossfade so the "+N" overlay dissolves into the photo instead
+            // of popping.
             crossfade={overflow ? 'both' : undefined}
             label={overflow ? `Open ${image.alt}, ${hidden.length} more` : `Open ${image.alt}`}
             // Half-width tiles; the tall one is cropped from a full-height image.
@@ -322,7 +322,6 @@ function PhotoGrid({ message, payload }: { message: ChatMessage; payload: Viewer
 function PhotoTrigger({
   image,
   payload,
-  overflowItemIds,
   crossfade,
   label,
   sizes,
@@ -332,7 +331,6 @@ function PhotoTrigger({
 }: {
   image: ChatImage;
   payload: ViewerPayload;
-  overflowItemIds?: string[];
   crossfade?: 'both';
   label: string;
   sizes: string;
@@ -344,7 +342,6 @@ function PhotoTrigger({
     <Lightbox.Trigger
       itemId={image.id}
       payload={payload}
-      overflowItemIds={overflowItemIds}
       crossfade={crossfade}
       aria-label={label}
       // Room when Ramka scrolls the trigger into view: clear of the list's

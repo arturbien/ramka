@@ -127,7 +127,7 @@ const shapeThreeCode = `<Lightbox
 />`;
 
 const ramkaShapeCode = `<Lightbox.Root>
-  <Lightbox.Trigger index={0}>
+  <Lightbox.Trigger itemId={photo.id}>
     <img src={photo.thumb} alt={photo.alt} />
   </Lightbox.Trigger>
 

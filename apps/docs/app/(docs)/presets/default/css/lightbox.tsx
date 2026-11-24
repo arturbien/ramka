@@ -73,7 +73,8 @@ function IconLayoutBleed() {
 
 /** Item shape for `Lightbox.Gallery` — pass real intrinsic pixel size. */
 export type LightboxItem = {
-  id?: string | number;
+  /** Stable id for this photo — becomes the Item's `itemId`; Triggers open it by this id. */
+  id: string;
   src: string;
   thumb: string;
   alt: string;
@@ -221,7 +222,7 @@ function GalleryThumbnailStrip({ items }: { items: LightboxItem[] }) {
     <ThumbnailStrip className="lb-thumbnail-strip-desktop">
       <ThumbnailStripTrack aria-label="Photo thumbnails">
         {items.map((item, i) => (
-          <Thumbnail key={item.id ?? i} index={i}>
+          <Thumbnail key={item.id} index={i}>
             <img src={item.thumb} alt={item.alt} draggable={false} />
           </Thumbnail>
         ))}
@@ -350,12 +351,13 @@ function Gallery({
             const ratio = itemAspectRatio(item);
             return (
               <Slide
-                key={item.id ?? i}
+                key={item.id}
                 className={snug ? 'lb-slide-snug' : undefined}
                 style={snug ? ({ '--lb-snug-ratio': ratio } as React.CSSProperties) : undefined}
               >
                 <Item
                   index={i}
+                  itemId={item.id}
                   caption={item.caption ?? item.alt}
                   aria-roledescription="slide"
                   // With the strip the item is a `tabpanel` its thumbnail tab

@@ -21,7 +21,7 @@ export function MediaFitBoxExcerpt() {
         <Lightbox.Content className="fixed inset-0 flex flex-col">
           <Lightbox.Slides className="flex-1">
             <Lightbox.Slide className="h-full p-8">
-              <Lightbox.Item index={0}>
+              <Lightbox.Item index={0} itemId="photo">
                 {/* Zoom fills the Slide content box; pad the Slide for chrome insets. */}
                 <Lightbox.Zoom>
                   <Lightbox.Media width={width} height={height}>

@@ -57,7 +57,7 @@ export const lightboxApiMeta: ApiPartMeta[] = [
     id: 'api-root',
     name: 'Root',
     description:
-      'Groups all parts of the lightbox and owns open state, active index, view-transition morph, scroll locking, and the active-zoom bridge. Pass handle from Lightbox.createHandle() for imperative control and detached Triggers. Prefer onOpenChangeComplete for post-motion work; use scrollTriggerIntoView so close morphs land on-screen when the page scrolled while open.',
+      'Groups all parts of the lightbox and owns open state, the active item (value, by itemId), view-transition morph, scroll locking, and the active-zoom bridge. Pass handle from Lightbox.createHandle() for imperative control and detached Triggers. Prefer onOpenChangeComplete for post-motion work; use scrollTriggerIntoView so close morphs land on-screen when the page scrolled while open.',
     extract: {
       kind: 'interface-props',
       typeName: 'LightboxRootProps',
@@ -68,12 +68,12 @@ export const lightboxApiMeta: ApiPartMeta[] = [
     id: 'api-trigger',
     name: 'Trigger',
     description:
-      'Opens the lightbox at a given index and is the morph source (view transitions on by default). Carries the Base UI dialog-trigger disclosure semantics: aria-haspopup="dialog", aria-controls pointing at the dialog while open, and aria-expanded set only on the trigger that opened it. Pass handle + id to use outside Root or for handle.open(..., { triggerId }). Prefer render-prop children to attach imageRef / morphRef.',
+      'Opens the lightbox at the Item with the same itemId and is the morph source (view transitions on by default). Carries the Base UI dialog-trigger disclosure semantics: aria-haspopup="dialog", and aria-controls / aria-expanded on the trigger that opened the dialog. Pass handle to use it outside Root. Prefer render-prop children to attach imageRef / morphRef.',
     extract: {
       kind: 'interface-props',
       typeName: 'LightboxTriggerAllProps',
       file: 'lightbox-trigger.tsx',
-      includeInherited: ['id', 'handle', 'crossfade', 'children', 'render'],
+      includeInherited: ['handle', 'crossfade', 'children', 'render'],
     },
     attributesFrom: {
       enumName: 'LightboxTriggerDataAttributes',
@@ -204,7 +204,7 @@ export const lightboxApiMeta: ApiPartMeta[] = [
     id: 'api-slides',
     name: 'Slides',
     description:
-      'Default layout: horizontal snap carousel wired to the active index. Emits role="group" — the WAI-ARIA carousel container — and you pass the translated aria-roledescription="carousel" plus an aria-label / aria-labelledby naming the gallery (leave the word "carousel" out of the name; the roledescription already says it). Gates Item contents via `preload`; put Slide → Item → Zoom → Media inside. Consumer CSS sizes each Slide snap box (e.g. flex 0 0 100% for full-bleed); index geometry measures offsetLeft/offsetWidth. While the user is flinging, navigation is locked so pull-to-dismiss and zoom chrome do not fight the scroll.',
+      'Default layout: horizontal snap carousel wired to the active item. Emits role="group" — the WAI-ARIA carousel container — and you pass the translated aria-roledescription="carousel" plus an aria-label / aria-labelledby naming the gallery (leave the word "carousel" out of the name; the roledescription already says it). Gates Item contents via `preload`; put Slide → Item → Zoom → Media inside. Consumer CSS sizes each Slide snap box (e.g. flex 0 0 100% for full-bleed); index geometry measures offsetLeft/offsetWidth. While the user is flinging, navigation is locked so pull-to-dismiss and zoom chrome do not fight the scroll.',
     extract: {
       kind: 'interface-props',
       typeName: 'LightboxSlidesProps',
@@ -430,7 +430,7 @@ export const hooksApiMeta: ApiPartMeta[] = [
     id: 'api-use-payload',
     name: 'useLightboxPayload',
     description:
-      'Payload of the current open (the opening Trigger’s payload, or handle.open({ payload })), for a viewer rendered as a plain Root child — so one Root can wrap a whole feed. Re-renders its caller only when an open brings a new payload, never on navigation, zoom or close. Performance: call it (and useLightboxContext) in the viewer, not in feed rows — a row that reads lightbox state re-renders on every change.',
+      'Payload of the current open (the opening Trigger’s payload, or handle.open(itemId, { payload })), for a viewer rendered as a plain Root child — so one Root can wrap a whole feed. Re-renders its caller only when an open brings a new payload, never on navigation, zoom or close. Performance: call it (and useLightboxContext) in the viewer, not in feed rows — a row that reads lightbox state re-renders on every change.',
     extract: {
       kind: 'hook-return',
       functionName: 'useLightboxPayload',

@@ -14,7 +14,7 @@ declare const squareThumb: StaticImageData;
 export function MorphAspectDontExcerpt() {
   return (
     <Lightbox.Root>
-      <Lightbox.Trigger index={0}>
+      <Lightbox.Trigger itemId="photo">
         {({ imageRef }) => (
           // ❌ 1∶1 file. Media below is the full 3∶2 photo.
           <Image ref={imageRef} src={squareThumb} alt="Photo" className="size-full object-cover" />
@@ -26,7 +26,7 @@ export function MorphAspectDontExcerpt() {
         <Lightbox.Content>
           <Lightbox.Slides>
             <Lightbox.Slide>
-              <Lightbox.Item index={0}>
+              <Lightbox.Item index={0} itemId="photo">
                 <Lightbox.Zoom>
                   <Lightbox.Media width={photo.width} height={photo.height}>
                     <Image src={photo} alt="Photo" sizes="100vw" priority />

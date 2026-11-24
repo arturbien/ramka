@@ -11,8 +11,8 @@ declare const items: { id: string; src: string; thumb: string; alt: string; capt
 export function QuickStartExcerpt() {
   return (
     <Lightbox.Root>
-      {items.map((item, i) => (
-        <Lightbox.Trigger key={item.id} index={i}>
+      {items.map((item) => (
+        <Lightbox.Trigger key={item.id} itemId={item.id}>
           {({ imageRef }) => <img ref={imageRef} src={item.thumb} alt={item.alt} />}
         </Lightbox.Trigger>
       ))}
@@ -27,6 +27,7 @@ export function QuickStartExcerpt() {
               <Lightbox.Slide key={item.id}>
                 <Lightbox.Item
                   index={i}
+                  itemId={item.id}
                   caption={item.caption ?? item.alt}
                   aria-roledescription="slide"
                   aria-label={`${i + 1} of ${items.length}`}

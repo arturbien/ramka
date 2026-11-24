@@ -31,9 +31,8 @@ export default function LightboxCompositionPage() {
       title="Composition"
       description={
         <>
-          Default to Slides + Zoom (swipe carousel with pinch zoom), size media to fill Content, then layer chrome.
-          Part of{' '}
-          <DocsLink href={lightboxDocsPages.overview.href}>Lightbox</DocsLink>.
+          Default to Slides + Zoom (swipe carousel with pinch zoom), size media to fill Content, then layer chrome. Part
+          of <DocsLink href={lightboxDocsPages.overview.href}>Lightbox</DocsLink>.
         </>
       }
       toc={toc}
@@ -41,8 +40,8 @@ export default function LightboxCompositionPage() {
       <DocsSection id="slides" title="Slides + Zoom">
         <p>
           Prefer <DocsLink href={lightboxApiHref.slides}>Slides</DocsLink> +{' '}
-          <DocsLink href={lightboxApiHref.slide}>Slide</DocsLink> for a swipeable snap carousel wired to the active
-          index — this is the layout used by nearly every docs demo and example. Slide boxes stay mounted;{' '}
+          <DocsLink href={lightboxApiHref.slide}>Slide</DocsLink> for a swipeable snap carousel wired to the active item
+          — this is the layout used by nearly every docs demo and example. Slide boxes stay mounted;{' '}
           <code className="text-xs">preload</code> gates heavy Item content.
         </p>
         <ul className="list-disc space-y-2 pl-5">
@@ -56,14 +55,14 @@ export default function LightboxCompositionPage() {
             the carousel mid-gesture.
           </li>
           <li>
-            Scroll-driven index changes report <code className="text-xs">onValueChange</code> with{' '}
+            Scroll-driven item changes report <code className="text-xs">onValueChange</code> with{' '}
             <code className="text-xs">source: &apos;scroll&apos;</code> — see{' '}
             <DocsLink href={lightboxApiHref.types}>NavigationSource</DocsLink>.
           </li>
           <li>
-            Item render-prop <code className="text-xs">active</code> is the current index (drive expensive work here).{' '}
-            <code className="text-xs">visible</code> means the item is in the preload window — use it for lightweight
-            prefetch, not video autoplay.
+            Item render-prop <code className="text-xs">active</code> is true for the current item (drive expensive work
+            here). <code className="text-xs">visible</code> means the item is in the preload window — use it for
+            lightweight prefetch, not video autoplay.
           </li>
         </ul>
         <CodeBlock code={lightboxExcerpts['slides-nesting'].code} title={lightboxExcerpts['slides-nesting'].title} />
@@ -82,13 +81,12 @@ export default function LightboxCompositionPage() {
           so the morph target has a correct aspect before pixels load. Slide width is consumer CSS too —{' '}
           <DocsLink href={lightboxApiHref.slide}>Slide</DocsLink> only bakes in snap alignment (
           <code className="text-xs">scroll-snap-align: center</code>,{' '}
-          <code className="text-xs">scroll-snap-stop: always</code>); you size each snap box. For a
-          full-bleed carousel, use <code className="text-xs">flex: 0 0 100%</code> and{' '}
-          <code className="text-xs">min-width: 100%</code> on each slide (see snippet below). Snug /
-          variable-width tracks use a different width formula — see the{' '}
-          <DocsLink href="/presets/default">Default preset</DocsLink>. Item and Zoom fill the slide
-          content box; size the stack so when Zoom scales past 1× the image can cover the viewport and
-          is not clipped by a shorter ancestor.
+          <code className="text-xs">scroll-snap-stop: always</code>); you size each snap box. For a full-bleed carousel,
+          use <code className="text-xs">flex: 0 0 100%</code> and <code className="text-xs">min-width: 100%</code> on
+          each slide (see snippet below). Snug / variable-width tracks use a different width formula — see the{' '}
+          <DocsLink href="/presets/default">Default preset</DocsLink>. Item and Zoom fill the slide content box; size
+          the stack so when Zoom scales past 1× the image can cover the viewport and is not clipped by a shorter
+          ancestor.
         </p>
         <ul className="list-disc space-y-2 pl-5">
           <li>
@@ -99,13 +97,13 @@ export default function LightboxCompositionPage() {
             <code className="text-xs">Slides</code> — <code className="text-xs">flex-1</code> (or equivalent stretch)
           </li>
           <li>
-            <code className="text-xs">Slide</code> —{' '}
-            <code className="text-xs">flex: 0 0 100%; min-width: 100%</code> for a full-bleed track;{' '}
-            <code className="text-xs">h-full</code> for height; put chrome / safe-area insets here as padding (not on
-            Zoom)
+            <code className="text-xs">Slide</code> — <code className="text-xs">flex: 0 0 100%; min-width: 100%</code>{' '}
+            for a full-bleed track; <code className="text-xs">h-full</code> for height; put chrome / safe-area insets
+            here as padding (not on Zoom)
           </li>
           <li>
-            <code className="text-xs">Item</code> — already fills the Slide (<code className="text-xs">width/height: 100%</code>)
+            <code className="text-xs">Item</code> — already fills the Slide (
+            <code className="text-xs">width/height: 100%</code>)
           </li>
           <li>
             <code className="text-xs">Zoom</code> — already fills + centers (structural)
@@ -127,8 +125,8 @@ export default function LightboxCompositionPage() {
           ratio exist <em>before</em> pixels load. That avoids CLS, keeps the morph target sized on slow networks, and
           prevents an unloaded <code className="text-xs">size: auto</code> image from collapsing to 0×0 (which can skip
           or weaken the open morph). When dimensions are unknown, see{' '}
-          <DocsLink href="/examples/lightbox/url-synced-state">URL-synced state</DocsLink>. For mixed media (photos
-          plus WebGL) with <DocsLink href={lightboxApiHref.root}>onBeforeOpen</DocsLink> preheat, see{' '}
+          <DocsLink href="/examples/lightbox/url-synced-state">URL-synced state</DocsLink>. For mixed media (photos plus
+          WebGL) with <DocsLink href={lightboxApiHref.root}>onBeforeOpen</DocsLink> preheat, see{' '}
           <DocsLink href="/examples/lightbox/3d-models">3D models</DocsLink>.
         </p>
         <p>
@@ -157,16 +155,20 @@ export default function LightboxCompositionPage() {
       <DocsSection id="stage" title="Stage (split layouts)">
         <p>
           Use <DocsLink href={lightboxApiHref.stage}>Lightbox.Stage</DocsLink> when Content holds more than the media
-          pane — for example a thread sidebar beside the gallery. Stage is the media interaction surface: trackpad
-          wheel pull-to-dismiss, Zoom pan cover geometry, and{' '}
+          pane — for example a thread sidebar beside the gallery. Stage is the media interaction surface: trackpad wheel
+          pull-to-dismiss, Zoom pan cover geometry, and{' '}
           <KbdGroup>
-            <KbdIcon label="Left arrow"><ArrowLeft /></KbdIcon>
-            <KbdIcon label="Right arrow"><ArrowRight /></KbdIcon>
+            <KbdIcon label="Left arrow">
+              <ArrowLeft />
+            </KbdIcon>
+            <KbdIcon label="Right arrow">
+              <ArrowRight />
+            </KbdIcon>
           </KbdGroup>{' '}
-          / <Kbd>Home</Kbd> / <Kbd>End</Kbd> gallery navigation are scoped to it.
-          Content remains the dialog shell (focus trap, <Kbd>Esc</Kbd>, zoom shortcuts). Place side panels as siblings of Stage
-          under Content so they keep native scroll and their own keyboard behavior. When Stage is omitted, Content
-          itself is the stage (default full-bleed viewers need no change).
+          / <Kbd>Home</Kbd> / <Kbd>End</Kbd> gallery navigation are scoped to it. Content remains the dialog shell
+          (focus trap, <Kbd>Esc</Kbd>, zoom shortcuts). Place side panels as siblings of Stage under Content so they
+          keep native scroll and their own keyboard behavior. When Stage is omitted, Content itself is the stage
+          (default full-bleed viewers need no change).
         </p>
         <CodeBlock
           code={`<Lightbox.Content aria-label="Post">
@@ -181,10 +183,9 @@ export default function LightboxCompositionPage() {
           title="Stage + side panel"
         />
         <p>
-          Attach Stage <code className="text-xs">morphRef</code> when the open/close morph should
-          capture the Stage surface (or a descendant) instead of the active item — a 9:16 stories
-          frame, the slides track, or a custom bezel. Decode and the thumbnail placeholder stay on
-          the item.
+          Attach Stage <code className="text-xs">morphRef</code> when the open/close morph should capture the Stage
+          surface (or a descendant) instead of the active item — a 9:16 stories frame, the slides track, or a custom
+          bezel. Decode and the thumbnail placeholder stay on the item.
         </p>
         <CodeBlock
           code={`<Lightbox.Stage>
@@ -209,9 +210,9 @@ export default function LightboxCompositionPage() {
           track) as siblings inside <DocsLink href={lightboxApiHref.content}>Content</DocsLink>. Midline selection
           chrome is plain consumer markup on the strip root. Prefer{' '}
           <DocsLink href={lightboxApiHref.thumbnailGroup}>ThumbnailGroup</DocsLink> when you want a static tablist
-          without scroll-linking. Thumbnails register by <code className="text-xs">index</code> like Triggers. Put
-          Backdrop and Content in <DocsLink href={lightboxApiHref.portal}>Portal</DocsLink>. Stacking follows Base UI:{' '}
-          <code className="text-xs">isolation: isolate</code> on the app layout root, and — when using{' '}
+          without scroll-linking. Thumbnails register by <code className="text-xs">index</code>, matching the Item at
+          that position. Put Backdrop and Content in <DocsLink href={lightboxApiHref.portal}>Portal</DocsLink>. Stacking
+          follows Base UI: <code className="text-xs">isolation: isolate</code> on the app layout root, and — when using{' '}
           <code className="text-xs">keepMounted</code> — a consumer <code className="text-xs">z-index</code> on the
           Portal host (e.g. <code className="text-xs">className=&quot;relative z-[1]&quot;</code>). Inside the portal,
           document order keeps Backdrop under Content.
@@ -227,9 +228,17 @@ export default function LightboxCompositionPage() {
 
       <DocsSection id="item-count" title="Dynamic itemCount">
         <p>
-          Items register on mount. The root <code className="text-xs">itemCount</code> is derived from registered items
-          — indices do not need to be contiguous, but Counter, loop edges, and preload distance all use that count.
-          Prefer dense <code className="text-xs">0…n-1</code> indexes unless you intentionally leave holes.
+          Items register on mount with their <code className="text-xs">index</code> (position) and{' '}
+          <code className="text-xs">itemId</code> (identity). The root <code className="text-xs">itemCount</code> is
+          derived from registered items — indices do not need to be contiguous, but Counter, loop edges, and preload
+          distance all use that count. Prefer dense <code className="text-xs">0…n-1</code> indexes unless you
+          intentionally leave holes.
+        </p>
+        <p>
+          Items register in effects, which never run on the server. A page that server-renders the lightbox already open
+          (a deep link) can pass the gallery&apos;s ids in order as{' '}
+          <DocsLink href={lightboxApiHref.root}>Root</DocsLink> <code className="text-xs">itemIds</code> so the counter,
+          caption, and slide position paint right before hydration. Once items mount, the prop is ignored.
         </p>
       </DocsSection>
 

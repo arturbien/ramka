@@ -4,12 +4,12 @@ Default to Slides + Zoom (swipe carousel with pinch zoom), size media to fill Co
 
 ## Slides + Zoom
 
-Prefer [Slides](docs/lightbox/api.md#api-slides) + [Slide](docs/lightbox/api.md#api-slide) for a swipeable snap carousel wired to the active index — this is the layout used by nearly every docs demo and example. Slide boxes stay mounted; `preload` gates heavy Item content.
+Prefer [Slides](docs/lightbox/api.md#api-slides) + [Slide](docs/lightbox/api.md#api-slide) for a swipeable snap carousel wired to the active item — this is the layout used by nearly every docs demo and example. Slide boxes stay mounted; `preload` gates heavy Item content.
 
 - Nesting rule: put `Item` and [Zoom](docs/lightbox/api.md#api-zoom) *inside* each `Slide`. Pull transforms the item, not the snap box.
 - User flings set an internal scroll lock so pull-to-dismiss, zoom chrome, and discrete prev/next do not fight the carousel mid-gesture.
-- Scroll-driven index changes report `onValueChange` with `source: 'scroll'` — see [NavigationSource](docs/lightbox/api.md#types).
-- Item render-prop `active` is the current index (drive expensive work here). `visible` means the item is in the preload window — use it for lightweight prefetch, not video autoplay.
+- Scroll-driven item changes report `onValueChange` with `source: 'scroll'` — see [NavigationSource](docs/lightbox/api.md#types).
+- Item render-prop `active` is true for the current item (drive expensive work here). `visible` means the item is in the preload window — use it for lightweight prefetch, not video autoplay.
 
 ```tsx Slides + Slide nesting
 import * as Lightbox from '@ramka/react/lightbox';
@@ -21,7 +21,7 @@ import * as Lightbox from '@ramka/react/lightbox';
       <Lightbox.Slides preload={1}>
         {items.map((item, i) => (
           <Lightbox.Slide key={item.id}>
-            <Lightbox.Item index={i}>
+            <Lightbox.Item index={i} itemId={item.id}>
               <Lightbox.Zoom>
                 <Lightbox.Media>
                   <img src={item.src} alt={item.alt} />
@@ -54,7 +54,7 @@ Ramka is *cosmetically* unstyled — colors and chrome are yours — but Media m
 - `Content` — fullscreen surface ( `fixed inset-0` / full dialog)
 - `Slides` — `flex-1` (or equivalent stretch)
 - `Slide` — `flex: 0 0 100%; min-width: 100%` for a full-bleed track; `h-full` for height; put chrome / safe-area insets here as padding (not on Zoom)
-- `Item` — already fills the Slide (`width/height: 100%`)
+- `Item` — already fills the Slide ( `width/height: 100%`)
 - `Zoom` — already fills + centers (structural)
 - `Media` — sized fit-box (morph + placeholder host); `<img>` / `<video>` inside
 
@@ -73,7 +73,7 @@ import * as Lightbox from '@ramka/react/lightbox';
     <Lightbox.Content className="fixed inset-0 flex flex-col">
       <Lightbox.Slides className="flex-1">
         <Lightbox.Slide className="h-full p-8">
-          <Lightbox.Item index={0}>
+          <Lightbox.Item index={0} itemId="photo">
             {/* Zoom fills the Slide content box; pad the Slide for chrome insets. */}
             <Lightbox.Zoom>
               <Lightbox.Media width={width} height={height}>
@@ -122,7 +122,7 @@ Live examples: [Twitter preset](presets/twitter.md), [Stories preset](presets/st
 
 ## Chrome
 
-The site default viewer is Slides + Zoom with Counter (top-left), Close / ZoomIn / ZoomOut, Caption, and a desktop [ThumbnailStrip](docs/lightbox/api.md#api-thumbnail-strip) (scroll-linked midline track) as siblings inside [Content](docs/lightbox/api.md#api-content). Midline selection chrome is plain consumer markup on the strip root. Prefer [ThumbnailGroup](docs/lightbox/api.md#api-thumbnail-group) when you want a static tablist without scroll-linking. Thumbnails register by `index` like Triggers. Put Backdrop and Content in [Portal](docs/lightbox/api.md#api-portal). Stacking follows Base UI: `isolation: isolate` on the app layout root, and — when using `keepMounted` — a consumer `z-index` on the Portal host (e.g. `className="relative z-[1]"`). Inside the portal, document order keeps Backdrop under Content.
+The site default viewer is Slides + Zoom with Counter (top-left), Close / ZoomIn / ZoomOut, Caption, and a desktop [ThumbnailStrip](docs/lightbox/api.md#api-thumbnail-strip) (scroll-linked midline track) as siblings inside [Content](docs/lightbox/api.md#api-content). Midline selection chrome is plain consumer markup on the strip root. Prefer [ThumbnailGroup](docs/lightbox/api.md#api-thumbnail-group) when you want a static tablist without scroll-linking. Thumbnails register by `index`, matching the Item at that position. Put Backdrop and Content in [Portal](docs/lightbox/api.md#api-portal). Stacking follows Base UI: `isolation: isolate` on the app layout root, and — when using `keepMounted` — a consumer `z-index` on the Portal host (e.g. `className="relative z-[1]"`). Inside the portal, document order keeps Backdrop under Content.
 
 ```tsx Chrome composition
 import * as Lightbox from '@ramka/react/lightbox';
@@ -134,7 +134,7 @@ import * as Lightbox from '@ramka/react/lightbox';
       <Lightbox.Slides>
         {items.map((item, i) => (
           <Lightbox.Slide key={item.id}>
-            <Lightbox.Item index={i} caption={item.caption}>
+            <Lightbox.Item index={i} itemId={item.id} caption={item.caption}>
               <Lightbox.Zoom>
                 <Lightbox.Media>
                   <img src={item.src} alt={item.alt} />
@@ -171,4 +171,6 @@ Packaged as a skin: [Default preset](presets/default.md).
 
 ## Dynamic itemCount
 
-Items register on mount. The root `itemCount` is derived from registered items — indices do not need to be contiguous, but Counter, loop edges, and preload distance all use that count. Prefer dense `0…n-1` indexes unless you intentionally leave holes.
+Items register on mount with their `index` (position) and `itemId` (identity). The root `itemCount` is derived from registered items — indices do not need to be contiguous, but Counter, loop edges, and preload distance all use that count. Prefer dense `0…n-1` indexes unless you intentionally leave holes.
+
+Items register in effects, which never run on the server. A page that server-renders the lightbox already open (a deep link) can pass the gallery's ids in order as [Root](docs/lightbox/api.md#api-root) `itemIds` so the counter, caption, and slide position paint right before hydration. Once items mount, the prop is ignored.

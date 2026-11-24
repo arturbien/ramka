@@ -17,8 +17,10 @@ export function LifecycleCallbacksExcerpt() {
         // Fires after enter/exit motion settles — cleanup / focus here.
         void open;
       }}
-      onValueChange={(value, { source }) => {
-        void value;
+      onValueChange={(itemId, { index, source }) => {
+        // Fires when the active item changes — `itemId` is the new item.
+        void itemId;
+        void index;
         void source; // 'trigger' | 'keyboard' | 'thumbnail' | 'button' | 'scroll' | 'imperative'
       }}
     >

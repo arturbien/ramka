@@ -27,7 +27,8 @@ export const lightboxExamples: ExampleLink[] = [
   {
     slug: 'photos-app',
     title: 'Photos app',
-    description: 'macOS Photos–style square grid under a sticky, blurred toolbar with a fade gradient and "Library" title.',
+    description:
+      'macOS Photos–style square grid under a sticky, blurred toolbar with a fade gradient and "Library" title.',
   },
   {
     slug: 'photos-app-rtl',
@@ -78,7 +79,7 @@ export const lightboxExamples: ExampleLink[] = [
     slug: 'text-message',
     title: 'Text message',
     description:
-      'Virtualized 1,000-message chat with one global Root: keyed triggers carry a payload per message, "+N" grids close onto their tile, and revealTrigger brings unmounted rows back for the close morph.',
+      'Virtualized 1,000-message chat with one global Root: triggers carry a payload per message, "+N" grids close onto their tile, and revealTrigger brings unmounted rows back for the close morph.',
     extraSources: [
       '(docs)/examples/lightbox/text-message/chat-feed.tsx',
       '(docs)/examples/lightbox/text-message/chat-data.ts',

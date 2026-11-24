@@ -16,6 +16,7 @@ import { vtMotionPhoto } from './images.generated';
  */
 
 const PHOTO = {
+  id: 'vt-motion',
   image: vtMotionPhoto,
   alt: 'Motion test photo',
 };
@@ -38,7 +39,7 @@ export default function VtMotionDebugPage() {
       </div>
 
       <Lightbox.Root viewTransition>
-        <Lightbox.Trigger index={0}>
+        <Lightbox.Trigger itemId={PHOTO.id}>
           {({ imageRef }) => (
             <Image
               ref={imageRef}
@@ -63,7 +64,7 @@ export default function VtMotionDebugPage() {
           >
             <Lightbox.Slides aria-label="Images" className="lightbox-demo-slides flex-1">
               <Lightbox.Slide className="h-full">
-                <Lightbox.Item index={0}>
+                <Lightbox.Item index={0} itemId={PHOTO.id}>
                   <Lightbox.Zoom>
                     <Lightbox.Media width={PHOTO.image.width} height={PHOTO.image.height}>
                       <Image
