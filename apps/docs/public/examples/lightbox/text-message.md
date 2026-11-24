@@ -315,23 +315,7 @@ function PhotoTrigger({
 ```ts examples/lightbox/text-message/chat-data.ts
 import type { StaticImageData } from 'next/image';
 
-import {
-  ramkaA,
-  ramkaB,
-  ramkaC,
-  ramkaD,
-  ramkaE,
-  ramkaF,
-  ramkaG,
-  ramkaH,
-  ramkaI,
-  ramkaJ,
-  ramkaK,
-  ramkaL,
-  ramkaM,
-  ramkaN,
-} from '../../../../_components/images.generated';
-import { lightboxImageFiles } from '../../../../_data/images.generated';
+import { photoImages } from '../photos-app/images.generated';
 
 /**
  * A synthetic, deterministic conversation: a thousand messages, about a fifth
@@ -359,23 +343,7 @@ export interface ChatMessage {
 
 const MESSAGE_COUNT = 1000;
 
-const photos: StaticImageData[] = [
-  ramkaA,
-  ramkaB,
-  ramkaC,
-  ramkaD,
-  ramkaE,
-  ramkaF,
-  ramkaG,
-  ramkaH,
-  ramkaI,
-  ramkaJ,
-  ramkaK,
-  ramkaL,
-  ramkaM,
-  ramkaN,
-  ...lightboxImageFiles,
-];
+const photos: readonly StaticImageData[] = photoImages;
 
 const lines = [
   'did you see the light this morning',
@@ -420,8 +388,41 @@ function photoCount(roll: number): number {
   return 5 + Math.floor(((roll - 0.82) / 0.18) * 5);
 }
 
+/**
+ * Deals photos like a shuffled deck: every photo is used once before any
+ * repeats, and a message never repeats a photo — its own or the previous
+ * photo message's.
+ */
+function createPhotoDeck(random: () => number) {
+  let deck: StaticImageData[] = [];
+  let previous: StaticImageData[] = [];
+  const shuffle = () => {
+    deck = [...photos];
+    for (let i = deck.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(random() * (i + 1));
+      [deck[i], deck[j]] = [deck[j]!, deck[i]!];
+    }
+  };
+  return (count: number): StaticImageData[] => {
+    const hand: StaticImageData[] = [];
+    while (hand.length < count) {
+      if (deck.length === 0) shuffle();
+      // Across a reshuffle, skip photos that were just shown.
+      const index = deck.findIndex((photo) => !hand.includes(photo) && !previous.includes(photo));
+      if (index < 0) {
+        shuffle();
+        continue;
+      }
+      hand.push(deck.splice(index, 1)[0]!);
+    }
+    if (count > 0) previous = hand;
+    return hand;
+  };
+}
+
 function buildConversation(): ChatMessage[] {
   const random = createRandom(7);
+  const deal = createPhotoDeck(random);
   const start = Date.UTC(2026, 7, 1, 8, 0);
   let minutes = 0;
   let photoSeq = 0;
@@ -431,11 +432,11 @@ function buildConversation(): ChatMessage[] {
     const withPhotos = random() < 0.22;
     const count = withPhotos ? photoCount(random()) : 0;
     const id = `m${m}`;
-    const images = Array.from({ length: count }, (_, i): ChatImage => {
+    const images = deal(count).map((src, i): ChatImage => {
       photoSeq += 1;
       return {
         id: `${id}-p${i}`,
-        src: photos[Math.floor(random() * photos.length)]!,
+        src,
         alt: `Photo ${photoSeq}`,
         indexInMessage: i,
       };
