@@ -540,6 +540,7 @@ function LightboxRoot<Payload = unknown>(props: LightboxRootProps<Payload>) {
   React.useEffect(() => {
     scrollTriggerIntoViewRef.current = scrollTriggerIntoView;
   });
+  const changeRevealAbortRef = React.useRef<AbortController | null>(null);
   React.useEffect(() => {
     const prev = scrollSyncRef.current;
     scrollSyncRef.current = { open, activeIndex };
@@ -557,14 +558,21 @@ function LightboxRoot<Payload = unknown>(props: LightboxRootProps<Payload>) {
       // A keyed gallery whose close target scrolled out of a virtualized list:
       // ask the consumer to bring it back rather than scrolling nothing.
       if (!resolveCloseTriggerElement()) {
-        requestRevealTrigger('change', new AbortController().signal);
+        const controller = new AbortController();
+        changeRevealAbortRef.current = controller;
+        requestRevealTrigger('change', controller.signal);
         return;
       }
       const idx = resolveTriggerIndex(index, morphTo, openingTriggerIndexRef.current, triggerElementsRef.current);
       scrollTriggerEl(triggerElementsRef.current.get(idx), scroll);
     }, 120);
 
-    return () => window.clearTimeout(scrollSyncTimerRef.current);
+    return () => {
+      window.clearTimeout(scrollSyncTimerRef.current);
+      // The next navigation, the close, or unmount supersedes this reveal.
+      changeRevealAbortRef.current?.abort();
+      changeRevealAbortRef.current = null;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [morphTo, open, activeIndex]);
 
@@ -1716,20 +1724,20 @@ function LightboxRoot<Payload = unknown>(props: LightboxRootProps<Payload>) {
   const registerKeyedTrigger = React.useCallback(
     (reg: LightboxHandleTriggerRegistration) => {
       syncTrigger(reg);
-      if (openRef.current) notifyKeyedRef.current();
+      if (openRef.current) scheduleKeyedNotify();
       return () => {
         unsyncTrigger(reg);
-        if (openRef.current) notifyKeyedRef.current();
+        if (openRef.current) scheduleKeyedNotify();
       };
     },
-    [syncTrigger, unsyncTrigger],
+    [syncTrigger, unsyncTrigger, scheduleKeyedNotify],
   );
   const touchKeyedTrigger = React.useCallback(
     (reg: LightboxHandleTriggerRegistration) => {
       syncTrigger(reg);
-      if (openRef.current) notifyKeyedRef.current();
+      if (openRef.current) scheduleKeyedNotify();
     },
-    [syncTrigger],
+    [syncTrigger, scheduleKeyedNotify],
   );
 
   // Keep keyed / detached Triggers in sync with Root state. Layout timing so a

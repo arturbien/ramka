@@ -90,6 +90,7 @@ interface LightboxHandleState {
   triggers: Map<string, LightboxHandleTriggerRegistration>;
   version: number;
   listeners: Set<() => void>;
+  notifyScheduled: boolean;
 }
 
 const handleStates = new WeakMap<object, LightboxHandleState>();
@@ -141,6 +142,7 @@ function createHandle<Payload = unknown>(): LightboxHandle<Payload> {
     triggers: new Map(),
     version: 0,
     listeners: new Set(),
+    notifyScheduled: false,
   };
 
   const warnUnbound = (method: string) => {
@@ -236,10 +238,17 @@ function registerHandleTrigger(handle: LightboxHandle<any>, reg: LightboxHandleT
 /**
  * Registration churn (a virtualized feed mounting rows) only changes what
  * triggers read while the viewer is open — closed, every snapshot is `false` —
- * so skip the O(triggers) notify then.
+ * so skip the O(triggers) notify then. Open, batch a commit's registrations
+ * (rows mounting as the feed scrolls) into one notify. Registrations run in
+ * layout effects, so the microtask still lands before paint.
  */
 function notifyIfOpen(state: LightboxHandleState): void {
-  if (state.host?.getOpen()) notifyHandle(state);
+  if (!state.host?.getOpen() || state.notifyScheduled) return;
+  state.notifyScheduled = true;
+  queueMicrotask(() => {
+    state.notifyScheduled = false;
+    notifyHandle(state);
+  });
 }
 
 /** @internal Re-sync a mutated registration object to the bound Root. */
