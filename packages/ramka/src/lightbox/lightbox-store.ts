@@ -63,6 +63,12 @@ interface LightboxHotState {
    * Thumbnails compare against, since items register only in effects.
    */
   activeItemId: string | undefined;
+  /**
+   * An open by `itemId` is waiting for its Item to register: `activeIndex` is
+   * still the previous one. Items render as inactive and outside the preload
+   * window until it resolves, so the stale index mounts no slide content.
+   */
+  resolvingOpen: boolean;
   /** Live registered-item count (or Root's `itemIds` before registration). */
   itemCount: number;
   loop: boolean;
@@ -109,6 +115,7 @@ function hotStateEqual(a: LightboxHotState, b: LightboxHotState): boolean {
     a.open === b.open &&
     a.activeIndex === b.activeIndex &&
     a.activeItemId === b.activeItemId &&
+    a.resolvingOpen === b.resolvingOpen &&
     a.itemCount === b.itemCount &&
     a.loop === b.loop &&
     a.hasTablist === b.hasTablist &&

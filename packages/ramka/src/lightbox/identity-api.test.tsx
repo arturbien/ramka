@@ -133,6 +133,43 @@ describe('identity-first value', () => {
   });
 });
 
+describe('opening by itemId', () => {
+  it('mounts slide content only around the opened item, never around the previous index', () => {
+    const ids = Array.from({ length: 20 }, (_, i) => `p${i}`);
+    const contentMounts = new Set<string>();
+    function Content({ id }: { id: string }) {
+      React.useLayoutEffect(() => {
+        contentMounts.add(id);
+      }, [id]);
+      return null;
+    }
+    render(
+      <LightboxRoot viewTransition={false} awaitImageDecode={false}>
+        {ids.map((id) => (
+          <LightboxTrigger key={id} itemId={id} data-testid={`t-${id}`} />
+        ))}
+        <LightboxPortal>
+          <LightboxContent aria-label="Viewer">
+            <SlidesHost slideCount={ids.length}>
+              {ids.map((id, i) => (
+                <LightboxItem key={id} index={i} itemId={id} data-testid={`item-${id}`}>
+                  <Content id={id} />
+                </LightboxItem>
+              ))}
+            </SlidesHost>
+          </LightboxContent>
+        </LightboxPortal>
+      </LightboxRoot>,
+    );
+
+    fireEvent.click(screen.getByTestId('t-p10'));
+
+    expect(screen.getByTestId('item-p10')).toHaveAttribute('data-active');
+    expect(contentMounts.has('p10')).toBe(true);
+    expect(contentMounts.has('p0')).toBe(false);
+  });
+});
+
 describe('identity-first handle', () => {
   it('open(itemId) and goTo(itemId) address items by id', () => {
     const handle = createHandle();

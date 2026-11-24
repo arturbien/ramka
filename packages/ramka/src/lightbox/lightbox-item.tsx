@@ -153,9 +153,10 @@ const LightboxItem = React.forwardRef<HTMLDivElement, LightboxItemProps>(functio
   } = useLightboxStableContext();
   const preload = useSlidesPreload();
 
-  const isActive = useLightboxStoreValue(store, (state) => index === state.activeIndex);
+  const isActive = useLightboxStoreValue(store, (state) => !state.resolvingOpen && index === state.activeIndex);
   const isServerPaint = useIsServerPaint();
   const isVisible = useLightboxStoreValue(store, (state) => {
+    if (state.resolvingOpen) return false;
     const linearDist = Math.abs(index - state.activeIndex);
     const distance =
       state.loop && state.itemCount > 0 ? Math.min(linearDist, state.itemCount - linearDist) : linearDist;

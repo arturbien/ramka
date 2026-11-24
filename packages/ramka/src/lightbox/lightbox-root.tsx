@@ -892,6 +892,7 @@ function LightboxRoot<Payload = unknown>(props: LightboxRootProps<Payload>) {
   // `itemId` an open is waiting on: resolved to an index when that item mounts.
   const pendingOpenItemIdRef = React.useRef<string | null>(null);
   const pendingOpenSourceRef = React.useRef<NavigationSource>('trigger');
+  const [resolvingOpen, setResolvingOpen] = React.useState(false);
   // `itemId` of the keyed trigger that opened the lightbox, so a remount of
   // that row (virtualizer churn) re-adopts the new element as the origin.
   const openingItemIdRef = React.useRef<string | null>(null);
@@ -1543,6 +1544,9 @@ function LightboxRoot<Payload = unknown>(props: LightboxRootProps<Payload>) {
           resolvedIndex = known;
         } else {
           pendingOpenItemIdRef.current = itemId;
+          // Not mounted at all: the pre-mount renders at a stale index, so
+          // keep it to empty slides until the item registers.
+          if (!itemIndexByIdRef.current.has(itemId)) setResolvingOpen(true);
         }
       }
 
@@ -1724,6 +1728,7 @@ function LightboxRoot<Payload = unknown>(props: LightboxRootProps<Payload>) {
   const resolveOpenIndex = React.useCallback((index: number) => {
     openingTriggerIndexRef.current = index;
     if (activeIndexRef.current !== index) setActiveIndexActionRef.current(index, pendingOpenSourceRef.current);
+    setResolvingOpen(false);
   }, []);
   const registerItemId = React.useCallback(
     (itemId: string, index: number) => {
@@ -1778,6 +1783,8 @@ function LightboxRoot<Payload = unknown>(props: LightboxRootProps<Payload>) {
         );
       }
     }
+    // Resolved, abandoned (missing item) or closed before the items mounted.
+    if (resolvingOpen && pendingOpenItemIdRef.current === null) setResolvingOpen(false);
     flushKeyedNotify();
   });
 
@@ -1790,6 +1797,7 @@ function LightboxRoot<Payload = unknown>(props: LightboxRootProps<Payload>) {
     open,
     activeIndex,
     activeItemId,
+    resolvingOpen,
     itemCount: effectiveItemCount,
     loop,
     hasTablist,
