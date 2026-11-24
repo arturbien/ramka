@@ -10,13 +10,18 @@ export const generatedProps: Record<string, PropRow[]> = {
   "api-root": [
     {
       name: "children",
-      type: "ReactNode",
-      description: "Lightbox parts and page content (triggers typically live as children of Root).",
+      type: "ReactNode | ((state: LightboxRootRenderState<Payload>) => ReactNode)",
+      description: "Lightbox parts and page content (triggers typically live as children of Root). Pass a function to render the viewer from the open's `payload` — the shape for one Root serving many galleries through keyed Triggers.",
     },
     {
       name: "handle",
-      type: "LightboxHandle",
+      type: "LightboxHandle<Payload>",
       description: "Imperative handle from `Lightbox.createHandle()`. Pass the same handle to detached `Lightbox.Trigger`s outside this Root.",
+    },
+    {
+      name: "revealTrigger",
+      type: "(details: LightboxRevealTriggerDetails<Payload>) => void",
+      description: "Bring an unmounted keyed trigger back so the close morph has somewhere to land — for triggers inside a virtualized list, whose rows unmount when they scroll away. Called with the active item's `itemId` when the close target has no mounted trigger: on close (the close then waits a few frames for a trigger to register before morphing, and fades if none does), and after navigation settles while open. Scroll the row that holds the item into view here, e.g. `virtualizer.scrollToIndex(row)`.\n\nOnly keyed Triggers (`itemId` + `handle`) are revealed.",
     },
     {
       name: "defaultOpen",
@@ -111,8 +116,22 @@ export const generatedProps: Record<string, PropRow[]> = {
     {
       name: "index",
       type: "number",
-      required: true,
-      description: "Item index this trigger opens. Required.",
+      description: "Item index this trigger opens. Required unless `itemId` is set; with `itemId` it is optional and, when passed, skips resolving the index from the mounted items.",
+    },
+    {
+      name: "itemId",
+      type: "string",
+      description: "Open the item with this `itemId` (see `Lightbox.Item`'s `itemId`) instead of a fixed index. Requires `handle`. Keyed triggers can share one Root across many galleries: only triggers whose `itemId` is in the open gallery take part in the morph, placeholders and `morphTo`, so two messages' first images never collide on index 0.",
+    },
+    {
+      name: "overflowItemIds",
+      type: "readonly string[]",
+      description: "Items this trigger stands in for without opening them — the images collapsed behind a \"+N\" tile. While one of them is active the close morph lands on this trigger (and it hides as the morph target), exactly as for its own `itemId`; an item's own trigger always wins. Pair with `crossfade=\"both\"`, since the tile shows a different photo. Requires `itemId`.",
+    },
+    {
+      name: "payload",
+      type: "Payload",
+      description: "Data for the gallery this trigger opens, handed to Root's render-function `children` as `payload` when this trigger opens it. Pass whatever the viewer needs — the full image list, or just an id to look it up by.",
     },
     {
       name: "id",
@@ -121,7 +140,7 @@ export const generatedProps: Record<string, PropRow[]> = {
     },
     {
       name: "handle",
-      type: "LightboxHandle",
+      type: "LightboxHandle<Payload>",
       description: "Handle from `Lightbox.createHandle()`. Pass the same handle as Root to use this Trigger outside the Root tree (Base UI Dialog-style detached triggers).",
     },
     {
@@ -204,6 +223,11 @@ export const generatedProps: Record<string, PropRow[]> = {
       type: "number",
       required: true,
       description: "The index of this item in the collection.",
+    },
+    {
+      name: "itemId",
+      type: "string",
+      description: "Stable key for this item, matched against keyed Triggers' `itemId`. Lets one Root serve many galleries: a Trigger opens at whichever index the item with its `itemId` sits at, and the close morph, placeholders and `morphTo` only consider triggers whose `itemId` is in the open gallery. Must be unique within the gallery.",
     },
     {
       name: "caption",
@@ -458,8 +482,8 @@ export const generatedProps: Record<string, PropRow[]> = {
   "api-create-handle": [
     {
       name: "open",
-      type: "(index?: number, options?: LightboxHandleOpenOptions) => void",
-      description: "Open the lightbox. Optional `index` sets the active item. Pass `options.triggerId` to associate the open with a registered Trigger so view-transition morph / placeholders can use that element.\n\nCall only from an event handler or effect — not during render.",
+      type: "{ (index?: number, options?: LightboxHandleOpenOptions<Payload>): void; (options: LightboxHandleOpenOptions<Payload>): void; }",
+      description: "Open the lightbox. Optional `index` sets the active item. Pass `options.triggerId` to associate the open with a registered Trigger so view-transition morph / placeholders can use that element, and `options.payload` / `options.itemId` to open a payload-driven gallery.\n\nCall only from an event handler or effect — not during render.",
     },
     {
       name: "close",

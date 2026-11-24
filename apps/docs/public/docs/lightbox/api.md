@@ -22,8 +22,9 @@ Groups all parts of the lightbox and owns open state, active index, view-transit
 
 | Name | Type | Default | Description |
 | --- | --- | --- | --- |
-| children | `ReactNode` |  | Lightbox parts and page content (triggers typically live as children of Root). |
-| handle | `LightboxHandle` |  | Imperative handle from `Lightbox.createHandle()`. Pass the same handle to detached `Lightbox.Trigger`s outside this Root. |
+| children | `ReactNode \| ((state: LightboxRootRenderState<Payload>) => ReactNode)` |  | Lightbox parts and page content (triggers typically live as children of Root). Pass a function to render the viewer from the open's `payload` — the shape for one Root serving many galleries through keyed Triggers. |
+| handle | `LightboxHandle<Payload>` |  | Imperative handle from `Lightbox.createHandle()`. Pass the same handle to detached `Lightbox.Trigger`s outside this Root. |
+| revealTrigger | `(details: LightboxRevealTriggerDetails<Payload>) => void` |  | Bring an unmounted keyed trigger back so the close morph has somewhere to land — for triggers inside a virtualized list, whose rows unmount when they scroll away. Called with the active item's `itemId` when the close target has no mounted trigger: on close (the close then waits a few frames for a trigger to register before morphing, and fades if none does), and after navigation settles while open. Scroll the row that holds the item into view here, e.g. `virtualizer.scrollToIndex(row)`. Only keyed Triggers (`itemId` + `handle`) are revealed. |
 | defaultOpen | `boolean` | `false` | Uncontrolled initial open state. |
 | open | `boolean` |  | Controlled open state. |
 | onOpenChange | `(open: boolean) => void` |  | Called when open state changes (immediately, before enter/exit animations finish). Prefer this for syncing URL state or stores. |
@@ -49,9 +50,12 @@ Opens the lightbox at a given index and is the morph source (view transitions on
 
 | Name | Type | Default | Description |
 | --- | --- | --- | --- |
-| index | `number` |  | Item index this trigger opens. Required. |
+| index | `number` |  | Item index this trigger opens. Required unless `itemId` is set; with `itemId` it is optional and, when passed, skips resolving the index from the mounted items. |
+| itemId | `string` |  | Open the item with this `itemId` (see `Lightbox.Item`'s `itemId`) instead of a fixed index. Requires `handle`. Keyed triggers can share one Root across many galleries: only triggers whose `itemId` is in the open gallery take part in the morph, placeholders and `morphTo`, so two messages' first images never collide on index 0. |
+| overflowItemIds | `readonly string[]` |  | Items this trigger stands in for without opening them — the images collapsed behind a "+N" tile. While one of them is active the close morph lands on this trigger (and it hides as the morph target), exactly as for its own `itemId`; an item's own trigger always wins. Pair with `crossfade="both"`, since the tile shows a different photo. Requires `itemId`. |
+| payload | `Payload` |  | Data for the gallery this trigger opens, handed to Root's render-function `children` as `payload` when this trigger opens it. Pass whatever the viewer needs — the full image list, or just an id to look it up by. |
 | id | `string` |  | Stable id for this trigger. Required for `handle.open(index, { triggerId })` association and for detached Triggers. Also applied as the DOM `id`. |
-| handle | `LightboxHandle` |  | Handle from `Lightbox.createHandle()`. Pass the same handle as Root to use this Trigger outside the Root tree (Base UI Dialog-style detached triggers). |
+| handle | `LightboxHandle<Payload>` |  | Handle from `Lightbox.createHandle()`. Pass the same handle as Root to use this Trigger outside the Root tree (Base UI Dialog-style detached triggers). |
 | crossfade | `'open' \| 'close' \| 'both'` |  | Crossfade between trigger and item snapshots during the view-transition morph. Omit (default) for a hard-cut morph — ideal when trigger and item show the same image at the same intrinsic aspect (a CSS `object-cover` window or smaller srcset is fine; a CDN-baked crop that changes the aspect is not). Use a direction when they differ visually: - `'both'` — crossfade on open and close (e.g. a stack → single photo) - `'open'` — crossfade only when opening - `'close'` — crossfade only when closing (e.g. poster → live video) Sets `data-crossfade` on the trigger and `data-ramka-crossfade` on `<html>` during phases that dissolve (omitted for hard-cut). |
 | children | `ReactNode \| ((state: LightboxTriggerRenderState) => ReactNode)` |  | Static children, or a render function that receives `imageRef` / `morphRef` (attach them to designate the placeholder source and the morph element) plus `open` / `active` state. The render function is the recommended form: it wires the flash-free placeholder without any DOM guessing. |
 | render | `ReactElement \| ComponentRenderFn` |  | Replaces the part's default element with another tag or component. Accepts an element to clone, or a function that returns one. |
@@ -187,6 +191,7 @@ A single lightbox item. Registers captions and morph/placeholder refs. ARIA adap
 | Name | Type | Default | Description |
 | --- | --- | --- | --- |
 | index | `number` |  | The index of this item in the collection. |
+| itemId | `string` |  | Stable key for this item, matched against keyed Triggers' `itemId`. Lets one Root serve many galleries: a Trigger opens at whichever index the item with its `itemId` sits at, and the close morph, placeholders and `morphTo` only consider triggers whose `itemId` is in the open gallery. Must be unique within the gallery. |
 | caption | `ReactNode` |  | Optional caption for this item, displayed by Lightbox.Caption. |
 | children | `ReactNode \| ((state: LightboxItemRenderState) => ReactNode)` |  | Static children, or a render function that receives per-item state plus `imageRef` / `morphRef`. Prefer the render function and attach `imageRef` to your `<img>` so the open transition bridges the blank frame with the trigger's thumbnail (see `Lightbox.Trigger`'s `imageRef`). |
 | render | `ReactElement \| ComponentRenderFn` |  | Replaces the part's default element with another tag or component. Accepts an element to clone, or a function that returns one. |
@@ -560,7 +565,7 @@ Imperative handle from Lightbox.createHandle(). Pass to Root (and optional detac
 
 | Name | Type | Default | Description |
 | --- | --- | --- | --- |
-| open | `(index?: number, options?: LightboxHandleOpenOptions) => void` |  | Open the lightbox. Optional `index` sets the active item. Pass `options.triggerId` to associate the open with a registered Trigger so view-transition morph / placeholders can use that element. Call only from an event handler or effect — not during render. |
+| open | `{ (index?: number, options?: LightboxHandleOpenOptions<Payload>): void; (options: LightboxHandleOpenOptions<Payload>): void; }` |  | Open the lightbox. Optional `index` sets the active item. Pass `options.triggerId` to associate the open with a registered Trigger so view-transition morph / placeholders can use that element, and `options.payload` / `options.itemId` to open a payload-driven gallery. Call only from an event handler or effect — not during render. |
 | close | `() => void` |  | Close the lightbox. |
 | goTo | `(index: number) => void` |  | Navigate to an index (source: `imperative`). Does not open. |
 | isOpen | `boolean` |  | Whether the bound Root is currently open. |

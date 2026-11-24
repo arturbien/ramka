@@ -77,7 +77,12 @@ export const lightboxExamples: ExampleLink[] = [
   {
     slug: 'text-message',
     title: 'Text message',
-    description: 'iMessage-style chat with a single morphTo="origin" trigger over a stack of attachments.',
+    description:
+      'Virtualized 1,000-message chat with one global Root: keyed triggers carry a payload per message, "+N" grids close onto their tile, and revealTrigger brings unmounted rows back for the close morph.',
+    extraSources: [
+      '(docs)/examples/lightbox/text-message/chat-feed.tsx',
+      '(docs)/examples/lightbox/text-message/chat-data.ts',
+    ],
   },
   {
     slug: 'film-trailers',

@@ -332,7 +332,13 @@ export function LightboxGallery({
    * registry is empty until then. Pass the initially-active item's caption.
    */
   captionFallback,
+  keyed = false,
 }: {
+  /**
+   * Pass each item's `id` to `Lightbox.Item` as `itemId`, for keyed Triggers
+   * (`itemId` + `handle`) — one Root serving many galleries.
+   */
+  keyed?: boolean;
   items: LightboxGalleryItem[];
   ariaLabel: string;
   preload?: number;
@@ -535,6 +541,7 @@ export function LightboxGallery({
               >
                 <Lightbox.Item
                   index={i}
+                  itemId={keyed && item.id !== undefined ? String(item.id) : undefined}
                   caption={item.caption ?? item.alt}
                   aria-roledescription="slide"
                   // Only the strip-less shape needs naming here: with a strip

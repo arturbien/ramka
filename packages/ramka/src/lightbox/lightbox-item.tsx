@@ -87,6 +87,14 @@ interface LightboxItemRenderState {
 interface LightboxItemProps extends Omit<useRender.ComponentProps<'div', LightboxItemState>, 'children'> {
   /** The index of this item in the collection. */
   index: number;
+  /**
+   * Stable key for this item, matched against keyed Triggers' `itemId`. Lets
+   * one Root serve many galleries: a Trigger opens at whichever index the
+   * item with its `itemId` sits at, and the close morph, placeholders and
+   * `morphTo` only consider triggers whose `itemId` is in the open gallery.
+   * Must be unique within the gallery.
+   */
+  itemId?: string;
   /** Optional caption for this item, displayed by Lightbox.Caption. */
   caption?: React.ReactNode;
   /**
@@ -123,7 +131,7 @@ const itemStateAttributesMapping = {
  */
 const LightboxItem = React.forwardRef<HTMLDivElement, LightboxItemProps>(
   function LightboxItem(props, forwardedRef) {
-    const { render, index, caption, children, style, ...elementProps } = props;
+    const { render, index, itemId, caption, children, style, ...elementProps } = props;
 
     // Items are the O(n) population, so they read the identity-stable context
     // and subscribe to derived PRIMITIVES from the hot store — a navigation
@@ -133,12 +141,14 @@ const LightboxItem = React.forwardRef<HTMLDivElement, LightboxItemProps>(
       store,
       registerCaption,
       registerItem,
+      registerItemId,
       activeItemElementRef,
       itemMorphElementsRef,
       openingTriggerIndexRef,
       openingTriggerElementRef,
       openingTriggerImageRef,
       triggerImageElementsRef,
+      standInTriggerIndexesRef,
       triggerElementsRef,
       openTransitionPendingRef,
       subscribeOpenComplete,
@@ -235,6 +245,13 @@ const LightboxItem = React.forwardRef<HTMLDivElement, LightboxItemProps>(
       [registerMorphElement],
     );
 
+    // Before the placeholder effect below: registering joins this item's keyed
+    // trigger into the index maps that effect reads its thumbnail from.
+    React.useLayoutEffect(() => {
+      if (itemId === undefined) return;
+      return registerItemId(itemId, index);
+    }, [itemId, index, registerItemId]);
+
     const setMediaPlaceholderRef = React.useRef<((on: boolean) => void) | null>(null);
     const registerPlaceholder = React.useCallback((setPlaceholder: ((on: boolean) => void) | null) => {
       setMediaPlaceholderRef.current = setPlaceholder;
@@ -275,7 +292,10 @@ const LightboxItem = React.forwardRef<HTMLDivElement, LightboxItemProps>(
             (openingTriggerIndexRef.current === index ? openingTriggerElementRef.current : null) ??
             triggerElementsRef.current?.get(index) ??
             null;
-          const triggerHasImage = !!triggerRoot?.querySelector('img');
+          // A "+N" tile standing in for this item shows a different photo — by
+          // design it lends no placeholder, so there's nothing to wire up.
+          const standIn = standInTriggerIndexesRef.current?.has(index) ?? false;
+          const triggerHasImage = !standIn && !!triggerRoot?.querySelector('img');
           if (triggerHasImage && !hasTriggerImage) {
             warnedRef.current = true;
             // eslint-disable-next-line no-console

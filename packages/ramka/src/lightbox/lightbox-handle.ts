@@ -5,24 +5,41 @@
  * optionally to detached `Lightbox.Trigger`s) for programmatic control.
  */
 
-interface LightboxHandleOpenOptions {
+interface LightboxHandleOpenOptions<Payload = unknown> {
   /**
    * ID of a `Lightbox.Trigger` registered with this handle (Trigger `id` +
    * `handle`). Associates the open with that trigger for morph, placeholder,
    * and focus return — including when several triggers share one index.
    */
   triggerId?: string;
+  /**
+   * Open at the `Lightbox.Item` registered with this `itemId` instead of a
+   * numeric index. The index is resolved once the payload's items mount, so
+   * the caller never needs to know where the item sits in the viewer.
+   */
+  itemId?: string;
+  /**
+   * Data for this open, handed to Root's render-function `children` as
+   * `payload`. Committed in the same synchronous pre-mount as the viewer, so
+   * the items it describes exist before the morph captures anything. Omit to
+   * keep the current payload.
+   */
+  payload?: Payload;
 }
 
-interface LightboxHandle {
+interface LightboxHandle<Payload = unknown> {
   /**
    * Open the lightbox. Optional `index` sets the active item. Pass
    * `options.triggerId` to associate the open with a registered Trigger so
-   * view-transition morph / placeholders can use that element.
+   * view-transition morph / placeholders can use that element, and
+   * `options.payload` / `options.itemId` to open a payload-driven gallery.
    *
    * Call only from an event handler or effect — not during render.
    */
-  open: (index?: number, options?: LightboxHandleOpenOptions) => void;
+  open: {
+    (index?: number, options?: LightboxHandleOpenOptions<Payload>): void;
+    (options: LightboxHandleOpenOptions<Payload>): void;
+  };
   /** Close the lightbox. */
   close: () => void;
   /** Navigate to an index (source: `imperative`). Does not open. */
@@ -35,6 +52,10 @@ interface LightboxHandle {
 interface LightboxHandleTriggerRegistration {
   id: string;
   index: number;
+  /** Item key for keyed triggers (`itemId` prop); resolves the index via Root's items. */
+  itemId?: string;
+  /** Items this trigger stands in for without opening them (Trigger `overflowItemIds`). */
+  overflowItemIds?: readonly string[];
   element: HTMLElement | null;
   image: HTMLImageElement | null;
   morphElement: HTMLElement | null;
@@ -47,6 +68,14 @@ interface LightboxHandleHost {
   goTo: (index: number) => void;
   getOpen: () => boolean;
   getActiveIndex: () => number;
+  /** Viewer index of the mounted item with this `itemId`, or -1. */
+  getItemIndex: (itemId: string) => number;
+  /** Trigger element that opened the lightbox, if any. */
+  getOpeningElement: () => HTMLElement | null;
+  /** Trigger element the close morph will land on right now, if any. */
+  getMorphTargetElement: () => HTMLElement | null;
+  /** DOM id of the dialog, for `aria-controls`. */
+  getContentId: () => string;
   syncTrigger: (reg: LightboxHandleTriggerRegistration) => void;
   unsyncTrigger: (reg: LightboxHandleTriggerRegistration) => void;
 }
@@ -58,9 +87,9 @@ interface LightboxHandleState {
   listeners: Set<() => void>;
 }
 
-const handleStates = new WeakMap<LightboxHandle, LightboxHandleState>();
+const handleStates = new WeakMap<object, LightboxHandleState>();
 
-function getHandleState(handle: LightboxHandle): LightboxHandleState {
+function getHandleState(handle: LightboxHandle<any>): LightboxHandleState {
   const state = handleStates.get(handle);
   if (!state) {
     throw new Error('Invalid Lightbox handle');
@@ -79,6 +108,10 @@ function notifyHandle(state: LightboxHandleState): void {
  * Creates a new handle to control a Lightbox imperatively and to associate
  * detached Triggers with a Root.
  *
+ * Pass a `Payload` type when one Root serves many galleries (a chat feed, a
+ * search grid): each Trigger carries the payload for the gallery it opens, and
+ * Root's render-function `children` receives it.
+ *
  * @example
  * const lightbox = Lightbox.createHandle();
  *
@@ -86,8 +119,18 @@ function notifyHandle(state: LightboxHandleState): void {
  * <Lightbox.Root handle={lightbox}>…</Lightbox.Root>
  *
  * lightbox.open(0, { triggerId: 'hero' });
+ *
+ * @example
+ * const viewer = Lightbox.createHandle<{ images: Photo[] }>();
+ *
+ * <Lightbox.Trigger handle={viewer} itemId={photo.id} payload={{ images }}>…</Lightbox.Trigger>
+ * <Lightbox.Root handle={viewer}>
+ *   {({ payload }) => payload?.images.map((photo, i) => (
+ *     <Lightbox.Item key={photo.id} itemId={photo.id} index={i}>…</Lightbox.Item>
+ *   ))}
+ * </Lightbox.Root>
  */
-function createHandle(): LightboxHandle {
+function createHandle<Payload = unknown>(): LightboxHandle<Payload> {
   const state: LightboxHandleState = {
     host: null,
     triggers: new Map(),
@@ -95,36 +138,34 @@ function createHandle(): LightboxHandle {
     listeners: new Set(),
   };
 
-  const handle: LightboxHandle = {
-    open(index?: number, options?: LightboxHandleOpenOptions) {
+  const warnUnbound = (method: string) => {
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn(`LightboxHandle.${method}() was called before a Lightbox.Root with this handle was mounted.`);
+    }
+  };
+
+  const handle: LightboxHandle<Payload> = {
+    open(indexOrOptions?: number | LightboxHandleOpenOptions<Payload>, options?: LightboxHandleOpenOptions<Payload>) {
       if (!state.host) {
-        if (process.env.NODE_ENV !== 'production') {
-          console.warn(
-            'LightboxHandle.open() was called before a Lightbox.Root with this handle was mounted.',
-          );
-        }
+        warnUnbound('open');
         return;
       }
-      state.host.open(index, options);
+      if (typeof indexOrOptions === 'object' && indexOrOptions !== null) {
+        state.host.open(undefined, indexOrOptions);
+      } else {
+        state.host.open(indexOrOptions, options);
+      }
     },
     close() {
       if (!state.host) {
-        if (process.env.NODE_ENV !== 'production') {
-          console.warn(
-            'LightboxHandle.close() was called before a Lightbox.Root with this handle was mounted.',
-          );
-        }
+        warnUnbound('close');
         return;
       }
       state.host.close();
     },
     goTo(index: number) {
       if (!state.host) {
-        if (process.env.NODE_ENV !== 'production') {
-          console.warn(
-            'LightboxHandle.goTo() was called before a Lightbox.Root with this handle was mounted.',
-          );
-        }
+        warnUnbound('goTo');
         return;
       }
       state.host.goTo(index);
@@ -139,12 +180,12 @@ function createHandle(): LightboxHandle {
 }
 
 /** @internal Notify detached Triggers that host open/index state changed. */
-function notifyLightboxHandle(handle: LightboxHandle): void {
+function notifyLightboxHandle(handle: LightboxHandle<any>): void {
   notifyHandle(getHandleState(handle));
 }
 
 /** @internal Bind a mounted Root as the host for this handle. */
-function bindLightboxHandle(handle: LightboxHandle, host: LightboxHandleHost): void {
+function bindLightboxHandle(handle: LightboxHandle<any>, host: LightboxHandleHost): void {
   const state = getHandleState(handle);
   if (process.env.NODE_ENV !== 'production' && state.host && state.host !== host) {
     console.warn('Lightbox handle is already bound to another Root.');
@@ -157,7 +198,7 @@ function bindLightboxHandle(handle: LightboxHandle, host: LightboxHandleHost): v
 }
 
 /** @internal */
-function unbindLightboxHandle(handle: LightboxHandle, host: LightboxHandleHost): void {
+function unbindLightboxHandle(handle: LightboxHandle<any>, host: LightboxHandleHost): void {
   const state = getHandleState(handle);
   if (state.host === host) {
     state.host = null;
@@ -171,7 +212,7 @@ function unbindLightboxHandle(handle: LightboxHandle, host: LightboxHandleHost):
  * `touchHandleTrigger` after mutating element/image/morph fields.
  */
 function registerHandleTrigger(
-  handle: LightboxHandle,
+  handle: LightboxHandle<any>,
   reg: LightboxHandleTriggerRegistration,
 ): () => void {
   const state = getHandleState(handle);
@@ -191,7 +232,7 @@ function registerHandleTrigger(
 }
 
 /** @internal Re-sync a mutated registration object to the bound Root. */
-function touchHandleTrigger(handle: LightboxHandle, reg: LightboxHandleTriggerRegistration): void {
+function touchHandleTrigger(handle: LightboxHandle<any>, reg: LightboxHandleTriggerRegistration): void {
   const state = getHandleState(handle);
   if (state.triggers.get(reg.id) !== reg) return;
   state.host?.syncTrigger(reg);
@@ -200,14 +241,14 @@ function touchHandleTrigger(handle: LightboxHandle, reg: LightboxHandleTriggerRe
 
 /** @internal */
 function getHandleTrigger(
-  handle: LightboxHandle,
+  handle: LightboxHandle<any>,
   id: string,
 ): LightboxHandleTriggerRegistration | undefined {
   return getHandleState(handle).triggers.get(id);
 }
 
 /** @internal Subscribe to handle host / trigger registration changes. */
-function subscribeLightboxHandle(handle: LightboxHandle, onStoreChange: () => void): () => void {
+function subscribeLightboxHandle(handle: LightboxHandle<any>, onStoreChange: () => void): () => void {
   const state = getHandleState(handle);
   state.listeners.add(onStoreChange);
   return () => {
@@ -215,27 +256,13 @@ function subscribeLightboxHandle(handle: LightboxHandle, onStoreChange: () => vo
   };
 }
 
-/** @internal */
-function getLightboxHandleVersion(handle: LightboxHandle): number {
-  return getHandleState(handle).version;
-}
-
-/** @internal Snapshot for detached Trigger `useSyncExternalStore`. */
-function getLightboxHandleSnapshot(handle: LightboxHandle): {
-  open: boolean;
-  activeIndex: number;
-  version: number;
-} {
-  const state = getHandleState(handle);
-  return {
-    open: state.host?.getOpen() ?? false,
-    activeIndex: state.host?.getActiveIndex() ?? 0,
-    version: state.version,
-  };
+/** @internal The bound Root host, or `null` while no Root is mounted. */
+function getLightboxHandleHost(handle: LightboxHandle<any>): LightboxHandleHost | null {
+  return getHandleState(handle).host;
 }
 
 export { createHandle };
-export type { LightboxHandle, LightboxHandleOpenOptions, LightboxHandleTriggerRegistration };
+export type { LightboxHandle, LightboxHandleOpenOptions, LightboxHandleTriggerRegistration, LightboxHandleHost };
 export {
   bindLightboxHandle,
   unbindLightboxHandle,
@@ -244,6 +271,5 @@ export {
   touchHandleTrigger,
   getHandleTrigger,
   subscribeLightboxHandle,
-  getLightboxHandleVersion,
-  getLightboxHandleSnapshot,
+  getLightboxHandleHost,
 };

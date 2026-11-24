@@ -320,6 +320,8 @@ interface LightboxStableContextValue {
   /** Ref-indirected `setActiveIndex` — stable identity, always-current behavior. */
   setActiveIndex: (index: number, source: NavigationSource) => void;
   registerItem: (index: number) => () => void;
+  /** Register an Item's `itemId` → index for the keyed-trigger join. */
+  registerItemId: (itemId: string, index: number) => () => void;
   registerCaption: (index: number, caption: React.ReactNode) => () => void;
   subscribeOpenComplete: (listener: () => void) => () => void;
   openTransitionPendingRef: React.MutableRefObject<boolean>;
@@ -328,6 +330,8 @@ interface LightboxStableContextValue {
   triggerElementsRef: InitializedRef<Map<number, HTMLElement>>;
   triggerMorphElementsRef: InitializedRef<WeakMap<HTMLElement, HTMLElement>>;
   triggerImageElementsRef: InitializedRef<Map<number, HTMLImageElement>>;
+  /** Indexes covered only by a stand-in trigger (`overflowItemIds`), which lends no image. */
+  standInTriggerIndexesRef: InitializedRef<Set<number>>;
   triggerIdsRef: LightboxMorphSlice['triggerIdsRef'];
   openingTriggerIndexRef: React.MutableRefObject<number>;
   openingTriggerElementRef: React.MutableRefObject<HTMLElement | null>;
