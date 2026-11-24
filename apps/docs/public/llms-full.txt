@@ -10222,6 +10222,16 @@ const MessageRow = React.memo(function MessageRow({ message }: { message: ChatMe
   );
 });
 
+/**
+ * Outer corners of a grid tile; inner edges stay square. The radius must live
+ * on the Trigger, not just the grid's clip: the morph reads it from there.
+ */
+function tileCornerClass(index: number, count: number): string {
+  if (count === 2) return index === 0 ? 'rounded-l-2xl' : 'rounded-r-2xl';
+  if (count === 3) return ['rounded-l-2xl', 'rounded-tr-2xl', 'rounded-br-2xl'][index]!;
+  return ['rounded-tl-2xl', 'rounded-tr-2xl', 'rounded-bl-2xl', 'rounded-br-2xl'][index]!;
+}
+
 function PhotoGrid({ message, payload }: { message: ChatMessage; payload: ViewerPayload }) {
   const { images } = message;
   const tiles = images.slice(0, VISIBLE_TILES);
@@ -10261,7 +10271,7 @@ function PhotoGrid({ message, payload }: { message: ChatMessage; payload: Viewer
             label={overflow ? `Open ${image.alt}, ${hidden.length} more` : `Open ${image.alt}`}
             // Half-width tiles; the tall one is cropped from a full-height image.
             sizes={tall ? '260px' : '130px'}
-            className={`relative block size-full overflow-hidden ${tall ? 'row-span-2' : ''}`}
+            className={`relative block size-full overflow-hidden ${tileCornerClass(i, count)} ${tall ? 'row-span-2' : ''}`}
             imageClassName="block size-full object-cover"
           >
             {overflow ? (
