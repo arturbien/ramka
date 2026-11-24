@@ -262,7 +262,9 @@ function PhotoTrigger({
       overflowItemIds={overflowItemIds}
       crossfade={crossfade}
       aria-label={label}
-      className={`cursor-pointer border-none bg-neutral-200 p-0 dark:bg-neutral-800 ${triggerFocusClass} ${className}`}
+      // Room when Ramka scrolls the trigger into view: clear of the list's
+      // edge on top, and of the sticky "rows mounted" pill at the bottom.
+      className={`scroll-mt-4 scroll-mb-12 cursor-pointer border-none bg-neutral-200 p-0 dark:bg-neutral-800 ${triggerFocusClass} ${className}`}
     >
       {({ imageRef }) => (
         <>
