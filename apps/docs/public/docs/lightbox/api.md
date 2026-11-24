@@ -514,6 +514,16 @@ Helper types you will see in callbacks and render props (exported from `@ramka/r
 
 Optional contexts for nested wrapper components.
 
+### useLightboxPayload
+
+Payload of the current open (the opening Trigger’s payload, or handle.open({ payload })), for a viewer rendered as a plain Root child — so one Root can wrap a whole feed. Re-renders its caller only when an open brings a new payload, never on navigation, zoom or close. Performance: call it (and useLightboxContext) in the viewer, not in feed rows — a row that reads lightbox state re-renders on every change.
+
+#### Props
+
+| Name | Type | Default | Description |
+| --- | --- | --- | --- |
+| (return) | `Payload` |  | Payload of the current open (the opening Trigger's `payload`, or `handle.open({ payload })`), for viewer parts rendered as plain Root children. Re-renders its caller only when the payload changes — call it in the viewer, not in every feed row. |
+
 ### useLightboxTriggerContext
 
 Optional context from the enclosing Trigger. Use in nested wrappers (e.g. a shared <TriggerImage>) to attach imageRef / morphRef without threading the render prop.

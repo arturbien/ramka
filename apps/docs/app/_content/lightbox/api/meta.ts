@@ -427,6 +427,17 @@ export const documentViewTransitionMeta: ApiPartMeta = {
 
 export const hooksApiMeta: ApiPartMeta[] = [
   {
+    id: 'api-use-payload',
+    name: 'useLightboxPayload',
+    description:
+      'Payload of the current open (the opening Trigger’s payload, or handle.open({ payload })), for a viewer rendered as a plain Root child — so one Root can wrap a whole feed. Re-renders its caller only when an open brings a new payload, never on navigation, zoom or close. Performance: call it (and useLightboxContext) in the viewer, not in feed rows — a row that reads lightbox state re-renders on every change.',
+    extract: {
+      kind: 'hook-return',
+      functionName: 'useLightboxPayload',
+      file: 'lightbox-context.tsx',
+    },
+  },
+  {
     id: 'api-use-trigger-context',
     name: 'useLightboxTriggerContext',
     description:

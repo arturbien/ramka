@@ -362,9 +362,32 @@ function useLightboxStableContextOptional(): LightboxStableContextValue | undefi
   return React.useContext(LightboxStableContext);
 }
 
+/**
+ * The current open's payload, in its own context: it changes only when an open
+ * brings a new payload, never on navigation, zoom or close, so a Root can wrap
+ * page content without re-rendering it.
+ */
+const LightboxPayloadContext = React.createContext<{ payload: unknown } | undefined>(undefined);
+
+/**
+ * Payload of the current open (the opening Trigger's `payload`, or
+ * `handle.open({ payload })`), for viewer parts rendered as plain Root
+ * children. Re-renders its caller only when the payload changes — call it in
+ * the viewer, not in every feed row.
+ */
+function useLightboxPayload<Payload = unknown>(): Payload | undefined {
+  const context = React.useContext(LightboxPayloadContext);
+  if (context === undefined) {
+    throw new Error('useLightboxPayload must be used within a Lightbox.Root');
+  }
+  return context.payload as Payload | undefined;
+}
+
 export {
   LightboxContext,
   useLightboxContext,
+  LightboxPayloadContext,
+  useLightboxPayload,
   LightboxStableContext,
   useLightboxStableContext,
   useLightboxStableContextOptional,

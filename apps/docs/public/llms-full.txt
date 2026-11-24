@@ -1911,6 +1911,16 @@ Helper types you will see in callbacks and render props (exported from `@ramka/r
 
 Optional contexts for nested wrapper components.
 
+### useLightboxPayload
+
+Payload of the current open (the opening Trigger’s payload, or handle.open({ payload })), for a viewer rendered as a plain Root child — so one Root can wrap a whole feed. Re-renders its caller only when an open brings a new payload, never on navigation, zoom or close. Performance: call it (and useLightboxContext) in the viewer, not in feed rows — a row that reads lightbox state re-renders on every change.
+
+#### Props
+
+| Name | Type | Default | Description |
+| --- | --- | --- | --- |
+| (return) | `Payload` |  | Payload of the current open (the opening Trigger's `payload`, or `handle.open({ payload })`), for viewer parts rendered as plain Root children. Re-renders its caller only when the payload changes — call it in the viewer, not in every feed row. |
+
 ### useLightboxTriggerContext
 
 Optional context from the enclosing Trigger. Use in nested wrappers (e.g. a shared <TriggerImage>) to attach imageRef / morphRef without threading the render prop.
@@ -10034,12 +10044,13 @@ export default function TextMessagePage() {
       title="Text message"
       description={
         <>
-          A virtualized chat with a thousand messages and one <code className={code}>Lightbox.Root</code> for all of
-          them. Every photo is a keyed <code className={code}>Lightbox.Trigger</code> (
-          <code className={code}>itemId</code> + <code className={code}>payload</code>) on a shared handle, so tiles
-          in different messages never collide and each one still morphs. A &ldquo;+N&rdquo; tile stands in for the
-          photos behind it with <code className={code}>overflowItemIds</code>, and{' '}
-          <code className={code}>revealTrigger</code> scrolls an unmounted row back so the close morph has somewhere
+          A virtualized group chat with a thousand messages and one <code className={code}>Lightbox.Root</code> wrapping
+          all of them. Every photo is a keyed <code className={code}>Lightbox.Trigger</code> (
+          <code className={code}>itemId</code> + <code className={code}>payload</code>), so tiles in different messages
+          never collide and each one still morphs. The viewer reads the opening message with{' '}
+          <code className={code}>useLightboxPayload()</code>; opening, swiping and closing never re-render the feed. A
+          &ldquo;+N&rdquo; tile stands in for the photos behind it with <code className={code}>overflowItemIds</code>,
+          and <code className={code}>revealTrigger</code> scrolls an unmounted row back so the close morph has somewhere
           to land.
         </>
       }
@@ -10057,6 +10068,7 @@ import * as React from 'react';
 import Image from 'next/image';
 import { useVirtualizer, type Virtualizer } from '@tanstack/react-virtual';
 import * as Lightbox from '@ramka/react/lightbox';
+import { useLightboxPayload } from '@ramka/react';
 
 import { Avatar, AvatarFallback, AvatarGroup } from '@/components/ui/avatar';
 
@@ -10086,9 +10098,6 @@ interface ViewerPayload {
   sender: ChatParticipant;
   sentAt: string;
 }
-
-/** One handle for the whole app: every photo in the feed opens through it. */
-const viewer = Lightbox.createHandle<ViewerPayload>();
 
 const VISIBLE_TILES = 4;
 
@@ -10123,31 +10132,34 @@ export function ChatFeed() {
     if (row !== undefined) virtualizerRef.current?.scrollToIndex(row, { align: 'center' });
   }, []);
 
+  // One Root for the whole chat. Opening, swiping and closing never re-render
+  // the feed: its elements are created here, not by the Root, and the rows
+  // don't read lightbox state. Only the open message's Triggers and the viewer
+  // (which reads the payload) update.
   return (
-    <>
+    <Lightbox.Root
+      revealTrigger={revealTrigger}
+      scrollTriggerIntoView={[
+        { type: 'onChange', behavior: 'instant' },
+        { type: 'onOpenComplete', behavior: 'instant' },
+      ]}
+    >
       <div className="mx-auto flex h-[80vh] max-w-xl flex-col overflow-hidden rounded-2xl border border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-950">
         <ChatHeader />
         <MessageList scrollRef={scrollRef} virtualizerRef={virtualizerRef} />
       </div>
-
-      {/* Mounted once. Renders whichever gallery the opening Trigger's payload names. */}
-      <Lightbox.Root
-        handle={viewer}
-        revealTrigger={revealTrigger}
-        scrollTriggerIntoView={[
-          { type: 'onChange', behavior: 'instant' },
-          { type: 'onOpenComplete', behavior: 'instant' },
-        ]}
-      >
-        {({ payload }) => <ChatViewer payload={payload} />}
-      </Lightbox.Root>
-    </>
+      <ChatViewer />
+    </Lightbox.Root>
   );
 }
 
 const noImages: readonly ChatImage[] = [];
 
-function ChatViewer({ payload }: { payload: ViewerPayload | undefined }) {
+/** Renders whichever message's photos the opening Trigger's payload carries. */
+function ChatViewer() {
+  // Re-renders only when an open brings a new payload. Keep lightbox hooks in
+  // the viewer: one in a feed row would re-render every row.
+  const payload = useLightboxPayload<ViewerPayload>();
   const images = payload?.images ?? noImages;
   const items = React.useMemo<LightboxGalleryItem[]>(
     () =>
@@ -10394,7 +10406,6 @@ function PhotoTrigger({
 }) {
   return (
     <Lightbox.Trigger
-      handle={viewer}
       itemId={image.id}
       payload={payload}
       overflowItemIds={overflowItemIds}

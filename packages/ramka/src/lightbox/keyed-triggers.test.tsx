@@ -3,6 +3,7 @@ import * as React from 'react';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { LightboxContent } from './lightbox-content';
+import { useLightboxPayload } from './lightbox-context';
 import { createHandle, type LightboxHandle } from './lightbox-handle';
 import { LightboxItem } from './lightbox-item';
 import { LightboxPortal } from './lightbox-portal';
@@ -631,6 +632,81 @@ describe('keyed triggers (one Root, many galleries)', () => {
 
     expect(signal.aborted).toBe(true);
     expect(onOpenChange).not.toHaveBeenCalled();
+  });
+
+  it('a Root wrapping the feed never re-renders the feed; only the open gallery and the viewer do', async () => {
+    const handle = createHandle<Payload>();
+    const rowRenders = new Map<string, number>();
+    const tileRenders = new Map<string, number>();
+    let viewerRenders = 0;
+    const bump = (map: Map<string, number>, key: string) => map.set(key, (map.get(key) ?? 0) + 1);
+    const messages = Array.from({ length: 20 }, (_, m) => ({
+      id: `m${m}`,
+      images: [`m${m}-0`, `m${m}-1`, `m${m}-2`],
+    }));
+
+    function Row({ message }: { message: Message }) {
+      bump(rowRenders, message.id);
+      return (
+        <div>
+          {message.images.map((src) => (
+            <LightboxTrigger key={src} itemId={src} payload={message} data-testid={`t-${src}`}>
+              {({ imageRef }) => {
+                bump(tileRenders, src);
+                return <img ref={imageRef} src={`${src}-thumb.jpg`} alt="" />;
+              }}
+            </LightboxTrigger>
+          ))}
+        </div>
+      );
+    }
+    function PayloadViewer() {
+      viewerRenders += 1;
+      const message = useLightboxPayload<Message>();
+      const images = message?.images ?? [];
+      return (
+        <LightboxPortal>
+          <LightboxContent aria-label="Viewer">
+            <SlidesHost slideCount={images.length}>
+              {images.map((src, i) => (
+                <LightboxItem key={src} index={i} itemId={src} data-testid={`item-${src}`}>
+                  {({ imageRef }) => <img ref={imageRef} src={`${src}-full.jpg`} alt="" />}
+                </LightboxItem>
+              ))}
+            </SlidesHost>
+          </LightboxContent>
+        </LightboxPortal>
+      );
+    }
+    render(
+      <LightboxRoot<Payload> handle={handle} viewTransition={false} awaitImageDecode={false}>
+        {messages.map((message) => (
+          <Row key={message.id} message={message} />
+        ))}
+        <PayloadViewer />
+      </LightboxRoot>,
+    );
+    rowRenders.clear();
+    tileRenders.clear();
+    viewerRenders = 0;
+
+    fireEvent.click(screen.getByTestId('t-m7-1'));
+    expect(screen.getByTestId('item-m7-1')).toHaveAttribute('data-active');
+    const viewerRendersOnOpen = viewerRenders;
+    act(() => handle.goTo({ itemId: 'm7-2' }));
+    act(() => handle.goTo({ itemId: 'm7-0' }));
+    act(() => handle.close());
+    await act(async () => {
+      await Promise.resolve();
+    });
+    act(() => flushRaf());
+    expect(handle.isOpen).toBe(false);
+
+    expect(rowRenders.size).toBe(0);
+    expect([...tileRenders.keys()].sort()).toEqual(['m7-0', 'm7-1', 'm7-2']);
+    // The viewer re-renders for the new payload, not for navigation or close.
+    expect(viewerRendersOnOpen).toBeGreaterThan(0);
+    expect(viewerRenders).toBe(viewerRendersOnOpen);
   });
 
   it('returns focus to the keyed trigger on close', async () => {

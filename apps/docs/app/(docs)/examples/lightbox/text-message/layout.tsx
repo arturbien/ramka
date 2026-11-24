@@ -5,7 +5,7 @@ import type { ReactNode } from 'react';
 export const metadata: Metadata = {
   title: 'Text message example',
   description:
-    'An iMessage-style chat in React where photo attachments open in a morphing lightbox from a single morphTo="origin" trigger, built with ramka.',
+    'A virtualized group chat in React where every photo opens in one shared morphing lightbox, built with ramka.',
 };
 
 export default function TextMessageLayout({ children }: { children: ReactNode }) {

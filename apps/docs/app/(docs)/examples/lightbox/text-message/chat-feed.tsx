@@ -4,6 +4,7 @@ import * as React from 'react';
 import Image from 'next/image';
 import { useVirtualizer, type Virtualizer } from '@tanstack/react-virtual';
 import * as Lightbox from '@ramka/react/lightbox';
+import { useLightboxPayload } from '@ramka/react';
 
 import { Avatar, AvatarFallback, AvatarGroup } from '@/components/ui/avatar';
 
@@ -33,9 +34,6 @@ interface ViewerPayload {
   sender: ChatParticipant;
   sentAt: string;
 }
-
-/** One handle for the whole app: every photo in the feed opens through it. */
-const viewer = Lightbox.createHandle<ViewerPayload>();
 
 const VISIBLE_TILES = 4;
 
@@ -70,31 +68,34 @@ export function ChatFeed() {
     if (row !== undefined) virtualizerRef.current?.scrollToIndex(row, { align: 'center' });
   }, []);
 
+  // One Root for the whole chat. Opening, swiping and closing never re-render
+  // the feed: its elements are created here, not by the Root, and the rows
+  // don't read lightbox state. Only the open message's Triggers and the viewer
+  // (which reads the payload) update.
   return (
-    <>
+    <Lightbox.Root
+      revealTrigger={revealTrigger}
+      scrollTriggerIntoView={[
+        { type: 'onChange', behavior: 'instant' },
+        { type: 'onOpenComplete', behavior: 'instant' },
+      ]}
+    >
       <div className="mx-auto flex h-[80vh] max-w-xl flex-col overflow-hidden rounded-2xl border border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-950">
         <ChatHeader />
         <MessageList scrollRef={scrollRef} virtualizerRef={virtualizerRef} />
       </div>
-
-      {/* Mounted once. Renders whichever gallery the opening Trigger's payload names. */}
-      <Lightbox.Root
-        handle={viewer}
-        revealTrigger={revealTrigger}
-        scrollTriggerIntoView={[
-          { type: 'onChange', behavior: 'instant' },
-          { type: 'onOpenComplete', behavior: 'instant' },
-        ]}
-      >
-        {({ payload }) => <ChatViewer payload={payload} />}
-      </Lightbox.Root>
-    </>
+      <ChatViewer />
+    </Lightbox.Root>
   );
 }
 
 const noImages: readonly ChatImage[] = [];
 
-function ChatViewer({ payload }: { payload: ViewerPayload | undefined }) {
+/** Renders whichever message's photos the opening Trigger's payload carries. */
+function ChatViewer() {
+  // Re-renders only when an open brings a new payload. Keep lightbox hooks in
+  // the viewer: one in a feed row would re-render every row.
+  const payload = useLightboxPayload<ViewerPayload>();
   const images = payload?.images ?? noImages;
   const items = React.useMemo<LightboxGalleryItem[]>(
     () =>
@@ -341,7 +342,6 @@ function PhotoTrigger({
 }) {
   return (
     <Lightbox.Trigger
-      handle={viewer}
       itemId={image.id}
       payload={payload}
       overflowItemIds={overflowItemIds}

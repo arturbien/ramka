@@ -456,6 +456,13 @@ export const generatedProps: Record<string, PropRow[]> = {
     },
   ],
   "api-view-transition-document": [],
+  "api-use-payload": [
+    {
+      name: "(return)",
+      type: "Payload",
+      description: "Payload of the current open (the opening Trigger's `payload`, or `handle.open({ payload })`), for viewer parts rendered as plain Root children. Re-renders its caller only when the payload changes — call it in the viewer, not in every feed row.",
+    },
+  ],
   "api-use-trigger-context": [
     {
       name: "(return)",
@@ -848,6 +855,7 @@ export const generatedAttributes: Record<string, AttrRow[]> = {
       description: "Present during a morph ONLY when the page declares foreign `view-transition-name`s that must be neutralized so they don't ride over the morph. Kept off otherwise: the rule's universal selector makes the attribute flip a full-document style invalidation, which on large DOMs is the dominant cost of starting (and finishing) a morph.",
     },
   ],
+  "api-use-payload": [],
   "api-use-trigger-context": [],
   "api-use-item-context": [],
   "api-use-media-context": [],
@@ -957,6 +965,7 @@ export const generatedCssVariables: Record<string, CssVarRow[]> = {
       description: "Easing for the root snapshot cross-fade (`::view-transition-old/new(root)`). Written by the library from the `viewTransition` preset, like `--lightbox-vt-duration` (during a morph on `documentElement`, always on the Portal host). A good default for skin backdrop/content fades.",
     },
   ],
+  "api-use-payload": [],
   "api-use-trigger-context": [],
   "api-use-item-context": [],
   "api-use-media-context": [],

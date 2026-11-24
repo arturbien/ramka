@@ -5,6 +5,7 @@ import * as React from 'react';
 import {
   LightboxContext,
   LightboxStableContext,
+  LightboxPayloadContext,
   type LightboxCloseOptions,
   type LightboxContextValue,
   type LightboxMorphSlice,
@@ -986,6 +987,7 @@ function LightboxRoot<Payload = unknown>(props: LightboxRootProps<Payload>) {
   // Set in the opening event, so it commits in the same synchronous flush as
   // the hidden pre-mount and the items it describes exist before capture.
   const [payload, setPayload] = React.useState<Payload | undefined>(() => defaultPayload);
+  const payloadContextValue = React.useMemo(() => ({ payload }), [payload]);
   const payloadRef = React.useRef<Payload | undefined>(defaultPayload);
   const setOpenPayload = React.useCallback((next: unknown) => {
     payloadRef.current = next as Payload;
@@ -1996,7 +1998,9 @@ function LightboxRoot<Payload = unknown>(props: LightboxRootProps<Payload>) {
       <LightboxStableContext.Provider value={stableContextValue}>
         <LightboxZoomPublishContext.Provider value={zoomPublishValue}>
           <LightboxActiveZoomContext.Provider value={activeZoom}>
-            {typeof children === 'function' ? children({ payload }) : children}
+            <LightboxPayloadContext.Provider value={payloadContextValue}>
+              {typeof children === 'function' ? children({ payload }) : children}
+            </LightboxPayloadContext.Provider>
           </LightboxActiveZoomContext.Provider>
         </LightboxZoomPublishContext.Provider>
       </LightboxStableContext.Provider>
