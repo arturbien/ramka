@@ -10058,8 +10058,20 @@ import Image from 'next/image';
 import { useVirtualizer, type Virtualizer } from '@tanstack/react-virtual';
 import * as Lightbox from '@ramka/react/lightbox';
 
+import { Avatar, AvatarFallback, AvatarGroup } from '@/components/ui/avatar';
+
 import { LightboxGallery, triggerFocusClass, type LightboxGalleryItem } from '../../../../_components/lightbox-chrome';
-import { conversation, conversationPhotoCount, rowOfImage, type ChatImage, type ChatMessage } from './chat-data';
+import {
+  conversation,
+  conversationPhotoCount,
+  me,
+  participantById,
+  participants,
+  rowOfImage,
+  type ChatImage,
+  type ChatMessage,
+  type ChatParticipant,
+} from './chat-data';
 
 /**
  * What a Trigger hands the viewer: the photos of the gallery it opens, in the
@@ -10070,6 +10082,9 @@ import { conversation, conversationPhotoCount, rowOfImage, type ChatImage, type 
  */
 interface ViewerPayload {
   images: readonly ChatImage[];
+  /** Who sent the message, shown in the viewer's top-left corner. */
+  sender: ChatParticipant;
+  sentAt: string;
 }
 
 /** One handle for the whole app: every photo in the feed opens through it. */
@@ -10079,8 +10094,22 @@ const VISIBLE_TILES = 4;
 
 // Stable payload objects, so a trigger re-render never looks like a new gallery.
 const messagePayloads = new Map<string, ViewerPayload>(
-  conversation.map((message) => [message.id, { images: message.images }]),
+  conversation.map((message) => [
+    message.id,
+    { images: message.images, sender: participantById.get(message.author) ?? me, sentAt: formatTime(message.time) },
+  ]),
 );
+
+function formatTime(time: string): string {
+  // Fixed zone, so the server and client render the same string.
+  return new Date(`${time.replace(' ', 'T')}Z`).toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    timeZone: 'UTC',
+  });
+}
 
 export function ChatFeed() {
   const scrollRef = React.useRef<HTMLDivElement>(null);
@@ -10110,13 +10139,16 @@ export function ChatFeed() {
           { type: 'onOpenComplete', behavior: 'instant' },
         ]}
       >
-        {({ payload }) => <ChatViewer images={payload?.images ?? []} />}
+        {({ payload }) => <ChatViewer payload={payload} />}
       </Lightbox.Root>
     </>
   );
 }
 
-function ChatViewer({ images }: { images: readonly ChatImage[] }) {
+const noImages: readonly ChatImage[] = [];
+
+function ChatViewer({ payload }: { payload: ViewerPayload | undefined }) {
+  const images = payload?.images ?? noImages;
   const items = React.useMemo<LightboxGalleryItem[]>(
     () =>
       images.map((image) => ({
@@ -10130,24 +10162,63 @@ function ChatViewer({ images }: { images: readonly ChatImage[] }) {
       })),
     [images],
   );
-  return <LightboxGallery keyed items={items} ariaLabel="Chat photos" />;
+  return (
+    <LightboxGallery
+      keyed
+      items={items}
+      ariaLabel={payload ? `Photos from ${payload.sender.name}` : 'Chat photos'}
+      overlay={payload ? <SenderBadge sender={payload.sender} sentAt={payload.sentAt} /> : null}
+    />
+  );
 }
 
-function ChatHeader() {
+/** Top-left of the viewer: whose photos these are. Fades and hides with the toolbar. */
+function SenderBadge({ sender, sentAt }: { sender: ChatParticipant; sentAt: string }) {
   return (
-    <div className="border-b border-neutral-200 px-4 py-3 dark:border-neutral-800">
-      <div className="truncate text-sm font-semibold text-neutral-900 dark:text-neutral-50">Ola</div>
-      <div className="text-[11px] text-neutral-500">
-        {conversation.length.toLocaleString('en-US')} messages · {conversationPhotoCount.toLocaleString('en-US')} photos
+    <div className="lightbox-demo-chrome-top lightbox-demo-chrome-hide absolute start-3 top-[calc(0.75rem+env(safe-area-inset-top,0px))] z-30 flex items-center gap-2.5">
+      <ParticipantAvatar person={sender} size="default" />
+      <div className="leading-tight">
+        <div className="text-[13px] font-semibold text-neutral-900 dark:text-neutral-50">{sender.name}</div>
+        <div className="text-[11px] text-neutral-500 dark:text-neutral-400">{sentAt}</div>
       </div>
     </div>
   );
 }
 
+function ChatHeader() {
+  return (
+    <div className="flex items-center gap-3 border-b border-neutral-200 px-4 py-3 dark:border-neutral-800">
+      <AvatarGroup aria-hidden>
+        {participants.map((person) => (
+          <ParticipantAvatar key={person.id} person={person} />
+        ))}
+      </AvatarGroup>
+      <div className="min-w-0">
+        <div className="truncate text-sm font-semibold text-neutral-900 dark:text-neutral-50">Lisbon trip</div>
+        <div className="text-[11px] text-neutral-500">
+          {participants.length + 1} people · {conversation.length.toLocaleString('en-US')} messages ·{' '}
+          {conversationPhotoCount.toLocaleString('en-US')} photos
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ParticipantAvatar({ person, size = 'sm' }: { person: ChatParticipant; size?: 'sm' | 'default' }) {
+  return (
+    <Avatar size={size} aria-hidden>
+      <AvatarFallback className={`font-semibold ${size === 'sm' ? 'text-[10px]' : 'text-xs'} ${person.colorClass}`}>
+        {person.initials}
+      </AvatarFallback>
+    </Avatar>
+  );
+}
+
 function estimateRowSize(message: ChatMessage): number {
+  const name = message.author !== 'me' && message.startsRun ? 18 : 0;
   const text = message.text ? 44 : 0;
   const photos = message.images.length === 0 ? 0 : message.images.length === 1 ? 300 : 248;
-  return 8 + text + photos;
+  return 8 + name + text + photos;
 }
 
 function MessageList({
@@ -10202,9 +10273,23 @@ function MessageList({
 }
 
 const MessageRow = React.memo(function MessageRow({ message }: { message: ChatMessage }) {
-  const mine = message.author === 'me';
+  const sender = participantById.get(message.author);
+  const body = <MessageBody message={message} mine={!sender} />;
+  if (!sender) return <div className="py-1">{body}</div>;
   return (
-    <div className={`flex flex-col gap-1 py-1 ${mine ? 'items-end' : 'items-start'}`}>
+    <div className="flex items-end gap-2 py-1">
+      <ParticipantAvatar person={sender} />
+      <div className="min-w-0 flex-1">
+        <div className={message.startsRun ? 'px-3 pb-1 text-[11px] text-neutral-500' : 'sr-only'}>{sender.name}</div>
+        {body}
+      </div>
+    </div>
+  );
+});
+
+function MessageBody({ message, mine }: { message: ChatMessage; mine: boolean }) {
+  return (
+    <div className={`flex flex-col gap-1 ${mine ? 'items-end' : 'items-start'}`}>
       {message.images.length > 0 ? <PhotoGrid message={message} payload={messagePayloads.get(message.id)!} /> : null}
       {message.text ? (
         <div
@@ -10220,7 +10305,7 @@ const MessageRow = React.memo(function MessageRow({ message }: { message: ChatMe
       ) : null}
     </div>
   );
-});
+}
 
 /**
  * Outer corners of a grid tile; inner edges stay square. The radius must live
@@ -10361,9 +10446,33 @@ export interface ChatImage {
   indexInMessage: number;
 }
 
+export interface ChatParticipant {
+  id: string;
+  name: string;
+  initials: string;
+  /** Avatar background and text classes. */
+  colorClass: string;
+}
+
+/** Everyone in the group besides "me". */
+export const participants: readonly ChatParticipant[] = [
+  { id: 'ola', name: 'Ola Nowak', initials: 'ON', colorClass: 'bg-rose-500 text-white' },
+  { id: 'sam', name: 'Sam Carter', initials: 'SC', colorClass: 'bg-amber-500 text-white' },
+  { id: 'priya', name: 'Priya Shah', initials: 'PS', colorClass: 'bg-emerald-600 text-white' },
+  { id: 'jules', name: 'Jules Martin', initials: 'JM', colorClass: 'bg-violet-500 text-white' },
+];
+
+export const participantById = new Map(participants.map((p) => [p.id, p]));
+
+/** The local user, for places that name every sender (the viewer's header). */
+export const me: ChatParticipant = { id: 'me', name: 'You', initials: 'AK', colorClass: 'bg-blue-500 text-white' };
+
 export interface ChatMessage {
   id: string;
-  author: 'me' | 'them';
+  /** `'me'`, or a participant id. */
+  author: string;
+  /** First message of a run by the same author (shows their name). */
+  startsRun: boolean;
   time: string;
   text?: string;
   images: ChatImage[];
@@ -10454,9 +10563,18 @@ function buildConversation(): ChatMessage[] {
   const start = Date.UTC(2026, 7, 1, 8, 0);
   let minutes = 0;
   let photoSeq = 0;
-  return Array.from({ length: MESSAGE_COUNT }, (_, m) => {
+  let previousAuthor = '';
+  return Array.from({ length: MESSAGE_COUNT }, (_, m): ChatMessage => {
     minutes += 1 + Math.floor(random() * 40);
-    const author = random() < 0.5 ? 'me' : 'them';
+    // People send a few messages in a row before someone else replies.
+    const author =
+      previousAuthor && random() < 0.55
+        ? previousAuthor
+        : random() < 0.4
+          ? 'me'
+          : participants[Math.floor(random() * participants.length)]!.id;
+    const startsRun = author !== previousAuthor;
+    previousAuthor = author;
     const withPhotos = random() < 0.22;
     const count = withPhotos ? photoCount(random()) : 0;
     const id = `m${m}`;
@@ -10474,6 +10592,7 @@ function buildConversation(): ChatMessage[] {
     return {
       id,
       author,
+      startsRun,
       time,
       text: hasText ? lines[Math.floor(random() * lines.length)] : undefined,
       images,

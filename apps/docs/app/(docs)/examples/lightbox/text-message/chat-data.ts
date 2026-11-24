@@ -18,9 +18,33 @@ export interface ChatImage {
   indexInMessage: number;
 }
 
+export interface ChatParticipant {
+  id: string;
+  name: string;
+  initials: string;
+  /** Avatar background and text classes. */
+  colorClass: string;
+}
+
+/** Everyone in the group besides "me". */
+export const participants: readonly ChatParticipant[] = [
+  { id: 'ola', name: 'Ola Nowak', initials: 'ON', colorClass: 'bg-rose-500 text-white' },
+  { id: 'sam', name: 'Sam Carter', initials: 'SC', colorClass: 'bg-amber-500 text-white' },
+  { id: 'priya', name: 'Priya Shah', initials: 'PS', colorClass: 'bg-emerald-600 text-white' },
+  { id: 'jules', name: 'Jules Martin', initials: 'JM', colorClass: 'bg-violet-500 text-white' },
+];
+
+export const participantById = new Map(participants.map((p) => [p.id, p]));
+
+/** The local user, for places that name every sender (the viewer's header). */
+export const me: ChatParticipant = { id: 'me', name: 'You', initials: 'AK', colorClass: 'bg-blue-500 text-white' };
+
 export interface ChatMessage {
   id: string;
-  author: 'me' | 'them';
+  /** `'me'`, or a participant id. */
+  author: string;
+  /** First message of a run by the same author (shows their name). */
+  startsRun: boolean;
   time: string;
   text?: string;
   images: ChatImage[];
@@ -111,9 +135,18 @@ function buildConversation(): ChatMessage[] {
   const start = Date.UTC(2026, 7, 1, 8, 0);
   let minutes = 0;
   let photoSeq = 0;
-  return Array.from({ length: MESSAGE_COUNT }, (_, m) => {
+  let previousAuthor = '';
+  return Array.from({ length: MESSAGE_COUNT }, (_, m): ChatMessage => {
     minutes += 1 + Math.floor(random() * 40);
-    const author = random() < 0.5 ? 'me' : 'them';
+    // People send a few messages in a row before someone else replies.
+    const author =
+      previousAuthor && random() < 0.55
+        ? previousAuthor
+        : random() < 0.4
+          ? 'me'
+          : participants[Math.floor(random() * participants.length)]!.id;
+    const startsRun = author !== previousAuthor;
+    previousAuthor = author;
     const withPhotos = random() < 0.22;
     const count = withPhotos ? photoCount(random()) : 0;
     const id = `m${m}`;
@@ -131,6 +164,7 @@ function buildConversation(): ChatMessage[] {
     return {
       id,
       author,
+      startsRun,
       time,
       text: hasText ? lines[Math.floor(random() * lines.length)] : undefined,
       images,
