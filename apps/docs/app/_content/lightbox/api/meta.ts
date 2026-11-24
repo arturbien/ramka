@@ -71,9 +71,9 @@ export const lightboxApiMeta: ApiPartMeta[] = [
       'Opens the lightbox at a given index and is the morph source (view transitions on by default). Carries the Base UI dialog-trigger disclosure semantics: aria-haspopup="dialog", aria-controls pointing at the dialog while open, and aria-expanded set only on the trigger that opened it. Pass handle + id to use outside Root or for handle.open(..., { triggerId }). Prefer render-prop children to attach imageRef / morphRef.',
     extract: {
       kind: 'interface-props',
-      typeName: 'LightboxTriggerProps',
+      typeName: 'LightboxTriggerAllProps',
       file: 'lightbox-trigger.tsx',
-      includeInherited: ['render'],
+      includeInherited: ['id', 'handle', 'crossfade', 'children', 'render'],
     },
     attributesFrom: {
       enumName: 'LightboxTriggerDataAttributes',

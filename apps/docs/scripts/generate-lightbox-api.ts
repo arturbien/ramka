@@ -92,7 +92,7 @@ function typeTextForDeclaration(
     return 'ReactElement | ComponentRenderFn';
   }
 
-  if (decl && (Node.isPropertySignature(decl) || Node.isMethodSignature(decl))) {
+  if (decl && Node.isPropertySignature(decl)) {
     const typeNode = decl.getTypeNode();
     if (typeNode) {
       // Resolve `LightboxCrossfade`-style aliases from the same source file.
@@ -299,6 +299,7 @@ function extractInterfaceMembers(spec: ExtractSpec & { kind: 'interface-members'
   const iface = getInterface(spec.file, spec.typeName);
   const exclude = new Set(spec.exclude ?? []);
   const rows: PropRow[] = [];
+  const seenMethods = new Set<string>();
 
   for (const member of iface.getMembers()) {
     if (Node.isPropertySignature(member)) {
@@ -312,11 +313,21 @@ function extractInterfaceMembers(spec: ExtractSpec & { kind: 'interface-members'
     }
     if (Node.isMethodSignature(member)) {
       const name = member.getName();
-      if (exclude.has(name)) continue;
-      const docs = member.getJsDocs();
+      if (exclude.has(name) || seenMethods.has(name)) continue;
+      seenMethods.add(name);
+      // Overloads: one row listing every signature, documented by the first JSDoc.
+      const overloads = iface.getMethods().filter((m) => m.getName() === name);
+      const docs = overloads.flatMap((m) => m.getJsDocs());
+      const signature = (m: (typeof overloads)[number]) =>
+        cleanTypeText(
+          `(${m
+            .getParameters()
+            .map((p) => p.getText())
+            .join(', ')}) => ${m.getReturnTypeNode()?.getText() ?? 'void'}`,
+        );
       rows.push({
         name,
-        type: typeTextForDeclaration(member, member.getType(), name),
+        type: overloads.length === 1 ? signature(overloads[0]!) : overloads.map((m) => `(${signature(m)})`).join(' | '),
         description: jsDocDescription(docs) || '—',
       });
     }

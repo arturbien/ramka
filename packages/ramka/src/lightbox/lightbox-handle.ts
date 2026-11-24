@@ -33,17 +33,20 @@ interface LightboxHandle<Payload = unknown> {
    * `options.triggerId` to associate the open with a registered Trigger so
    * view-transition morph / placeholders can use that element, and
    * `options.payload` / `options.itemId` to open a payload-driven gallery.
+   * Opening by `itemId` morphs from that item's mounted keyed Trigger, if any.
    *
    * Call only from an event handler or effect — not during render.
    */
-  open: {
-    (index?: number, options?: LightboxHandleOpenOptions<Payload>): void;
-    (options: LightboxHandleOpenOptions<Payload>): void;
-  };
+  open(index?: number, options?: LightboxHandleOpenOptions<Payload>): void;
+  open(options: LightboxHandleOpenOptions<Payload>): void;
   /** Close the lightbox. */
-  close: () => void;
-  /** Navigate to an index (source: `imperative`). Does not open. */
-  goTo: (index: number) => void;
+  close(): void;
+  /**
+   * Navigate to an index, or to the mounted `Lightbox.Item` with this `itemId`
+   * (source: `imperative`). Does not open.
+   */
+  goTo(index: number): void;
+  goTo(target: { itemId: string }): void;
   /** Whether the bound Root is currently open. */
   readonly isOpen: boolean;
 }
@@ -64,8 +67,10 @@ interface LightboxHandleTriggerRegistration {
 /** Bound Root host — set while a Root with this handle is mounted. */
 interface LightboxHandleHost {
   open: (index?: number, options?: LightboxHandleOpenOptions) => void;
+  /** Open from a keyed Trigger's registration (its element is the morph origin). */
+  openFromTrigger: (reg: LightboxHandleTriggerRegistration, payload: unknown) => void;
   close: () => void;
-  goTo: (index: number) => void;
+  goTo: (target: number | { itemId: string }) => void;
   getOpen: () => boolean;
   getActiveIndex: () => number;
   /** Viewer index of the mounted item with this `itemId`, or -1. */
@@ -121,9 +126,9 @@ function notifyHandle(state: LightboxHandleState): void {
  * lightbox.open(0, { triggerId: 'hero' });
  *
  * @example
- * const viewer = Lightbox.createHandle<{ images: Photo[] }>();
+ * const viewer = Lightbox.createHandle<Message>();
  *
- * <Lightbox.Trigger handle={viewer} itemId={photo.id} payload={{ images }}>…</Lightbox.Trigger>
+ * <Lightbox.Trigger handle={viewer} itemId={photo.id} payload={message}>…</Lightbox.Trigger>
  * <Lightbox.Root handle={viewer}>
  *   {({ payload }) => payload?.images.map((photo, i) => (
  *     <Lightbox.Item key={photo.id} itemId={photo.id} index={i}>…</Lightbox.Item>
@@ -163,12 +168,12 @@ function createHandle<Payload = unknown>(): LightboxHandle<Payload> {
       }
       state.host.close();
     },
-    goTo(index: number) {
+    goTo(target: number | { itemId: string }) {
       if (!state.host) {
         warnUnbound('goTo');
         return;
       }
-      state.host.goTo(index);
+      state.host.goTo(target);
     },
     get isOpen() {
       return state.host?.getOpen() ?? false;
@@ -211,10 +216,7 @@ function unbindLightboxHandle(handle: LightboxHandle<any>, host: LightboxHandleH
  * The registration object is mutated in place by Trigger; call
  * `touchHandleTrigger` after mutating element/image/morph fields.
  */
-function registerHandleTrigger(
-  handle: LightboxHandle<any>,
-  reg: LightboxHandleTriggerRegistration,
-): () => void {
+function registerHandleTrigger(handle: LightboxHandle<any>, reg: LightboxHandleTriggerRegistration): () => void {
   const state = getHandleState(handle);
   const prev = state.triggers.get(reg.id);
   if (prev && prev !== reg) {
@@ -222,13 +224,22 @@ function registerHandleTrigger(
   }
   state.triggers.set(reg.id, reg);
   state.host?.syncTrigger(reg);
-  notifyHandle(state);
+  notifyIfOpen(state);
   return () => {
     if (state.triggers.get(reg.id) !== reg) return;
     state.triggers.delete(reg.id);
     state.host?.unsyncTrigger(reg);
-    notifyHandle(state);
+    notifyIfOpen(state);
   };
+}
+
+/**
+ * Registration churn (a virtualized feed mounting rows) only changes what
+ * triggers read while the viewer is open — closed, every snapshot is `false` —
+ * so skip the O(triggers) notify then.
+ */
+function notifyIfOpen(state: LightboxHandleState): void {
+  if (state.host?.getOpen()) notifyHandle(state);
 }
 
 /** @internal Re-sync a mutated registration object to the bound Root. */
@@ -236,14 +247,11 @@ function touchHandleTrigger(handle: LightboxHandle<any>, reg: LightboxHandleTrig
   const state = getHandleState(handle);
   if (state.triggers.get(reg.id) !== reg) return;
   state.host?.syncTrigger(reg);
-  notifyHandle(state);
+  notifyIfOpen(state);
 }
 
 /** @internal */
-function getHandleTrigger(
-  handle: LightboxHandle<any>,
-  id: string,
-): LightboxHandleTriggerRegistration | undefined {
+function getHandleTrigger(handle: LightboxHandle<any>, id: string): LightboxHandleTriggerRegistration | undefined {
   return getHandleState(handle).triggers.get(id);
 }
 

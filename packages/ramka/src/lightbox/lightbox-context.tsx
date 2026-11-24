@@ -10,6 +10,7 @@
 import * as React from 'react';
 
 import type { LightboxStore } from './lightbox-store';
+import type { LightboxHandleHost, LightboxHandleTriggerRegistration } from './lightbox-handle';
 import type { SlidesGeometry } from './lightbox-slides-geometry';
 import type { InitializedRef } from '../react-compat';
 import type { LightboxViewTransitionPreset } from './vt-timing';
@@ -268,9 +269,7 @@ interface LightboxSlidesBridgeSlice {
    * (WAAPI track scrub + index commit, no stage view transition). Written by
    * the strip; read by `navigate`. `null` when no strip is mounted.
    */
-  thumbnailStripSelectRef: React.MutableRefObject<
-    ((index: number, source: NavigationSource) => void) | null
-  >;
+  thumbnailStripSelectRef: React.MutableRefObject<((index: number, source: NavigationSource) => void) | null>;
   /**
    * Discrete navigation entry point for keyboard / Previous / Next. Routes
    * through the mounted ThumbnailStrip (so the strip scrubs with the stage)
@@ -322,6 +321,16 @@ interface LightboxStableContextValue {
   registerItem: (index: number) => () => void;
   /** Register an Item's `itemId` → index for the keyed-trigger join. */
   registerItemId: (itemId: string, index: number) => () => void;
+  /** Set the open's payload from a Root-tree index Trigger (`payload` prop). */
+  setOpenPayload: (payload: unknown) => void;
+  /** Keyed Triggers inside the Root tree without a `handle` register here. */
+  registerKeyedTrigger: (reg: LightboxHandleTriggerRegistration) => () => void;
+  /** Re-sync a keyed registration whose element/image changed. */
+  touchKeyedTrigger: (reg: LightboxHandleTriggerRegistration) => void;
+  /** The Root's keyed host (same object a bound handle exposes). */
+  keyedHost: LightboxHandleHost;
+  /** Subscribe to keyed-host changes (open, navigation, join). */
+  subscribeKeyed: (listener: () => void) => () => void;
   registerCaption: (index: number, caption: React.ReactNode) => () => void;
   subscribeOpenComplete: (listener: () => void) => () => void;
   openTransitionPendingRef: React.MutableRefObject<boolean>;
@@ -338,9 +347,7 @@ interface LightboxStableContextValue {
   openingTriggerImageRef: React.MutableRefObject<HTMLImageElement | null>;
 }
 
-const LightboxStableContext = React.createContext<LightboxStableContextValue | undefined>(
-  undefined,
-);
+const LightboxStableContext = React.createContext<LightboxStableContextValue | undefined>(undefined);
 
 function useLightboxStableContext(): LightboxStableContextValue {
   const context = React.useContext(LightboxStableContext);

@@ -1421,14 +1421,15 @@ Groups all parts of the lightbox and owns open state, active index, view-transit
 | --- | --- | --- | --- |
 | children | `ReactNode \| ((state: LightboxRootRenderState<Payload>) => ReactNode)` |  | Lightbox parts and page content (triggers typically live as children of Root). Pass a function to render the viewer from the open's `payload` — the shape for one Root serving many galleries through keyed Triggers. |
 | handle | `LightboxHandle<Payload>` |  | Imperative handle from `Lightbox.createHandle()`. Pass the same handle to detached `Lightbox.Trigger`s outside this Root. |
-| revealTrigger | `(details: LightboxRevealTriggerDetails<Payload>) => void` |  | Bring an unmounted keyed trigger back so the close morph has somewhere to land — for triggers inside a virtualized list, whose rows unmount when they scroll away. Called with the active item's `itemId` when the close target has no mounted trigger: on close (the close then waits a few frames for a trigger to register before morphing, and fades if none does), and after navigation settles while open. Scroll the row that holds the item into view here, e.g. `virtualizer.scrollToIndex(row)`. Only keyed Triggers (`itemId` + `handle`) are revealed. |
+| revealTrigger | `LightboxRevealTrigger<Payload>` |  | Bring an unmounted keyed trigger back so the close morph has somewhere to land — for triggers inside a virtualized list, whose rows unmount when they scroll away. Called with the active item's `itemId` when the close target has no mounted trigger. Scroll the row that holds the item into view here, e.g. `virtualizer.scrollToIndex(row)`. - On close (`reason: 'close'`) the morph waits for the trigger to mount and its position to settle, up to a few frames, then morphs (or fades if it never mounts). Return a Promise to wait for your own signal instead (bound it yourself; `signal` aborts if a newer open/close wins), or `false` when the item can't be revealed, to skip the wait. - While open (`reason: 'change'`) it is called after navigation settles, only when `scrollTriggerIntoView` includes `onChange` — the same moments Root scrolls a mounted trigger into view. Without view transitions nothing waits: the trigger is revealed and focus returns to it once it mounts. Use `behavior: 'instant'` scrolling; a smooth scroll outlasts the wait. Only keyed Triggers (`itemId`) are revealed. |
+| defaultPayload | `Payload` |  | Payload for a Root that starts open (`defaultOpen` / controlled `open`) — a deep link rendered from the URL. Later opens set the payload from the opening Trigger or `handle.open({ payload })`. Pair with `defaultValue` (or `value`) for the item's index, e.g. `payload.images.findIndex((image) => image.id === params.photo)`. |
 | defaultOpen | `boolean` | `false` | Uncontrolled initial open state. |
 | open | `boolean` |  | Controlled open state. |
 | onOpenChange | `(open: boolean) => void` |  | Called when open state changes (immediately, before enter/exit animations finish). Prefer this for syncing URL state or stores. |
 | onOpenChangeComplete | `(open: boolean) => void` |  | Called when the open/close transition settles. Receives `true` after open completes, `false` after close completes. Prefer this for cleanup and focus management. |
 | defaultValue | `number` | `0` | Uncontrolled initial active index. |
 | value | `number` |  | Controlled active index. |
-| onValueChange | `(value: number, metadata: { source: NavigationSource }) => void` |  | Callback when active index changes. |
+| onValueChange | `(value: number, metadata: { source: NavigationSource; itemId?: string }) => void` |  | Callback when active index changes. `metadata.itemId` is the new active item's `itemId` when it has one — the stable key to write to a URL. |
 | count | `number` |  | Total number of items, used until the mounted `Lightbox.Item`s have registered themselves. Registration happens in effects, which never run during server rendering — so a page that server-renders an open lightbox paints `Lightbox.Counter` as "n / 0" (and boundary-disables `Lightbox.Next` / `Lightbox.Previous` when `loop` is off) until hydration. Pass the item total to make that first paint correct. Once any item mounts the live registry takes over and this prop is ignored, so it can't drift from the real count. |
 | loop | `boolean` | `false` | Wrap navigation at boundaries. |
 | dir | `TextDirection` | `'ltr' (behavior); no `dir` attribute is written when omitted` | Reading direction. `'rtl'` mirrors slide navigation, thumbnail-strip travel, and the horizontal arrow keys (so `ArrowLeft` advances). Setting this is enough on its own: the direction is written to the `Lightbox.Portal` host as a `dir` attribute, so CSS follows it across the portal boundary even though the host mounts on `document.body`. That also makes it the way to run one RTL lightbox inside an otherwise-LTR page. Pass it whenever the surrounding UI is RTL, including in an app that is already RTL end to end (`dir="rtl"` on `<html>`) — behavior falls back to `'ltr'` without it, and navigation would run against the layout. Omitting it writes no attribute at all, so such an app still *lays out* RTL by inheritance; in development that disagreement logs a warning. |
@@ -1447,10 +1448,10 @@ Opens the lightbox at a given index and is the morph source (view transitions on
 
 | Name | Type | Default | Description |
 | --- | --- | --- | --- |
-| index | `number` |  | Item index this trigger opens. Required unless `itemId` is set; with `itemId` it is optional and, when passed, skips resolving the index from the mounted items. |
-| itemId | `string` |  | Open the item with this `itemId` (see `Lightbox.Item`'s `itemId`) instead of a fixed index. Requires `handle`. Keyed triggers can share one Root across many galleries: only triggers whose `itemId` is in the open gallery take part in the morph, placeholders and `morphTo`, so two messages' first images never collide on index 0. |
-| overflowItemIds | `readonly string[]` |  | Items this trigger stands in for without opening them — the images collapsed behind a "+N" tile. While one of them is active the close morph lands on this trigger (and it hides as the morph target), exactly as for its own `itemId`; an item's own trigger always wins. Pair with `crossfade="both"`, since the tile shows a different photo. Requires `itemId`. |
-| payload | `Payload` |  | Data for the gallery this trigger opens, handed to Root's render-function `children` as `payload` when this trigger opens it. Pass whatever the viewer needs — the full image list, or just an id to look it up by. |
+| index | `number` |  | Item index this trigger opens. Use either `index` or `itemId`. |
+| itemId | `string` |  | Open the item with this `itemId` (see `Lightbox.Item`'s `itemId`) instead of a fixed index. Keyed triggers can share one Root across many galleries — inside the Root, or anywhere with a `handle`: only triggers whose `itemId` is in the open gallery take part in the morph, placeholders and `morphTo`, so two messages' first images never collide on index 0. |
+| overflowItemIds | `readonly string[]` |  | With `itemId`: items this trigger stands in for without opening them — the images collapsed behind a "+N" tile. While one of them is active the close morph lands on this trigger (and it hides as the morph target), crossfading since the tile shows a different photo; an item's own trigger always wins. |
+| payload | `Payload` |  | Data for the gallery this trigger opens, handed to Root's render-function `children` as `payload`. Pass whatever the viewer needs — the full image list, or just an id to look it up by. Required when the handle declares a payload type (`createHandle<Payload>()`), so a trigger can't silently reopen the previous gallery. |
 | id | `string` |  | Stable id for this trigger. Required for `handle.open(index, { triggerId })` association and for detached Triggers. Also applied as the DOM `id`. |
 | handle | `LightboxHandle<Payload>` |  | Handle from `Lightbox.createHandle()`. Pass the same handle as Root to use this Trigger outside the Root tree (Base UI Dialog-style detached triggers). |
 | crossfade | `'open' \| 'close' \| 'both'` |  | Crossfade between trigger and item snapshots during the view-transition morph. Omit (default) for a hard-cut morph — ideal when trigger and item show the same image at the same intrinsic aspect (a CSS `object-cover` window or smaller srcset is fine; a CDN-baked crop that changes the aspect is not). Use a direction when they differ visually: - `'both'` — crossfade on open and close (e.g. a stack → single photo) - `'open'` — crossfade only when opening - `'close'` — crossfade only when closing (e.g. poster → live video) Sets `data-crossfade` on the trigger and `data-ramka-crossfade` on `<html>` during phases that dissolve (omitted for hard-cut). |
@@ -1962,9 +1963,9 @@ Imperative handle from Lightbox.createHandle(). Pass to Root (and optional detac
 
 | Name | Type | Default | Description |
 | --- | --- | --- | --- |
-| open | `{ (index?: number, options?: LightboxHandleOpenOptions<Payload>): void; (options: LightboxHandleOpenOptions<Payload>): void; }` |  | Open the lightbox. Optional `index` sets the active item. Pass `options.triggerId` to associate the open with a registered Trigger so view-transition morph / placeholders can use that element, and `options.payload` / `options.itemId` to open a payload-driven gallery. Call only from an event handler or effect — not during render. |
+| open | `((index?: number, options?: LightboxHandleOpenOptions<Payload>) => void) \| ((options: LightboxHandleOpenOptions<Payload>) => void)` |  | Open the lightbox. Optional `index` sets the active item. Pass `options.triggerId` to associate the open with a registered Trigger so view-transition morph / placeholders can use that element, and `options.payload` / `options.itemId` to open a payload-driven gallery. Opening by `itemId` morphs from that item's mounted keyed Trigger, if any. Call only from an event handler or effect — not during render. |
 | close | `() => void` |  | Close the lightbox. |
-| goTo | `(index: number) => void` |  | Navigate to an index (source: `imperative`). Does not open. |
+| goTo | `((index: number) => void) \| ((target: { itemId: string }) => void)` |  | Navigate to an index, or to the mounted `Lightbox.Item` with this `itemId` (source: `imperative`). Does not open. |
 | isOpen | `boolean` |  | Whether the bound Root is currently open. |
 
 ### LightboxZoomRef
@@ -10234,6 +10235,7 @@ function PhotoGrid({ message, payload }: { message: ChatMessage; payload: Viewer
         image={image}
         payload={payload}
         label={`Open ${image.alt}`}
+        sizes="240px"
         className="block w-[240px] overflow-hidden rounded-2xl"
         imageClassName="block h-auto w-full"
       />
@@ -10245,18 +10247,20 @@ function PhotoGrid({ message, payload }: { message: ChatMessage; payload: Viewer
     <div className={`grid w-[260px] gap-0.5 overflow-hidden rounded-2xl ${gridClass}`}>
       {tiles.map((image, i) => {
         const overflow = i === VISIBLE_TILES - 1 && hidden.length > 0;
+        const tall = count === 3 && i === 0;
         return (
           <PhotoTrigger
             key={image.id}
             image={image}
             payload={payload}
             // The "+N" tile opens its own photo and stands in for the hidden
-            // ones: closing on any of them lands back here. It shows a
-            // different photo than they do, so dissolve instead of stretching.
+            // ones: closing on any of them lands back here (with a dissolve,
+            // since the tile shows a different photo).
             overflowItemIds={overflow ? hidden.map((h) => h.id) : undefined}
-            crossfade={overflow ? 'both' : undefined}
-            label={overflow ? `Open all ${count} photos` : `Open ${image.alt}`}
-            className={`relative block size-full overflow-hidden ${count === 3 && i === 0 ? 'row-span-2' : ''}`}
+            label={overflow ? `Open ${image.alt}, ${hidden.length} more` : `Open ${image.alt}`}
+            // Half-width tiles; the tall one is cropped from a full-height image.
+            sizes={tall ? '260px' : '130px'}
+            className={`relative block size-full overflow-hidden ${tall ? 'row-span-2' : ''}`}
             imageClassName="block size-full object-cover"
           >
             {overflow ? (
@@ -10275,8 +10279,8 @@ function PhotoTrigger({
   image,
   payload,
   overflowItemIds,
-  crossfade,
   label,
+  sizes,
   className,
   imageClassName,
   children,
@@ -10284,8 +10288,8 @@ function PhotoTrigger({
   image: ChatImage;
   payload: ViewerPayload;
   overflowItemIds?: string[];
-  crossfade?: 'both';
   label: string;
+  sizes: string;
   className: string;
   imageClassName: string;
   children?: React.ReactNode;
@@ -10296,7 +10300,6 @@ function PhotoTrigger({
       itemId={image.id}
       payload={payload}
       overflowItemIds={overflowItemIds}
-      crossfade={crossfade}
       aria-label={label}
       className={`cursor-pointer border-none bg-neutral-200 p-0 dark:bg-neutral-800 ${triggerFocusClass} ${className}`}
     >
@@ -10306,7 +10309,9 @@ function PhotoTrigger({
             ref={imageRef}
             src={image.src}
             alt=""
-            sizes="260px"
+            sizes={sizes}
+            // Rows mount as they scroll in; lazy loading would fetch them late.
+            loading="eager"
             placeholder="blur"
             draggable={false}
             className={imageClassName}

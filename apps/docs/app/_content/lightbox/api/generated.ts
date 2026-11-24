@@ -20,8 +20,13 @@ export const generatedProps: Record<string, PropRow[]> = {
     },
     {
       name: "revealTrigger",
-      type: "(details: LightboxRevealTriggerDetails<Payload>) => void",
-      description: "Bring an unmounted keyed trigger back so the close morph has somewhere to land — for triggers inside a virtualized list, whose rows unmount when they scroll away. Called with the active item's `itemId` when the close target has no mounted trigger: on close (the close then waits a few frames for a trigger to register before morphing, and fades if none does), and after navigation settles while open. Scroll the row that holds the item into view here, e.g. `virtualizer.scrollToIndex(row)`.\n\nOnly keyed Triggers (`itemId` + `handle`) are revealed.",
+      type: "LightboxRevealTrigger<Payload>",
+      description: "Bring an unmounted keyed trigger back so the close morph has somewhere to land — for triggers inside a virtualized list, whose rows unmount when they scroll away. Called with the active item's `itemId` when the close target has no mounted trigger. Scroll the row that holds the item into view here, e.g. `virtualizer.scrollToIndex(row)`.\n\n- On close (`reason: 'close'`) the morph waits for the trigger to mount and its position to settle, up to a few frames, then morphs (or fades if it never mounts). Return a Promise to wait for your own signal instead (bound it yourself; `signal` aborts if a newer open/close wins), or `false` when the item can't be revealed, to skip the wait.\n- While open (`reason: 'change'`) it is called after navigation settles, only when `scrollTriggerIntoView` includes `onChange` — the same moments Root scrolls a mounted trigger into view.\n\nWithout view transitions nothing waits: the trigger is revealed and focus returns to it once it mounts. Use `behavior: 'instant'` scrolling; a smooth scroll outlasts the wait. Only keyed Triggers (`itemId`) are revealed.",
+    },
+    {
+      name: "defaultPayload",
+      type: "Payload",
+      description: "Payload for a Root that starts open (`defaultOpen` / controlled `open`) — a deep link rendered from the URL. Later opens set the payload from the opening Trigger or `handle.open({ payload })`. Pair with `defaultValue` (or `value`) for the item's index, e.g. `payload.images.findIndex((image) => image.id === params.photo)`.",
     },
     {
       name: "defaultOpen",
@@ -57,8 +62,8 @@ export const generatedProps: Record<string, PropRow[]> = {
     },
     {
       name: "onValueChange",
-      type: "(value: number, metadata: { source: NavigationSource }) => void",
-      description: "Callback when active index changes.",
+      type: "(value: number, metadata: { source: NavigationSource; itemId?: string }) => void",
+      description: "Callback when active index changes. `metadata.itemId` is the new active item's `itemId` when it has one — the stable key to write to a URL.",
     },
     {
       name: "count",
@@ -116,22 +121,22 @@ export const generatedProps: Record<string, PropRow[]> = {
     {
       name: "index",
       type: "number",
-      description: "Item index this trigger opens. Required unless `itemId` is set; with `itemId` it is optional and, when passed, skips resolving the index from the mounted items.",
+      description: "Item index this trigger opens. Use either `index` or `itemId`.",
     },
     {
       name: "itemId",
       type: "string",
-      description: "Open the item with this `itemId` (see `Lightbox.Item`'s `itemId`) instead of a fixed index. Requires `handle`. Keyed triggers can share one Root across many galleries: only triggers whose `itemId` is in the open gallery take part in the morph, placeholders and `morphTo`, so two messages' first images never collide on index 0.",
+      description: "Open the item with this `itemId` (see `Lightbox.Item`'s `itemId`) instead of a fixed index. Keyed triggers can share one Root across many galleries — inside the Root, or anywhere with a `handle`: only triggers whose `itemId` is in the open gallery take part in the morph, placeholders and `morphTo`, so two messages' first images never collide on index 0.",
     },
     {
       name: "overflowItemIds",
       type: "readonly string[]",
-      description: "Items this trigger stands in for without opening them — the images collapsed behind a \"+N\" tile. While one of them is active the close morph lands on this trigger (and it hides as the morph target), exactly as for its own `itemId`; an item's own trigger always wins. Pair with `crossfade=\"both\"`, since the tile shows a different photo. Requires `itemId`.",
+      description: "With `itemId`: items this trigger stands in for without opening them — the images collapsed behind a \"+N\" tile. While one of them is active the close morph lands on this trigger (and it hides as the morph target), crossfading since the tile shows a different photo; an item's own trigger always wins.",
     },
     {
       name: "payload",
       type: "Payload",
-      description: "Data for the gallery this trigger opens, handed to Root's render-function `children` as `payload` when this trigger opens it. Pass whatever the viewer needs — the full image list, or just an id to look it up by.",
+      description: "Data for the gallery this trigger opens, handed to Root's render-function `children` as `payload`. Pass whatever the viewer needs — the full image list, or just an id to look it up by. Required when the handle declares a payload type (`createHandle<Payload>()`), so a trigger can't silently reopen the previous gallery.",
     },
     {
       name: "id",
@@ -482,8 +487,8 @@ export const generatedProps: Record<string, PropRow[]> = {
   "api-create-handle": [
     {
       name: "open",
-      type: "{ (index?: number, options?: LightboxHandleOpenOptions<Payload>): void; (options: LightboxHandleOpenOptions<Payload>): void; }",
-      description: "Open the lightbox. Optional `index` sets the active item. Pass `options.triggerId` to associate the open with a registered Trigger so view-transition morph / placeholders can use that element, and `options.payload` / `options.itemId` to open a payload-driven gallery.\n\nCall only from an event handler or effect — not during render.",
+      type: "((index?: number, options?: LightboxHandleOpenOptions<Payload>) => void) | ((options: LightboxHandleOpenOptions<Payload>) => void)",
+      description: "Open the lightbox. Optional `index` sets the active item. Pass `options.triggerId` to associate the open with a registered Trigger so view-transition morph / placeholders can use that element, and `options.payload` / `options.itemId` to open a payload-driven gallery. Opening by `itemId` morphs from that item's mounted keyed Trigger, if any.\n\nCall only from an event handler or effect — not during render.",
     },
     {
       name: "close",
@@ -492,8 +497,8 @@ export const generatedProps: Record<string, PropRow[]> = {
     },
     {
       name: "goTo",
-      type: "(index: number) => void",
-      description: "Navigate to an index (source: `imperative`). Does not open.",
+      type: "((index: number) => void) | ((target: { itemId: string }) => void)",
+      description: "Navigate to an index, or to the mounted `Lightbox.Item` with this `itemId` (source: `imperative`). Does not open.",
     },
     {
       name: "isOpen",

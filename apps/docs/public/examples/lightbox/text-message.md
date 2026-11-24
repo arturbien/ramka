@@ -219,6 +219,7 @@ function PhotoGrid({ message, payload }: { message: ChatMessage; payload: Viewer
         image={image}
         payload={payload}
         label={`Open ${image.alt}`}
+        sizes="240px"
         className="block w-[240px] overflow-hidden rounded-2xl"
         imageClassName="block h-auto w-full"
       />
@@ -230,18 +231,20 @@ function PhotoGrid({ message, payload }: { message: ChatMessage; payload: Viewer
     <div className={`grid w-[260px] gap-0.5 overflow-hidden rounded-2xl ${gridClass}`}>
       {tiles.map((image, i) => {
         const overflow = i === VISIBLE_TILES - 1 && hidden.length > 0;
+        const tall = count === 3 && i === 0;
         return (
           <PhotoTrigger
             key={image.id}
             image={image}
             payload={payload}
             // The "+N" tile opens its own photo and stands in for the hidden
-            // ones: closing on any of them lands back here. It shows a
-            // different photo than they do, so dissolve instead of stretching.
+            // ones: closing on any of them lands back here (with a dissolve,
+            // since the tile shows a different photo).
             overflowItemIds={overflow ? hidden.map((h) => h.id) : undefined}
-            crossfade={overflow ? 'both' : undefined}
-            label={overflow ? `Open all ${count} photos` : `Open ${image.alt}`}
-            className={`relative block size-full overflow-hidden ${count === 3 && i === 0 ? 'row-span-2' : ''}`}
+            label={overflow ? `Open ${image.alt}, ${hidden.length} more` : `Open ${image.alt}`}
+            // Half-width tiles; the tall one is cropped from a full-height image.
+            sizes={tall ? '260px' : '130px'}
+            className={`relative block size-full overflow-hidden ${tall ? 'row-span-2' : ''}`}
             imageClassName="block size-full object-cover"
           >
             {overflow ? (
@@ -260,8 +263,8 @@ function PhotoTrigger({
   image,
   payload,
   overflowItemIds,
-  crossfade,
   label,
+  sizes,
   className,
   imageClassName,
   children,
@@ -269,8 +272,8 @@ function PhotoTrigger({
   image: ChatImage;
   payload: ViewerPayload;
   overflowItemIds?: string[];
-  crossfade?: 'both';
   label: string;
+  sizes: string;
   className: string;
   imageClassName: string;
   children?: React.ReactNode;
@@ -281,7 +284,6 @@ function PhotoTrigger({
       itemId={image.id}
       payload={payload}
       overflowItemIds={overflowItemIds}
-      crossfade={crossfade}
       aria-label={label}
       className={`cursor-pointer border-none bg-neutral-200 p-0 dark:bg-neutral-800 ${triggerFocusClass} ${className}`}
     >
@@ -291,7 +293,9 @@ function PhotoTrigger({
             ref={imageRef}
             src={image.src}
             alt=""
-            sizes="260px"
+            sizes={sizes}
+            // Rows mount as they scroll in; lazy loading would fetch them late.
+            loading="eager"
             placeholder="blur"
             draggable={false}
             className={imageClassName}

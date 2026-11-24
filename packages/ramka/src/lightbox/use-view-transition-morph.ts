@@ -726,6 +726,11 @@ interface ViewTransitionMorphConfig {
   triggerElementsRef: InitializedRef<Map<number, HTMLElement>>;
   /** Trigger element → its designated morph descendant (see findTriggerMorphTarget). */
   triggerMorphElementsRef: InitializedRef<WeakMap<HTMLElement, HTMLElement>>;
+  /**
+   * Indexes whose trigger stands in for an item it doesn't show (a "+N" tile).
+   * Closing onto one always crossfades: the tile shows a different photo.
+   */
+  standInTriggerIndexesRef: InitializedRef<Set<number>>;
   activeItemElementRef: React.RefObject<HTMLElement | null>;
   /** Item element → its designated morph descendant (see findItemMorphTarget). */
   itemMorphElementsRef: InitializedRef<WeakMap<HTMLElement, HTMLElement>>;
@@ -1145,6 +1150,7 @@ function createViewTransitionMorph(getConfig: () => ViewTransitionMorphConfig): 
       scrollTriggerIntoView,
       triggerElementsRef,
       triggerMorphElementsRef,
+      standInTriggerIndexesRef,
       activeItemElementRef,
       itemMorphElementsRef,
       destinationMorphElementRef,
@@ -1177,7 +1183,8 @@ function createViewTransitionMorph(getConfig: () => ViewTransitionMorphConfig): 
     // root crossfade instead.
     const canMorph = !!triggerTarget && !!itemTarget;
     const useCrossfade = canMorph
-      ? shouldUseCrossfade(triggerEl?.dataset.crossfade, 'closing')
+      ? standInTriggerIndexesRef.current.has(triggerIdx) ||
+        shouldUseCrossfade(triggerEl?.dataset.crossfade, 'closing')
       : true;
 
     // Batch all reads before any writes to avoid forced reflow. Resolve to
