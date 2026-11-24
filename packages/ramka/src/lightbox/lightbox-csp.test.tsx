@@ -51,14 +51,14 @@ const NONCE = 'test-nonce-value';
 /** An open gallery exercising all three hoistable-style owners (Trigger, Slides, Media). */
 function openGallery(): React.ReactElement {
   return (
-    <LightboxRoot defaultOpen defaultValue={1}>
-      <LightboxTrigger index={0}>open</LightboxTrigger>
+    <LightboxRoot defaultOpen defaultValue="1">
+      <LightboxTrigger itemId="0">open</LightboxTrigger>
       <LightboxPortal container={null}>
         <LightboxContent aria-label="viewer">
           <LightboxSlides aria-label="Slides">
             {[0, 1].map((i) => (
               <LightboxSlide key={i}>
-                <LightboxItem index={i} aria-label={`${i + 1} of 2`}>
+                <LightboxItem index={i} itemId={String(i)} aria-label={`${i + 1} of 2`}>
                   <LightboxMedia width={800} height={600}>
                     <img src={`/${i}.jpg`} alt="" width={800} height={600} />
                   </LightboxMedia>
@@ -87,9 +87,7 @@ function styleTagAttrs(html: string): string[] {
 // gated to React 19+ (react-style-hoisting.ts) — no tags render there at all.
 describe.runIf(REACT_SUPPORTS_STYLE_HOISTING)('Lightbox.CSPProvider (hoistable style nonce)', () => {
   it('stamps the nonce on the hoisted style tags when provider and render option agree', async () => {
-    const html = await renderWithStyleNonce(
-      <LightboxCSPProvider nonce={NONCE}>{openGallery()}</LightboxCSPProvider>,
-    );
+    const html = await renderWithStyleNonce(<LightboxCSPProvider nonce={NONCE}>{openGallery()}</LightboxCSPProvider>);
 
     const tags = styleTagAttrs(html);
     expect(tags.length).toBeGreaterThan(0);
@@ -109,7 +107,7 @@ describe.runIf(REACT_SUPPORTS_STYLE_HOISTING)('Lightbox.CSPProvider (hoistable s
     const handle = createHandle();
     const html = await renderWithStyleNonce(
       <LightboxCSPProvider nonce={NONCE}>
-        <LightboxTrigger handle={handle} index={0}>
+        <LightboxTrigger handle={handle} itemId="0">
           open
         </LightboxTrigger>
       </LightboxCSPProvider>,

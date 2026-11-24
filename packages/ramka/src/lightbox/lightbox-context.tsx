@@ -223,22 +223,6 @@ interface LightboxMorphSlice {
    * programmatic open) or for preloaded adjacent slides.
    */
   triggerImageElementsRef: InitializedRef<Map<number, HTMLImageElement>>;
-  /**
-   * Triggers that declared a stable `id` (for `handle.open` / Root `triggerId`
-   * association). Keyed by id; used when the Trigger is under Root without
-   * going through a detached handle registration.
-   */
-  triggerIdsRef: InitializedRef<
-    Map<
-      string,
-      {
-        id: string;
-        index: number;
-        element: HTMLElement | null;
-        image: HTMLImageElement | null;
-      }
-    >
-  >;
 }
 
 /** Slides viewport/geometry pub-sub + strip-aware `navigate`. */
@@ -321,16 +305,20 @@ interface LightboxStableContextValue {
   registerItem: (index: number) => () => void;
   /** Register an Item's `itemId` → index for the keyed-trigger join. */
   registerItemId: (itemId: string, index: number) => () => void;
-  /** Set the open's payload from a Root-tree index Trigger (`payload` prop). */
-  setOpenPayload: (payload: unknown) => void;
-  /** Keyed Triggers inside the Root tree without a `handle` register here. */
+  /** Triggers inside the Root tree without a `handle` register here. */
   registerKeyedTrigger: (reg: LightboxHandleTriggerRegistration) => () => void;
-  /** Re-sync a keyed registration whose element/image changed. */
+  /** Re-sync a registration whose element/image changed. */
   touchKeyedTrigger: (reg: LightboxHandleTriggerRegistration) => void;
-  /** The Root's keyed host (same object a bound handle exposes). */
+  /** The Root's host (same object a bound handle exposes). */
   keyedHost: LightboxHandleHost;
-  /** Subscribe to keyed-host changes (open, navigation, join). */
+  /** Subscribe to host changes (open, navigation, join). */
   subscribeKeyed: (listener: () => void) => () => void;
+  /**
+   * Root's `itemIds` as a set, written during Root's render: which items
+   * belong to the open gallery during a server render, before any item has
+   * registered.
+   */
+  serverItemIdsRef: React.MutableRefObject<ReadonlySet<string> | null>;
   registerCaption: (index: number, caption: React.ReactNode) => () => void;
   subscribeOpenComplete: (listener: () => void) => () => void;
   openTransitionPendingRef: React.MutableRefObject<boolean>;
@@ -341,7 +329,6 @@ interface LightboxStableContextValue {
   triggerImageElementsRef: InitializedRef<Map<number, HTMLImageElement>>;
   /** Indexes covered only by a stand-in trigger (`overflowItemIds`), which lends no image. */
   standInTriggerIndexesRef: InitializedRef<Set<number>>;
-  triggerIdsRef: LightboxMorphSlice['triggerIdsRef'];
   openingTriggerIndexRef: React.MutableRefObject<number>;
   openingTriggerElementRef: React.MutableRefObject<HTMLElement | null>;
   openingTriggerImageRef: React.MutableRefObject<HTMLImageElement | null>;

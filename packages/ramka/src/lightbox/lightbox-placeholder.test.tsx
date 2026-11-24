@@ -152,13 +152,13 @@ describe('render-fn placeholder wiring (Trigger imageRef -> Item imageRef)', () 
   it('paints the trigger image as the destination background and clears it on load', async () => {
     render(
       <LightboxRoot>
-        <LightboxTrigger index={0} data-testid="trigger">
+        <LightboxTrigger itemId="0" data-testid="trigger">
           {({ imageRef }) => <img ref={imageRef} src="/thumb.jpg" alt="thumb" />}
         </LightboxTrigger>
         <LightboxPortal>
           <LightboxContent aria-label="viewer">
             <SlidesHost>
-              <LightboxItem index={0}>
+              <LightboxItem index={0} itemId="0">
                 {({ imageRef }) => <img ref={imageRef} src="/full.jpg" alt="full" className="object-contain" />}
               </LightboxItem>
             </SlidesHost>
@@ -179,13 +179,13 @@ describe('render-fn placeholder wiring (Trigger imageRef -> Item imageRef)', () 
   it('defers clearing the placeholder until after the image paints (Safari flash fix)', async () => {
     render(
       <LightboxRoot>
-        <LightboxTrigger index={0} data-testid="trigger">
+        <LightboxTrigger itemId="0" data-testid="trigger">
           {({ imageRef }) => <img ref={imageRef} src="/thumb.jpg" alt="thumb" />}
         </LightboxTrigger>
         <LightboxPortal>
           <LightboxContent aria-label="viewer">
             <SlidesHost>
-              <LightboxItem index={0}>
+              <LightboxItem index={0} itemId="0">
                 {({ imageRef }) => <img ref={imageRef} src="/full.jpg" alt="full" />}
               </LightboxItem>
             </SlidesHost>
@@ -221,13 +221,13 @@ describe('render-fn placeholder wiring (Trigger imageRef -> Item imageRef)', () 
 
     render(
       <LightboxRoot viewTransition>
-        <LightboxTrigger index={0} data-testid="trigger">
+        <LightboxTrigger itemId="0" data-testid="trigger">
           {({ imageRef }) => <img ref={imageRef} src="/thumb.jpg" alt="thumb" />}
         </LightboxTrigger>
         <LightboxPortal>
           <LightboxContent aria-label="viewer">
             <SlidesHost>
-              <LightboxItem index={0}>
+              <LightboxItem index={0} itemId="0">
                 {({ imageRef }) => <img ref={imageRef} src="/full.jpg" alt="full" />}
               </LightboxItem>
             </SlidesHost>
@@ -258,31 +258,31 @@ describe('render-fn placeholder wiring (Trigger imageRef -> Item imageRef)', () 
 
   it('paints the matching trigger when navigating past the preload window', () => {
     function Harness() {
-      const [value, setValue] = React.useState(0);
+      const [value, setValue] = React.useState('0');
       return (
         <LightboxRoot value={value} onValueChange={setValue}>
-          <LightboxTrigger index={0} data-testid="trigger-0">
+          <LightboxTrigger itemId="0" data-testid="trigger-0">
             {({ imageRef }) => <img ref={imageRef} src="/thumb-0.jpg" alt="0" />}
           </LightboxTrigger>
-          <LightboxTrigger index={1} data-testid="trigger-1">
+          <LightboxTrigger itemId="1" data-testid="trigger-1">
             {({ imageRef }) => <img ref={imageRef} src="/thumb-1.jpg" alt="1" />}
           </LightboxTrigger>
-          <LightboxTrigger index={2} data-testid="trigger-2">
+          <LightboxTrigger itemId="2" data-testid="trigger-2">
             {({ imageRef }) => <img ref={imageRef} src="/thumb-2.jpg" alt="2" />}
           </LightboxTrigger>
-          <button type="button" data-testid="jump" onClick={() => setValue(2)}>
+          <button type="button" data-testid="jump" onClick={() => setValue('2')}>
             jump
           </button>
           <LightboxPortal>
             <LightboxContent aria-label="viewer">
               <SlidesHost preload={0}>
-                <LightboxItem index={0}>
+                <LightboxItem index={0} itemId="0">
                   {({ imageRef }) => <img ref={imageRef} src="/full-0.jpg" alt="0" />}
                 </LightboxItem>
-                <LightboxItem index={1}>
+                <LightboxItem index={1} itemId="1">
                   {({ imageRef }) => <img ref={imageRef} src="/full-1.jpg" alt="1" />}
                 </LightboxItem>
-                <LightboxItem index={2}>
+                <LightboxItem index={2} itemId="2">
                   {({ imageRef }) => <img ref={imageRef} src="/full-2.jpg" alt="2" />}
                 </LightboxItem>
               </SlidesHost>
@@ -309,13 +309,13 @@ describe('render-fn placeholder wiring (Trigger imageRef -> Item imageRef)', () 
 
     render(
       <LightboxRoot>
-        <LightboxTrigger index={0} data-testid="trigger">
+        <LightboxTrigger itemId="0" data-testid="trigger">
           {({ imageRef }) => <img ref={imageRef} src="/thumb.jpg" alt="thumb" />}
         </LightboxTrigger>
         <LightboxPortal>
           <LightboxContent aria-label="viewer">
             <SlidesHost>
-              <LightboxItem index={0}>
+              <LightboxItem index={0} itemId="0">
                 {({ imageRef }) => <img ref={imageRef} src="/full.jpg" alt="full" />}
               </LightboxItem>
             </SlidesHost>
@@ -331,7 +331,7 @@ describe('render-fn placeholder wiring (Trigger imageRef -> Item imageRef)', () 
   it('sources the placeholder only from Trigger imageRef, excluding a +N overlay', () => {
     render(
       <LightboxRoot>
-        <LightboxTrigger index={0} data-testid="trigger">
+        <LightboxTrigger itemId="0" data-testid="trigger">
           {({ imageRef }) => (
             <div className="relative">
               <img ref={imageRef} src="/thumb.jpg" alt="thumb" />
@@ -342,7 +342,7 @@ describe('render-fn placeholder wiring (Trigger imageRef -> Item imageRef)', () 
         <LightboxPortal>
           <LightboxContent aria-label="viewer">
             <SlidesHost>
-              <LightboxItem index={0}>
+              <LightboxItem index={0} itemId="0">
                 {({ imageRef }) => <img ref={imageRef} src="/full.jpg" alt="full" />}
               </LightboxItem>
             </SlidesHost>
@@ -358,16 +358,16 @@ describe('render-fn placeholder wiring (Trigger imageRef -> Item imageRef)', () 
   it('uses the CLICKED trigger image when two triggers share an index', () => {
     render(
       <LightboxRoot>
-        <LightboxTrigger index={0} data-testid="trigger-a">
+        <LightboxTrigger itemId="0" data-testid="trigger-a">
           {({ imageRef }) => <img ref={imageRef} src="/a.jpg" alt="a" />}
         </LightboxTrigger>
-        <LightboxTrigger index={0} data-testid="trigger-b">
+        <LightboxTrigger itemId="0" data-testid="trigger-b">
           {({ imageRef }) => <img ref={imageRef} src="/b.jpg" alt="b" />}
         </LightboxTrigger>
         <LightboxPortal>
           <LightboxContent aria-label="viewer">
             <SlidesHost>
-              <LightboxItem index={0}>
+              <LightboxItem index={0} itemId="0">
                 {({ imageRef }) => <img ref={imageRef} src="/full.jpg" alt="full" />}
               </LightboxItem>
             </SlidesHost>
@@ -387,7 +387,7 @@ describe('render-fn placeholder wiring (Trigger imageRef -> Item imageRef)', () 
   it('morphRef: both the trigger and the item register without touching consumer DOM', () => {
     render(
       <LightboxRoot>
-        <LightboxTrigger index={0} data-testid="trigger">
+        <LightboxTrigger itemId="0" data-testid="trigger">
           {({ imageRef, morphRef }) => (
             <div ref={morphRef} data-testid="trigger-morph">
               <img ref={imageRef} src="/thumb.jpg" alt="thumb" />
@@ -397,7 +397,7 @@ describe('render-fn placeholder wiring (Trigger imageRef -> Item imageRef)', () 
         <LightboxPortal>
           <LightboxContent aria-label="viewer">
             <SlidesHost>
-              <LightboxItem index={0}>
+              <LightboxItem index={0} itemId="0">
                 {({ imageRef, morphRef }) => (
                   <div ref={morphRef} data-testid="item-morph">
                     <img ref={imageRef} src="/full.jpg" alt="full" />
@@ -424,13 +424,13 @@ describe('render-fn placeholder wiring (Trigger imageRef -> Item imageRef)', () 
     render(
       <LightboxRoot>
         {/* plain children: no imageRef attached */}
-        <LightboxTrigger index={0} data-testid="trigger">
+        <LightboxTrigger itemId="0" data-testid="trigger">
           <img src="/thumb.jpg" alt="thumb" />
         </LightboxTrigger>
         <LightboxPortal>
           <LightboxContent aria-label="viewer">
             <SlidesHost>
-              <LightboxItem index={0}>
+              <LightboxItem index={0} itemId="0">
                 {({ imageRef }) => <img ref={imageRef} src="/full.jpg" alt="full" />}
               </LightboxItem>
             </SlidesHost>
@@ -466,13 +466,13 @@ describe('Lightbox.Media (morph + placeholder host)', () => {
   it('auto-discovers img and paints placeholder without Item imageRef', () => {
     render(
       <LightboxRoot>
-        <LightboxTrigger index={0} data-testid="trigger">
+        <LightboxTrigger itemId="0" data-testid="trigger">
           {({ imageRef }) => <img ref={imageRef} src="/thumb.jpg" alt="thumb" />}
         </LightboxTrigger>
         <LightboxPortal>
           <LightboxContent aria-label="viewer">
             <SlidesHost>
-              <LightboxItem index={0}>
+              <LightboxItem index={0} itemId="0">
                 <LightboxZoom>
                   <LightboxMedia data-testid="media" style={{ width: 400, height: 300 }}>
                     <img src="/full.jpg" alt="full" />
@@ -506,13 +506,13 @@ describe('Lightbox.Media (morph + placeholder host)', () => {
 
     render(
       <LightboxRoot>
-        <LightboxTrigger index={0} data-testid="trigger">
+        <LightboxTrigger itemId="0" data-testid="trigger">
           {({ imageRef }) => <img ref={imageRef} src="/thumb.jpg" alt="thumb" />}
         </LightboxTrigger>
         <LightboxPortal>
           <LightboxContent aria-label="viewer">
             <SlidesHost>
-              <LightboxItem index={0}>
+              <LightboxItem index={0} itemId="0">
                 <LightboxZoom data-testid="zoom">
                   <LightboxMedia data-testid="media">
                     <img src="/full.jpg" alt="full" />
@@ -556,13 +556,13 @@ describe('Lightbox.Media (morph + placeholder host)', () => {
   it('imageRef without Media/morphRef falls back to CSS background (no parent-retarget canvas)', () => {
     render(
       <LightboxRoot>
-        <LightboxTrigger index={0} data-testid="trigger">
+        <LightboxTrigger itemId="0" data-testid="trigger">
           {({ imageRef }) => <img ref={imageRef} src="/thumb.jpg" alt="thumb" />}
         </LightboxTrigger>
         <LightboxPortal>
           <LightboxContent aria-label="viewer">
             <SlidesHost>
-              <LightboxItem index={0}>
+              <LightboxItem index={0} itemId="0">
                 {({ imageRef }) => (
                   <div data-testid="diy-host">
                     <img ref={imageRef} src="/full.jpg" alt="full" />
@@ -588,7 +588,7 @@ describe('Lightbox.Media (morph + placeholder host)', () => {
         <LightboxPortal>
           <LightboxContent aria-label="viewer">
             <SlidesHost>
-              <LightboxItem index={0}>
+              <LightboxItem index={0} itemId="0">
                 <LightboxZoom>
                   <LightboxMedia data-testid="media" width={1600} height={900}>
                     <img width={1600} height={900} src="/full.jpg" alt="full" />
@@ -629,7 +629,7 @@ describe('Lightbox.Media (morph + placeholder host)', () => {
         <LightboxPortal>
           <LightboxContent aria-label="viewer">
             <SlidesHost>
-              <LightboxItem index={0}>
+              <LightboxItem index={0} itemId="0">
                 <LightboxZoom>
                   <LightboxMedia data-testid="media" width={800} height={600}>
                     {child}
@@ -679,9 +679,9 @@ describe('Lightbox.Media (morph + placeholder host)', () => {
     for (const el of Array.from(document.querySelectorAll('style[data-ramka-media-fill]'))) {
       el.remove();
     }
-    (
-      document as Document & { [key: symbol]: Set<string> | undefined }
-    )[Symbol.for('ramka.vt.adoptedMarkers')]?.delete('data-ramka-media-fill');
+    (document as Document & { [key: symbol]: Set<string> | undefined })[Symbol.for('ramka.vt.adoptedMarkers')]?.delete(
+      'data-ramka-media-fill',
+    );
     const stub = stubConstructedSheets();
     try {
       const view = render(
@@ -689,7 +689,7 @@ describe('Lightbox.Media (morph + placeholder host)', () => {
           <LightboxPortal>
             <LightboxContent aria-label="viewer">
               <SlidesHost>
-                <LightboxItem index={0}>
+                <LightboxItem index={0} itemId="0">
                   <LightboxMedia data-testid="media" width={800} height={600}>
                     <img width={800} height={600} src="/full.jpg" alt="full" />
                   </LightboxMedia>
@@ -723,7 +723,7 @@ describe('Lightbox.Media (morph + placeholder host)', () => {
         <LightboxPortal>
           <LightboxContent aria-label="viewer">
             <SlidesHost>
-              <LightboxItem index={0}>
+              <LightboxItem index={0} itemId="0">
                 <LightboxMedia data-testid="media">
                   <img width={800} height={400} src="/full.jpg" alt="full" />
                 </LightboxMedia>
@@ -743,13 +743,13 @@ describe('Lightbox.Media (morph + placeholder host)', () => {
   it('video + poster: Media synthesizes a poster img for the placeholder bridge', () => {
     render(
       <LightboxRoot>
-        <LightboxTrigger index={0} data-testid="trigger">
+        <LightboxTrigger itemId="0" data-testid="trigger">
           {({ imageRef }) => <img ref={imageRef} src="/thumb.jpg" alt="thumb" />}
         </LightboxTrigger>
         <LightboxPortal>
           <LightboxContent aria-label="viewer">
             <SlidesHost>
-              <LightboxItem index={0}>
+              <LightboxItem index={0} itemId="0">
                 <LightboxMedia data-testid="media">
                   <video src="/clip.mp4" poster="/poster.jpg" />
                 </LightboxMedia>

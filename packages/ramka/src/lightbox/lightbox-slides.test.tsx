@@ -76,18 +76,12 @@ function SlidesLightbox({
   defaultValue?: number;
   loop?: boolean;
   dir?: TextDirection;
-  onValueChange?: (value: number, metadata: { source: string }) => void;
+  onValueChange?: (value: string, details: { index: number; source: string }) => void;
 } = {}) {
   return (
-    <LightboxRoot
-      defaultOpen
-      defaultValue={defaultValue}
-      loop={loop}
-      dir={dir}
-      onValueChange={onValueChange}
-    >
+    <LightboxRoot defaultOpen defaultValue={String(defaultValue)} loop={loop} dir={dir} onValueChange={onValueChange}>
       {Array.from({ length: itemCount }, (_, i) => (
-        <LightboxTrigger key={`t-${i}`} index={i} data-testid={`trigger-${i}`}>
+        <LightboxTrigger key={`t-${i}`} itemId={String(i)} data-testid={`trigger-${i}`}>
           Trigger {i}
         </LightboxTrigger>
       ))}
@@ -97,7 +91,7 @@ function SlidesLightbox({
           <LightboxSlides data-testid="slides" preload={itemCount}>
             {Array.from({ length: itemCount }, (_, i) => (
               <LightboxSlide key={`s-${i}`} data-testid={`slide-${i}`}>
-                <LightboxItem index={i} data-testid={`item-${i}`}>
+                <LightboxItem index={i} itemId={String(i)} data-testid={`item-${i}`}>
                   Item {i}
                 </LightboxItem>
               </LightboxSlide>
@@ -162,14 +156,14 @@ describe('Lightbox.Slides', () => {
     // scrolling unfrozen, snap on. (Server-paint behavior is covered in
     // lightbox-slides-ssr.test.tsx.)
     render(
-      <LightboxRoot defaultOpen defaultValue={2}>
-        <LightboxTrigger index={0}>open</LightboxTrigger>
+      <LightboxRoot defaultOpen defaultValue="2">
+        <LightboxTrigger itemId="0">open</LightboxTrigger>
         <LightboxPortal>
           <LightboxContent aria-label="ssr shift test">
             <LightboxSlides data-testid="slides" ssrSlideShift aria-label="Slides">
               {Array.from({ length: 4 }, (_, i) => (
                 <LightboxSlide key={i}>
-                  <LightboxItem index={i} aria-label={`${i + 1} of 4`}>
+                  <LightboxItem index={i} itemId={String(i)} aria-label={`${i + 1} of 4`}>
                     Item {i}
                   </LightboxItem>
                 </LightboxSlide>
@@ -227,9 +221,9 @@ describe('Lightbox.Slides', () => {
     const { LightboxThumbnailStrip } = await import('./lightbox-thumbnail-strip');
     const { LightboxThumbnailStripTrack } = await import('./lightbox-thumbnail-strip-track');
     const ui = (
-      <LightboxRoot defaultOpen defaultValue={2}>
+      <LightboxRoot defaultOpen defaultValue="2" itemIds={['0', '1', '2', '3']}>
         {Array.from({ length: 4 }, (_, i) => (
-          <LightboxTrigger key={i} index={i} data-testid={`trigger-${i}`}>
+          <LightboxTrigger key={i} itemId={String(i)} data-testid={`trigger-${i}`}>
             open {i}
           </LightboxTrigger>
         ))}
@@ -238,7 +232,7 @@ describe('Lightbox.Slides', () => {
             <LightboxSlides data-testid="slides" ssrSlideShift aria-label="Slides">
               {Array.from({ length: 4 }, (_, i) => (
                 <LightboxSlide key={i}>
-                  <LightboxItem index={i} aria-label={`${i + 1} of 4`}>
+                  <LightboxItem index={i} itemId={String(i)} aria-label={`${i + 1} of 4`}>
                     Item {i}
                   </LightboxItem>
                 </LightboxSlide>
@@ -268,9 +262,7 @@ describe('Lightbox.Slides', () => {
     const activeTrigger = container.querySelector<HTMLElement>('[data-testid="trigger-2"]')!;
     expect(viewport).toHaveAttribute('data-ssr-shift');
     // Server HTML carries the SSR stamps for the active index.
-    expect(container.querySelector('[data-index="2"][data-ramka-item]')).toHaveAttribute(
-      'data-ssr-active',
-    );
+    expect(container.querySelector('[data-index="2"][data-ramka-item]')).toHaveAttribute('data-ssr-active');
     expect(activeTrigger).toHaveAttribute('data-morph-target');
     // Scroll/transform positions cannot be serialized: server HTML must never
     // claim the strip is positioned.
@@ -528,7 +520,7 @@ describe('Lightbox.Slides', () => {
     swipeTo(viewport, 4);
 
     expect(activeThumb()).toBe(4);
-    expect(onValueChange).toHaveBeenCalledWith(4, expect.objectContaining({ source: 'scroll' }));
+    expect(onValueChange).toHaveBeenCalledWith('4', expect.objectContaining({ index: 4, source: 'scroll' }));
   });
 
   it('rounds a partial swipe to the nearest slide', () => {
@@ -872,9 +864,9 @@ describe('Lightbox.Slides', () => {
       itemCount?: number;
     } = {}) {
       return (
-        <LightboxRoot defaultOpen defaultValue={0}>
+        <LightboxRoot defaultOpen defaultValue="0">
           {Array.from({ length: itemCount }, (_, i) => (
-            <LightboxTrigger key={`t-${i}`} index={i}>
+            <LightboxTrigger key={`t-${i}`} itemId={String(i)}>
               Trigger {i}
             </LightboxTrigger>
           ))}
@@ -884,7 +876,7 @@ describe('Lightbox.Slides', () => {
               <LightboxSlides data-testid="slides" preload={itemCount}>
                 {Array.from({ length: itemCount }, (_, i) => (
                   <LightboxSlide key={`s-${i}`} data-testid={`slide-${i}`}>
-                    <LightboxItem index={i} data-testid={`item-${i}`}>
+                    <LightboxItem index={i} itemId={String(i)} data-testid={`item-${i}`}>
                       {withZoom ? (
                         <LightboxZoom ref={i === observedIndex ? zoomRef : undefined} maxZoom={4}>
                           <img src={`p${i}.jpg`} alt={`photo ${i}`} data-testid={`img-${i}`} />
@@ -934,13 +926,7 @@ describe('Lightbox.Slides', () => {
       expect(content).toHaveAttribute('data-pulling');
     });
 
-    function dispatchTrackpadWheel(
-      target: Element,
-      deltaX: number,
-      deltaY: number,
-      ctrlKey = false,
-      metaKey = false,
-    ) {
+    function dispatchTrackpadWheel(target: Element, deltaX: number, deltaY: number, ctrlKey = false, metaKey = false) {
       const event = new WheelEvent('wheel', {
         bubbles: true,
         cancelable: true,
@@ -1325,10 +1311,7 @@ describe('Lightbox.Slides', () => {
           new TouchEvent('touchstart', {
             bubbles: true,
             cancelable: true,
-            touches: [
-              { clientX: 140, clientY: 200 } as Touch,
-              { clientX: 200, clientY: 200 } as Touch,
-            ],
+            touches: [{ clientX: 140, clientY: 200 } as Touch, { clientX: 200, clientY: 200 } as Touch],
           }),
         );
         viewport.dispatchEvent(

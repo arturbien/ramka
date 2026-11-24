@@ -166,13 +166,13 @@ afterEach(() => {
 function TestGallery({ zoomRef }: { zoomRef?: React.Ref<LightboxZoomRef> }) {
   return (
     <LightboxRoot>
-      <LightboxTrigger index={0} data-testid="trigger">
+      <LightboxTrigger itemId="0" data-testid="trigger">
         {({ imageRef }) => <img ref={imageRef} src="/thumb.jpg" alt="thumb" />}
       </LightboxTrigger>
       <LightboxPortal>
         <LightboxContent aria-label="viewer">
           <SlidesHost>
-            <LightboxItem index={0}>
+            <LightboxItem index={0} itemId="0">
               {/* Explicit maxZoom so zoomability doesn't depend on jsdom
                   knowing the image's natural size. */}
               <LightboxZoom ref={zoomRef} maxZoom={3} data-testid="zoom">

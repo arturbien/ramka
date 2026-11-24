@@ -31,7 +31,7 @@ const flushMicrotasks = () => act(async () => undefined);
 function TestLightbox() {
   return (
     <LightboxRoot viewTransition>
-      <LightboxTrigger index={0} data-testid="trigger">
+      <LightboxTrigger itemId="0" data-testid="trigger">
         Open
       </LightboxTrigger>
       <LightboxPortal>

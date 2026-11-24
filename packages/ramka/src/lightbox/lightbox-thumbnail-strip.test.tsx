@@ -79,21 +79,13 @@ function setupSlidesGeometry(viewport: HTMLElement, count: number, dir: TextDire
 
 const THUMBNAIL_STRIP_WIDTH = 320;
 
-function setupThumbGeometry(
-  track: HTMLElement,
-  count: number,
-  widths?: number[],
-  dir: TextDirection = 'ltr',
-) {
+function setupThumbGeometry(track: HTMLElement, count: number, widths?: number[], dir: TextDirection = 'ltr') {
   const tabs = track.querySelectorAll<HTMLElement>('[role="tab"]');
-  const resolved =
-    widths ??
-    Array.from({ length: count }, () => THUMB);
+  const resolved = widths ?? Array.from({ length: count }, () => THUMB);
   expect(tabs.length).toBe(count);
   expect(resolved.length).toBe(count);
 
-  const trackWidth =
-    resolved.reduce((total, w) => total + w, 0) + THUMB_GAP * Math.max(0, count - 1);
+  const trackWidth = resolved.reduce((total, w) => total + w, 0) + THUMB_GAP * Math.max(0, count - 1);
   // RTL packs thumb 0 against the right edge and walks left from there.
   let left = dir === 'rtl' ? trackWidth : 0;
   const lefts: number[] = [];
@@ -208,24 +200,18 @@ class MockAnimation {
   }
 }
 
-function Gallery({
-  count = 5,
-  scrubOnSelect,
-  dir,
-}: {
-  count?: number;
-  scrubOnSelect?: boolean;
-  dir?: TextDirection;
-}) {
+function Gallery({ count = 5, scrubOnSelect, dir }: { count?: number; scrubOnSelect?: boolean; dir?: TextDirection }) {
   return (
     <LightboxRoot defaultOpen dir={dir}>
-      <LightboxTrigger index={0}>open</LightboxTrigger>
+      <LightboxTrigger itemId="0">open</LightboxTrigger>
       <LightboxPortal>
         <LightboxContent aria-label="ThumbnailStrip test">
           <LightboxSlides data-testid="slides" aria-label="Slides">
             {Array.from({ length: count }, (_, i) => (
               <LightboxSlide key={i}>
-                <LightboxItem index={i}>item {i}</LightboxItem>
+                <LightboxItem index={i} itemId={String(i)}>
+                  item {i}
+                </LightboxItem>
               </LightboxSlide>
             ))}
           </LightboxSlides>
@@ -669,13 +655,15 @@ describe('Lightbox.ThumbnailStrip', () => {
 
     render(
       <LightboxRoot defaultOpen>
-        <LightboxTrigger index={0}>open</LightboxTrigger>
+        <LightboxTrigger itemId="0">open</LightboxTrigger>
         <LightboxPortal>
           <LightboxContent aria-label="nav scrub test">
             <LightboxSlides data-testid="slides" aria-label="Slides">
               {Array.from({ length: 4 }, (_, i) => (
                 <LightboxSlide key={i}>
-                  <LightboxItem index={i}>item {i}</LightboxItem>
+                  <LightboxItem index={i} itemId={String(i)}>
+                    item {i}
+                  </LightboxItem>
                 </LightboxSlide>
               ))}
             </LightboxSlides>
@@ -727,13 +715,15 @@ describe('Lightbox.ThumbnailStrip', () => {
 
     render(
       <LightboxRoot defaultOpen>
-        <LightboxTrigger index={0}>open</LightboxTrigger>
+        <LightboxTrigger itemId="0">open</LightboxTrigger>
         <LightboxPortal>
           <LightboxContent aria-label="wrap test">
             <LightboxSlides data-testid="slides" aria-label="Slides">
               {Array.from({ length: 3 }, (_, i) => (
                 <LightboxSlide key={i}>
-                  <LightboxItem index={i}>item {i}</LightboxItem>
+                  <LightboxItem index={i} itemId={String(i)}>
+                    item {i}
+                  </LightboxItem>
                 </LightboxSlide>
               ))}
             </LightboxSlides>
@@ -770,13 +760,15 @@ describe('Lightbox.ThumbnailStrip', () => {
 
     render(
       <LightboxRoot defaultOpen>
-        <LightboxTrigger index={0}>open</LightboxTrigger>
+        <LightboxTrigger itemId="0">open</LightboxTrigger>
         <LightboxPortal>
           <LightboxContent aria-label="no vt select test">
             <LightboxSlides data-testid="slides" aria-label="Slides">
               {Array.from({ length: 3 }, (_, i) => (
                 <LightboxSlide key={i}>
-                  <LightboxItem index={i}>item {i}</LightboxItem>
+                  <LightboxItem index={i} itemId={String(i)}>
+                    item {i}
+                  </LightboxItem>
                 </LightboxSlide>
               ))}
             </LightboxSlides>
@@ -881,9 +873,7 @@ describe.each<[TextDirection, 1 | -1]>([
 
   it('publishes the end travel as a physical transform distance', () => {
     const { track } = setup();
-    expect(track.style.getPropertyValue('--lightbox-thumbnail-strip-travel')).toBe(
-      `${sign * 4 * THUMB_STEP}px`,
-    );
+    expect(track.style.getPropertyValue('--lightbox-thumbnail-strip-travel')).toBe(`${sign * 4 * THUMB_STEP}px`);
   });
 
   it('builds ScrollTimeline keyframes on the logical axis', () => {

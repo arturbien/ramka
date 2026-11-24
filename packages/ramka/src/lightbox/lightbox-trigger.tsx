@@ -4,7 +4,6 @@ import * as React from 'react';
 
 import { useLightboxStableContextOptional } from './lightbox-context';
 import { LightboxTriggerDataAttributes } from './lightbox-data-attributes';
-import type { LightboxHotState } from './lightbox-store';
 import {
   getLightboxHandleHost,
   registerHandleTrigger,
@@ -84,11 +83,6 @@ interface LightboxTriggerBaseProps<Payload = unknown> extends Omit<
   'children'
 > {
   /**
-   * Stable id for this trigger. Required for `handle.open(index, { triggerId })`
-   * association and for detached Triggers. Also applied as the DOM `id`.
-   */
-  id?: string;
-  /**
    * Handle from `Lightbox.createHandle()`. Pass the same handle as Root to use
    * this Trigger outside the Root tree (Base UI Dialog-style detached triggers).
    */
@@ -118,53 +112,38 @@ interface LightboxTriggerBaseProps<Payload = unknown> extends Omit<
 }
 
 /**
- * Every Trigger prop. The exported `LightboxTriggerProps` narrows this to
- * either `index` or `itemId`, and makes `payload` required once the handle
- * declares a payload type.
+ * Every Trigger prop. The exported `LightboxTriggerProps` makes `payload`
+ * required once the handle declares a payload type.
  */
 interface LightboxTriggerAllProps<Payload = unknown> extends LightboxTriggerBaseProps<Payload> {
-  /** Item index this trigger opens. Use either `index` or `itemId`. */
-  index?: number;
   /**
-   * Open the item with this `itemId` (see `Lightbox.Item`'s `itemId`)
-   * instead of a fixed index. Keyed triggers can share one Root across
-   * many galleries — inside the Root, or anywhere with a `handle`: only
-   * triggers whose `itemId` is in the open gallery take part in the
-   * morph, placeholders and `morphTo`, so two messages' first images
-   * never collide on index 0.
+   * The item this trigger opens: the `itemId` of a `Lightbox.Item`. Only
+   * triggers whose `itemId` is in the open gallery take part in the morph,
+   * placeholders and `morphTo`, so one Root can serve many galleries.
    */
-  itemId?: string;
+  itemId: string;
   /**
-   * With `itemId`: items this trigger stands in for without opening them —
-   * the images collapsed behind a "+N" tile. While one of them is active the
-   * close morph lands on this trigger (and it hides as the morph target),
-   * crossfading since the tile shows a different photo; an item's own
-   * trigger always wins.
+   * Items this trigger stands in for without opening them, for grids whose
+   * visible tiles aren't simply the first photos (a curated "Show all
+   * photos" tile). While one of them is active the close morph lands on this
+   * trigger, crossfading since the tile shows a different photo; an item's
+   * own trigger always wins. A "+N" tile after the first photos doesn't need
+   * this: `morphTo="closest"` already lands on it.
    */
   overflowItemIds?: readonly string[];
   /**
-   * Data for the gallery this trigger opens, handed to Root's
-   * render-function `children` as `payload`. Pass whatever the viewer
-   * needs — the full image list, or just an id to look it up by. Required
-   * when the handle declares a payload type (`createHandle<Payload>()`), so
-   * a trigger can't silently reopen the previous gallery.
+   * Data for the gallery this trigger opens, read in the viewer with
+   * `useLightboxPayload()`. Pass whatever the viewer needs — the full image
+   * list, or just an id to look it up by. Required when the handle declares
+   * a payload type (`createHandle<Payload>()`), so a trigger can't silently
+   * reopen the previous gallery.
    */
   payload?: Payload;
 }
 
-/** What a Trigger opens: a fixed viewer `index`, or the item with an `itemId`. */
-type LightboxTriggerTargetProps =
-  | (Required<Pick<LightboxTriggerAllProps, 'index'>> & { itemId?: never; overflowItemIds?: never })
-  | (Required<Pick<LightboxTriggerAllProps, 'itemId'>> &
-      Pick<LightboxTriggerAllProps, 'overflowItemIds'> & { index?: never });
-
-type LightboxTriggerPayloadProps<Payload> = unknown extends Payload
-  ? Pick<LightboxTriggerAllProps<Payload>, 'payload'>
-  : Pick<LightboxTriggerAllProps<Payload>, 'payload'> & { payload: Payload };
-
-type LightboxTriggerProps<Payload = unknown> = LightboxTriggerBaseProps<Payload> &
-  LightboxTriggerTargetProps &
-  LightboxTriggerPayloadProps<Payload>;
+type LightboxTriggerProps<Payload = unknown> = unknown extends Payload
+  ? LightboxTriggerAllProps<Payload>
+  : LightboxTriggerAllProps<Payload> & { payload: Payload };
 
 const OPEN_BIT = 1;
 const ACTIVE_BIT = 2;
@@ -180,43 +159,8 @@ const triggerStateAttributesMapping = {
   morphTarget: ignoreStateAttribute,
 };
 
-const noopSubscribe = () => () => {};
-
 /**
- * Whether this trigger is the morph source for the given hot state. Pure over
- * the store snapshot; the ref reads (trigger registry, opening index) keep the
- * exact semantics of the previous render-time `useMemo` — registry changes
- * alone never forced a recompute, and still don't (the next state commit
- * re-reads them).
- */
-function computeMorphTarget(
-  state: LightboxHotState,
-  index: number,
-  triggerElements: Map<number, HTMLElement>,
-  openingTriggerIndex: number,
-): boolean {
-  if (!state.open) return false;
-  const active = state.activeIndex === index;
-  if (state.morphTo === 'origin') return index === openingTriggerIndex;
-  if (state.morphTo === 'closest') {
-    if (triggerElements.has(state.activeIndex)) return state.activeIndex === index;
-    let best = -1;
-    let bestDist = Infinity;
-    for (const idx of triggerElements.keys()) {
-      const dist = Math.abs(idx - state.activeIndex);
-      if (dist < bestDist) {
-        bestDist = dist;
-        best = idx;
-      }
-    }
-    return index === best;
-  }
-  return active;
-}
-
-/**
- * A trigger that opens the Lightbox at a specific item index.
- * Multiple triggers can exist — each opens the lightbox at its `index`.
+ * A trigger that opens the Lightbox at the item with its `itemId`.
  *
  * By default the trigger element is the morph source for the view
  * transition animation (pass `viewTransition={false}` on Root to opt out).
@@ -233,278 +177,144 @@ const LightboxTriggerImpl = React.forwardRef<HTMLButtonElement, LightboxTriggerA
   function LightboxTrigger(props, forwardedRef) {
     const {
       render,
-      index: indexProp,
       itemId,
       overflowItemIds,
       payload,
-      id: idProp,
       handle: handleProp,
       crossfade,
       children,
       ...elementProps
     } = props;
 
-    // Triggers are an O(n) population (one per grid tile), so under a Root
-    // they read the identity-stable context and subscribe to derived
-    // PRIMITIVES from the hot store — an index change re-renders only the
-    // trigger(s) whose `active`/`morphTarget` flipped, not the whole grid.
-    // Open/close still re-renders every trigger, by contract: they all flip
-    // `data-*-open` and gain/lose `aria-controls`. See lightbox-store.ts.
-    const keyed = itemId !== undefined;
-    // Keyed triggers never write the Root's index maps: the Root joins them to
-    // items by `itemId`, through its keyed host — reached via `handle`, or the
-    // enclosing Root when there is none.
+    // Triggers never write the Root's index maps: the Root joins them to items
+    // by `itemId`, through its host — reached via `handle`, or the enclosing
+    // Root when there is none.
     const enclosingRootContext = useLightboxStableContextOptional();
-    const rootContext = keyed ? undefined : enclosingRootContext;
-    const keyedContext = keyed && !handleProp ? enclosingRootContext : undefined;
+    const rootContext = handleProp ? undefined : enclosingRootContext;
     const styleNonce = useLightboxStyleNonce();
     if (!enclosingRootContext && !handleProp) {
       throw new Error(
         'Lightbox.Trigger must be used within a Lightbox.Root, or passed a handle from Lightbox.createHandle()',
       );
     }
-    if (process.env.NODE_ENV !== 'production') {
-      if (!keyed && indexProp === undefined) {
-        console.error('[ramka] Lightbox.Trigger needs an `index` or an `itemId`.');
-      } else if (keyed && indexProp !== undefined) {
-        console.error('[ramka] Lightbox.Trigger takes an `index` or an `itemId`, not both; `index` is ignored.');
-      }
+    if (process.env.NODE_ENV !== 'production' && typeof itemId !== 'string') {
+      console.error('[ramka] Lightbox.Trigger needs an `itemId`: the `itemId` of the Lightbox.Item it opens.');
     }
-    const index = keyed ? -1 : (indexProp ?? -1);
 
-    // Stable id for handle registration. Prefer the consumer `id` (also used as
-    // DOM id / handle.open triggerId); fall back to useId for detached morph.
-    const reactId = React.useId();
-    const handleTriggerId = idProp ?? reactId;
-
+    const handleTriggerId = React.useId();
     const internalRef = React.useRef<HTMLButtonElement | null>(null);
 
-    // Detached Triggers read PRIMITIVES off the bound Root host, so a handle
+    // Triggers are an O(n) population (one per grid tile, or thousands in a
+    // feed), so each reads one packed PRIMITIVE off the Root's host: a
     // notification (open, navigation, any trigger or item registering)
-    // re-renders only the triggers whose own state flipped — a feed of
-    // thousands of keyed triggers stays O(1) per commit. Keyed triggers
-    // resolve their index through the open gallery's items, and compare
-    // elements (not indexes) for morph-target / opened-by-this-trigger.
-    const detachedHandle = !rootContext ? handleProp : undefined;
-    const subscribeKeyed = keyedContext?.subscribeKeyed;
-    const handleSubscribe = React.useCallback(
+    // re-renders only the triggers whose own state flipped. A trigger is
+    // "open" only while the viewer shows its gallery, so opening one message
+    // re-renders that message's tiles, not the feed. Elements (not indexes)
+    // decide morph target / opened-by-this-trigger, so duplicates stay apart.
+    const subscribeRoot = rootContext?.subscribeKeyed;
+    const subscribe = React.useCallback(
       (onStoreChange: () => void) => {
-        if (detachedHandle) return subscribeLightboxHandle(detachedHandle, onStoreChange);
-        if (subscribeKeyed) return subscribeKeyed(onStoreChange);
-        return () => {};
+        if (handleProp) return subscribeLightboxHandle(handleProp, onStoreChange);
+        return subscribeRoot ? subscribeRoot(onStoreChange) : () => {};
       },
-      [detachedHandle, subscribeKeyed],
+      [handleProp, subscribeRoot],
     );
-    const readHost = () => (detachedHandle ? getLightboxHandleHost(detachedHandle) : (keyedContext?.keyedHost ?? null));
-    // One packed snapshot (open / active / morph target / opened-by-this), so a
-    // feed of N triggers is N subscriptions, not 4N. A keyed trigger is "open"
-    // only while the viewer shows its gallery, so opening one message
-    // re-renders that message's tiles, not the feed.
-    const readHandleBits = () => {
+    const readHost = () => (handleProp ? getLightboxHandleHost(handleProp) : (rootContext?.keyedHost ?? null));
+    const readBits = () => {
       const host = readHost();
       if (!host?.getOpen()) return 0;
-      const resolved = keyed ? host.getItemIndex(itemId) : index;
-      const active = resolved >= 0 && host.getActiveIndex() === resolved;
+      const resolved = host.getItemIndex(itemId);
+      if (resolved < 0) return 0;
       const el = internalRef.current;
-      const morphTarget = keyed ? !!el && host.getMorphTargetElement() === el : active;
-      const openedByThis = keyed ? !!el && host.getOpeningElement() === el : true;
       return (
-        (!keyed || resolved >= 0 ? OPEN_BIT : 0) |
-        (active ? ACTIVE_BIT : 0) |
-        (morphTarget ? MORPH_TARGET_BIT : 0) |
-        (openedByThis ? OPENED_BY_THIS_BIT : 0)
+        OPEN_BIT |
+        (host.getActiveIndex() === resolved ? ACTIVE_BIT : 0) |
+        (el && host.getMorphTargetElement() === el ? MORPH_TARGET_BIT : 0) |
+        (el && host.getOpeningElement() === el ? OPENED_BY_THIS_BIT : 0)
       );
     };
-    const readZero = () => 0;
-    const handleBits = React.useSyncExternalStore(handleSubscribe, readHandleBits, readZero);
-    const handleOpen = (handleBits & OPEN_BIT) !== 0;
-    const handleActive = (handleBits & ACTIVE_BIT) !== 0;
-    const handleMorphTarget = (handleBits & MORPH_TARGET_BIT) !== 0;
-    const handleOpenedByThis = (handleBits & OPENED_BY_THIS_BIT) !== 0;
-
-    const store = rootContext?.store ?? null;
-    const triggerElementsRef = rootContext?.triggerElementsRef;
-    const triggerMorphElementsRef = rootContext?.triggerMorphElementsRef;
-    const triggerImageElementsRef = rootContext?.triggerImageElementsRef;
-    const triggerIdsRef = rootContext?.triggerIdsRef;
-    const openingTriggerIndexRef = rootContext?.openingTriggerIndexRef;
-    const openingTriggerElementRef = rootContext?.openingTriggerElementRef;
-    const openingTriggerImageRef = rootContext?.openingTriggerImageRef;
-    const setOpen = rootContext?.setOpen;
-    const setActiveIndex = rootContext?.setActiveIndex;
-
-    // Hot-store subscriptions (no-ops when detached — the handle subscription
-    // above covers that path). Each snapshot is a primitive derived for THIS
-    // trigger, so `useSyncExternalStore`'s Object.is check skips re-renders
-    // whose result didn't change.
-    const storeSubscribe = store ? store.subscribe : noopSubscribe;
-    const readOpen = () => store?.getState().open ?? false;
-    const storeOpen = React.useSyncExternalStore(storeSubscribe, readOpen, readOpen);
-    const readActive = () => {
+    // Server render (and the hydration render that must match it): items
+    // register in effects, which never run there, so read Root's render-time
+    // state — the active `itemId`, and the gallery's ids from Root's
+    // `itemIds`. The active trigger stamps itself hidden as the morph target
+    // (`origin` has no opening trigger on a fresh page, so nothing hides).
+    const store = enclosingRootContext?.store ?? null;
+    const serverItemIdsRef = rootContext?.serverItemIdsRef;
+    const readServerBits = () => {
       const state = store?.getState();
-      return state ? state.open && state.activeIndex === index : false;
+      if (!rootContext || !state?.open) return 0;
+      const active = state.activeItemId === itemId;
+      const inGallery = active || !!serverItemIdsRef?.current?.has(itemId);
+      if (!inGallery) return 0;
+      return OPEN_BIT | (active ? ACTIVE_BIT | (state.morphTo === 'origin' ? 0 : MORPH_TARGET_BIT) : 0);
     };
-    const storeActive = React.useSyncExternalStore(storeSubscribe, readActive, readActive);
-    const readMorphTarget = () => {
-      const state = store?.getState();
-      if (!state || !triggerElementsRef || !openingTriggerIndexRef) return false;
-      return computeMorphTarget(state, index, triggerElementsRef.current, openingTriggerIndexRef.current);
-    };
-    const storeMorphTarget = React.useSyncExternalStore(storeSubscribe, readMorphTarget, readMorphTarget);
-    const readMorphTo = () => store?.getState().morphTo ?? 'active';
-    const storeMorphTo = React.useSyncExternalStore(storeSubscribe, readMorphTo, readMorphTo);
-
-    const open = rootContext ? storeOpen : handleOpen;
-    const morphTo = storeMorphTo;
+    const bits = React.useSyncExternalStore(subscribe, readBits, readServerBits);
+    const open = (bits & OPEN_BIT) !== 0;
+    const active = (bits & ACTIVE_BIT) !== 0;
+    const morphTarget = (bits & MORPH_TARGET_BIT) !== 0;
+    const openedByThisTrigger = (bits & OPENED_BY_THIS_BIT) !== 0;
 
     // The image node the consumer designated via `imageRef`, if any.
     const imageNodeRef = React.useRef<HTMLImageElement | null>(null);
     // The morph node the consumer designated via `morphRef`, if any.
     const morphNodeRef = React.useRef<HTMLElement | null>(null);
-    const handleRegistrationRef = React.useRef<LightboxHandleTriggerRegistration | null>(null);
+    const registrationRef = React.useRef<LightboxHandleTriggerRegistration | null>(null);
 
-    const registerKeyed = keyedContext?.registerKeyedTrigger;
-    const touchKeyed = keyedContext?.touchKeyedTrigger;
-    const syncHandleRegistration = React.useCallback(() => {
-      const reg = handleRegistrationRef.current;
+    const registerInRoot = rootContext?.registerKeyedTrigger;
+    const touchInRoot = rootContext?.touchKeyedTrigger;
+    // Re-sync the registration after its element / image / morph node changed.
+    // A no-op until the layout effect below has registered: on first mount the
+    // registration reads every ref directly (refs attach before layout effects).
+    const syncRegistration = React.useCallback(() => {
+      const reg = registrationRef.current;
       if (!reg) return;
-      reg.index = index;
       reg.element = internalRef.current;
       reg.image = imageNodeRef.current;
       reg.morphElement = morphNodeRef.current;
       if (handleProp) touchHandleTrigger(handleProp, reg);
-      else touchKeyed?.(reg);
-    }, [handleProp, touchKeyed, index]);
+      else touchInRoot?.(reg);
+    }, [handleProp, touchInRoot]);
 
     // Content key, not the array: consumers pass a fresh array every render.
     const overflowKey = overflowItemIds?.join('\u0000') ?? '';
 
-    // Register with the handle (detached / imperative triggerId association),
-    // or — keyed without a handle — with the enclosing Root's keyed join.
+    // Register with the handle's Root, or with the enclosing Root.
     React.useLayoutEffect(() => {
-      if (!handleProp && !registerKeyed) {
-        handleRegistrationRef.current = null;
+      if (!handleProp && !registerInRoot) {
+        registrationRef.current = null;
         return;
       }
       const reg: LightboxHandleTriggerRegistration = {
         id: handleTriggerId,
-        index,
         itemId,
-        overflowItemIds: keyed && overflowKey ? overflowKey.split('\u0000') : undefined,
+        overflowItemIds: overflowKey ? overflowKey.split('\u0000') : undefined,
         element: internalRef.current,
         image: imageNodeRef.current,
         morphElement: morphNodeRef.current,
       };
-      handleRegistrationRef.current = reg;
-      return handleProp ? registerHandleTrigger(handleProp, reg) : registerKeyed!(reg);
-    }, [handleProp, registerKeyed, handleTriggerId, index, itemId, keyed, overflowKey]);
-
-    // Register id map when this Trigger is under Root (for handle.open triggerId).
-    React.useLayoutEffect(() => {
-      if (!idProp || !triggerIdsRef) return;
-      const entry = {
-        id: idProp,
-        index,
-        element: internalRef.current,
-        image: imageNodeRef.current,
-      };
-      triggerIdsRef.current.set(idProp, entry);
-      return () => {
-        if (triggerIdsRef.current.get(idProp) === entry) {
-          triggerIdsRef.current.delete(idProp);
-        }
-      };
-    }, [idProp, index, triggerIdsRef]);
-
-    // Register (or clear) this trigger's morph override in the element-keyed
-    // registry. Keyed by the trigger element so it's correct even when several
-    // triggers share an index; the resolver falls back to the trigger itself
-    // when there's no entry. No-op until the trigger element is mounted — on
-    // first mount the child's `morphRef` fires before the trigger's own
-    // ref (refs resolve bottom-up), so `mergedRefCallback` re-runs this once the
-    // element exists; later toggles re-run it directly from `morphRef`.
-    const registerMorphElement = React.useCallback(() => {
-      const triggerEl = internalRef.current;
-      const registry = triggerMorphElementsRef?.current;
-      if (!triggerEl || !registry) return;
-      const morphNode = morphNodeRef.current;
-      if (morphNode) {
-        registry.set(triggerEl, morphNode);
-      } else {
-        registry.delete(triggerEl);
-      }
-      syncHandleRegistration();
-    }, [triggerMorphElementsRef, syncHandleRegistration]);
+      registrationRef.current = reg;
+      return handleProp ? registerHandleTrigger(handleProp, reg) : registerInRoot!(reg);
+    }, [handleProp, registerInRoot, handleTriggerId, itemId, overflowKey]);
 
     const mergedRefCallback = React.useCallback(
       (node: HTMLButtonElement | null) => {
-        const prev = internalRef.current;
         internalRef.current = node;
-        // Register in the trigger elements map for view transitions (Root tree).
-        if (triggerElementsRef) {
-          if (node) {
-            triggerElementsRef.current.set(index, node);
-            // Child refs (incl. `morphRef`) have already fired by now, so
-            // pick up any designated morph node for this freshly-mounted trigger.
-            registerMorphElement();
-          } else {
-            triggerElementsRef.current.delete(index);
-            if (prev) triggerMorphElementsRef?.current?.delete(prev);
-          }
-        } else {
-          // Detached: keep handle registration in sync with the DOM node.
-          syncHandleRegistration();
-        }
-        if (idProp && triggerIdsRef) {
-          const existing = triggerIdsRef.current.get(idProp);
-          if (existing) {
-            existing.element = node;
-          } else {
-            triggerIdsRef.current.set(idProp, {
-              id: idProp,
-              index,
-              element: node,
-              image: imageNodeRef.current,
-            });
-          }
-        }
+        syncRegistration();
         if (typeof forwardedRef === 'function') {
           forwardedRef(node);
         } else if (forwardedRef) {
           forwardedRef.current = node;
         }
       },
-      [
-        forwardedRef,
-        index,
-        idProp,
-        triggerElementsRef,
-        triggerMorphElementsRef,
-        triggerIdsRef,
-        registerMorphElement,
-        syncHandleRegistration,
-      ],
+      [forwardedRef, syncRegistration],
     );
 
     const imageRef = React.useCallback(
       (node: HTMLImageElement | null) => {
         imageNodeRef.current = node;
-        if (triggerImageElementsRef) {
-          if (node) {
-            triggerImageElementsRef.current.set(index, node);
-          } else {
-            triggerImageElementsRef.current.delete(index);
-          }
-        }
-        if (idProp && triggerIdsRef) {
-          const existing = triggerIdsRef.current.get(idProp);
-          if (existing) {
-            existing.image = node;
-          }
-        }
-        syncHandleRegistration();
+        syncRegistration();
       },
-      [index, idProp, triggerImageElementsRef, triggerIdsRef, syncHandleRegistration],
+      [syncRegistration],
     );
 
     // Tracks whether this trigger is currently the morph source so `morphRef`
@@ -545,60 +355,25 @@ const LightboxTriggerImpl = React.forwardRef<HTMLButtonElement, LightboxTriggerA
     const morphRef = React.useCallback(
       (node: HTMLElement | null) => {
         morphNodeRef.current = node;
-        registerMorphElement();
+        syncRegistration();
         if (isMorphTargetRef.current) {
           syncMorphTargetAttribute(true);
         }
       },
-      [registerMorphElement, syncMorphTargetAttribute],
+      [syncRegistration, syncMorphTargetAttribute],
     );
 
+    // Open through the Root's host, with this element as the morph origin.
     const handleClick = React.useCallback(() => {
-      if (rootContext && setOpen && setActiveIndex && openingTriggerIndexRef) {
-        if (payload !== undefined) rootContext.setOpenPayload(payload);
-        openingTriggerIndexRef.current = index;
-        // Capture the exact clicked element + its designated image so placeholder/
-        // morph sourcing is correct even when multiple triggers share this index.
-        if (openingTriggerElementRef) {
-          openingTriggerElementRef.current = internalRef.current;
-        }
-        if (openingTriggerImageRef) {
-          openingTriggerImageRef.current = imageNodeRef.current;
-        }
-        setActiveIndex(index, 'trigger');
-        setOpen(true);
-        return;
+      const host = handleProp ? getLightboxHandleHost(handleProp) : rootContext?.keyedHost;
+      const reg = registrationRef.current;
+      if (host && reg) {
+        host.openFromTrigger(reg, payload);
+      } else {
+        // Unbound handle: let it warn.
+        handleProp?.open(itemId, { payload });
       }
-      // Keyed: open through the Root's keyed host, with this element as origin.
-      if (keyed) {
-        const host = detachedHandle ? getLightboxHandleHost(detachedHandle) : keyedContext?.keyedHost;
-        const reg = handleRegistrationRef.current;
-        if (host && reg) {
-          host.openFromTrigger(reg, payload);
-        } else {
-          // Unbound handle: let it warn.
-          handleProp?.open({ itemId, payload });
-        }
-        return;
-      }
-      // Detached Trigger: open through the shared handle (associates this element).
-      handleProp?.open(index, { triggerId: handleTriggerId, payload });
-    }, [
-      rootContext,
-      handleProp,
-      detachedHandle,
-      keyedContext,
-      handleTriggerId,
-      index,
-      keyed,
-      itemId,
-      payload,
-      setActiveIndex,
-      setOpen,
-      openingTriggerIndexRef,
-      openingTriggerElementRef,
-      openingTriggerImageRef,
-    ]);
+    }, [handleProp, rootContext, itemId, payload]);
 
     // Intent warm-up. Wired to hover and focus as well as pointerdown: hover
     // buys a few hundred milliseconds over pointerdown's ~50–150ms, and focus
@@ -614,13 +389,13 @@ const LightboxTriggerImpl = React.forwardRef<HTMLButtonElement, LightboxTriggerA
     // purpose: an idle page-load prefetch would fetch ~20KB of viewer code
     // for every visitor, including the ones who never open a lightbox.
     const warmEngines = React.useCallback(() => {
-      // Event-time store read — config, not render state, so no subscription.
-      if (store?.getState().viewTransition) prefetchMorphRuntime();
+      // Event-time host read — config, not render state, so no subscription.
+      const host = handleProp ? getLightboxHandleHost(handleProp) : rootContext?.keyedHost;
+      if (host?.getViewTransition()) prefetchMorphRuntime();
       prefetchZoomRuntime();
       prefetchPullRuntime();
-    }, [store]);
+    }, [handleProp, rootContext]);
 
-    const active = rootContext ? storeActive : handleActive;
     const isServerPaint = useIsServerPaint();
 
     // Disclosure semantics matching Base UI's Dialog.Trigger: the button
@@ -631,24 +406,12 @@ const LightboxTriggerImpl = React.forwardRef<HTMLButtonElement, LightboxTriggerA
     //  - `aria-expanded` — true only on the trigger that actually opened the
     //    lightbox (Base UI's `isOpenedByThisTrigger`), so a gallery of triggers
     //    doesn't announce every thumbnail as "expanded" while the viewer is up.
-    //    Element identity (not index) is used so triggers sharing an index stay
-    //    correct. Keyed triggers read the origin off the handle; other detached
-    //    triggers can't track it, so they fall back to the shared open state.
-    //  - `aria-controls` — the dialog's id, set only while open (the referenced
-    //    element is only in the DOM then). Keyed triggers set it on the origin
-    //    only — a feed of thousands shouldn't all point at the viewer. Omitted
-    //    for other detached triggers, which can't resolve the Root's dialog id.
-    const keyedContentId = keyed && handleOpenedByThis ? readHost()?.getContentId() : undefined;
-    const contentId = rootContext ? `${rootContext.baseId}-content` : keyedContentId;
-    const openedByThisTrigger = rootContext
-      ? open && openingTriggerElementRef?.current === internalRef.current
-      : handleOpenedByThis;
-
-    // Under a Root this comes from the store subscription above (see
-    // `computeMorphTarget`). Keyed triggers compare their element with the
-    // Root's resolved close target; other detached triggers can't resolve
-    // registries, so they fall back to their own active state.
-    const morphTarget = rootContext ? storeMorphTarget : handleMorphTarget;
+    //    Element identity (not `itemId`) is used so duplicate triggers for one
+    //    item stay correct.
+    //  - `aria-controls` — the dialog's id, on the opening trigger only while
+    //    open (the referenced element is only in the DOM then) — a feed of
+    //    thousands shouldn't all point at the viewer.
+    const contentId = openedByThisTrigger ? readHost()?.getContentId() : undefined;
 
     // CSSOM delivery of the morph-target hide rule — the strict-CSP path,
     // mirroring Media's fill rules. The hoistable <style> rendered below covers
@@ -703,10 +466,9 @@ const LightboxTriggerImpl = React.forwardRef<HTMLButtonElement, LightboxTriggerA
       props: mergeProps<'button'>(
         {
           type: 'button',
-          id: idProp,
           'aria-haspopup': 'dialog',
           'aria-expanded': openedByThisTrigger,
-          ...(open && contentId ? { 'aria-controls': contentId } : null),
+          ...(contentId ? { 'aria-controls': contentId } : null),
           onClick: handleClick,
           onPointerEnter: warmEngines,
           onFocus: warmEngines,
@@ -733,17 +495,10 @@ const LightboxTriggerImpl = React.forwardRef<HTMLButtonElement, LightboxTriggerA
           // its copy, and the layout effect above (which re-runs on the flip)
           // restores the imperative one in the same commit.
           //
-          // Stamped from `active`, NOT the client-resolved `morphTarget`: the
-          // `closest` resolver walks the trigger-element ref map, which is
-          // necessarily empty during server rendering (refs don't attach
-          // server-side), so it can never match — while after hydration of
-          // this same markup the active trigger IS registered and `closest`
-          // resolves to exactly `active`. `origin` stays unstamped: a
-          // server-rendered page has no opening trigger, and the client
-          // resolves no hidden trigger for it either.
-          ...(active && morphTo !== 'origin' && isServerPaint
-            ? { [LightboxTriggerDataAttributes.morphTarget]: '' }
-            : null),
+          // During the server paint `morphTarget` comes from the server
+          // snapshot: the active trigger, unless `morphTo` is `origin` (a
+          // server-rendered page has no opening trigger).
+          ...(morphTarget && isServerPaint ? { [LightboxTriggerDataAttributes.morphTarget]: '' } : null),
         } as React.ComponentPropsWithRef<'button'>,
         elementProps as React.ComponentPropsWithRef<'button'>,
         { children: resolvedChildren } as React.ComponentPropsWithRef<'button'>,
@@ -790,7 +545,7 @@ const LightboxTrigger = LightboxTriggerImpl as (<Payload = unknown>(
 export { LightboxTrigger, LightboxTriggerContext, useOptionalLightboxTriggerContext };
 export type {
   LightboxTriggerProps,
-  LightboxTriggerTargetProps,
+  LightboxTriggerAllProps,
   LightboxTriggerState,
   LightboxTriggerRenderState,
   LightboxCrossfade,

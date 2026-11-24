@@ -17,21 +17,17 @@ import { LightboxSlides } from './lightbox-slides';
 import { LightboxTrigger } from './lightbox-trigger';
 import { REACT_SUPPORTS_STYLE_HOISTING } from './react-style-hoisting';
 
-function renderOpenGallery(options: {
-  ssrSlideShift?: boolean;
-  dir?: 'ltr' | 'rtl';
-  activeIndex?: number;
-}): string {
+function renderOpenGallery(options: { ssrSlideShift?: boolean; dir?: 'ltr' | 'rtl'; activeIndex?: number }): string {
   const { ssrSlideShift, dir, activeIndex = 2 } = options;
   return renderToString(
-    <LightboxRoot defaultOpen defaultValue={activeIndex} dir={dir}>
-      <LightboxTrigger index={0}>open</LightboxTrigger>
+    <LightboxRoot defaultOpen defaultValue={String(activeIndex)} itemIds={['0', '1', '2', '3']} dir={dir}>
+      <LightboxTrigger itemId="0">open</LightboxTrigger>
       <LightboxPortal container={null}>
         <LightboxContent aria-label="viewer">
           <LightboxSlides aria-label="Slides" ssrSlideShift={ssrSlideShift}>
             {[0, 1, 2, 3].map((i) => (
               <LightboxSlide key={i}>
-                <LightboxItem index={i} aria-label={`${i + 1} of 4`}>
+                <LightboxItem index={i} itemId={String(i)} aria-label={`${i + 1} of 4`}>
                   item {i}
                 </LightboxItem>
               </LightboxSlide>

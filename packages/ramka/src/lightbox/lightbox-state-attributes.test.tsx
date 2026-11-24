@@ -55,8 +55,8 @@ afterEach(() => {
 describe('Lightbox state → data-* attributes', () => {
   it('does not emit Base UI camelCase-squashed data attributes', () => {
     render(
-      <LightboxRoot defaultOpen defaultValue={0}>
-        <LightboxTrigger index={0} data-testid="trigger-0">
+      <LightboxRoot defaultOpen defaultValue="0">
+        <LightboxTrigger itemId="0" data-testid="trigger-0">
           {({ imageRef, morphRef }) => (
             <img
               ref={(node) => {
@@ -69,7 +69,7 @@ describe('Lightbox state → data-* attributes', () => {
             />
           )}
         </LightboxTrigger>
-        <LightboxTrigger index={1}>
+        <LightboxTrigger itemId="1">
           <img src="thumb-b.jpg" alt="thumb b" />
         </LightboxTrigger>
         <LightboxPortal>
@@ -80,7 +80,7 @@ describe('Lightbox state → data-* attributes', () => {
             <LightboxCaption />
             <LightboxSlides>
               <LightboxSlide>
-                <LightboxItem index={0} caption="First">
+                <LightboxItem index={0} itemId="0" caption="First">
                   <LightboxZoom maxZoom={4}>
                     <LightboxMedia width={800} height={600}>
                       <img src="full.jpg" alt="full" width={800} height={600} />
@@ -91,7 +91,7 @@ describe('Lightbox state → data-* attributes', () => {
                 </LightboxItem>
               </LightboxSlide>
               <LightboxSlide>
-                <LightboxItem index={1} caption="Second">
+                <LightboxItem index={1} itemId="1" caption="Second">
                   <img src="full-b.jpg" alt="full b" />
                 </LightboxItem>
               </LightboxSlide>

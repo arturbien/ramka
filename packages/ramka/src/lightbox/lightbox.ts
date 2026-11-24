@@ -138,7 +138,6 @@ export { LightboxCSPProvider as CSPProvider } from './lightbox-csp';
 
 export type {
   LightboxRootProps,
-  LightboxRootRenderState,
   LightboxRevealTrigger,
   LightboxRevealTriggerDetails,
   LightboxBeforeOpen,

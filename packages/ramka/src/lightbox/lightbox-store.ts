@@ -57,7 +57,13 @@ import * as React from 'react';
 interface LightboxHotState {
   open: boolean;
   activeIndex: number;
-  /** Live registered-item count (or the `count` prop before registration). */
+  /**
+   * `itemId` of the active item, known at render time from `value` /
+   * `defaultValue` / the last navigation. What server-rendered Triggers and
+   * Thumbnails compare against, since items register only in effects.
+   */
+  activeItemId: string | undefined;
+  /** Live registered-item count (or Root's `itemIds` before registration). */
   itemCount: number;
   loop: boolean;
   hasTablist: boolean;
@@ -102,6 +108,7 @@ function hotStateEqual(a: LightboxHotState, b: LightboxHotState): boolean {
   return (
     a.open === b.open &&
     a.activeIndex === b.activeIndex &&
+    a.activeItemId === b.activeItemId &&
     a.itemCount === b.itemCount &&
     a.loop === b.loop &&
     a.hasTablist === b.hasTablist &&

@@ -34,9 +34,9 @@ function buttonAttrs(html: string, testid: string): string {
 describe('LightboxTrigger server rendering (SSR-open pages)', () => {
   it('stamps data-morph-target on the active trigger and ships the hide rule', () => {
     const html = renderToString(
-      <LightboxRoot defaultOpen defaultValue={1}>
+      <LightboxRoot defaultOpen defaultValue="1">
         {[0, 1, 2].map((i) => (
-          <LightboxTrigger key={i} index={i} data-testid={`trigger-${i}`}>
+          <LightboxTrigger key={i} itemId={String(i)} data-testid={`trigger-${i}`}>
             T{i}
           </LightboxTrigger>
         ))}
@@ -68,9 +68,9 @@ describe('LightboxTrigger server rendering (SSR-open pages)', () => {
     // what `closest` resolves to after hydration whenever the active trigger
     // is registered (it is — it's in this same markup).
     const html = renderToString(
-      <LightboxRoot defaultOpen defaultValue={2} morphTo="closest">
+      <LightboxRoot defaultOpen defaultValue="2" morphTo="closest">
         {[0, 1, 2].map((i) => (
-          <LightboxTrigger key={i} index={i} data-testid={`trigger-${i}`}>
+          <LightboxTrigger key={i} itemId={String(i)} data-testid={`trigger-${i}`}>
             T{i}
           </LightboxTrigger>
         ))}
@@ -85,9 +85,9 @@ describe('LightboxTrigger server rendering (SSR-open pages)', () => {
 
   it('stamps nothing under morphTo="origin" — a server render has no opening trigger', () => {
     const html = renderToString(
-      <LightboxRoot defaultOpen defaultValue={1} morphTo="origin">
+      <LightboxRoot defaultOpen defaultValue="1" morphTo="origin">
         {[0, 1, 2].map((i) => (
-          <LightboxTrigger key={i} index={i} data-testid={`trigger-${i}`}>
+          <LightboxTrigger key={i} itemId={String(i)} data-testid={`trigger-${i}`}>
             T{i}
           </LightboxTrigger>
         ))}
@@ -104,7 +104,7 @@ describe('LightboxTrigger server rendering (SSR-open pages)', () => {
   it('does not stamp data-morph-target when server-rendered closed', () => {
     const html = renderToString(
       <LightboxRoot>
-        <LightboxTrigger index={0} data-testid="trigger-0">
+        <LightboxTrigger itemId="0" data-testid="trigger-0">
           T0
         </LightboxTrigger>
         <LightboxPortal container={null}>
@@ -124,14 +124,16 @@ describe('LightboxThumbnailStrip server rendering (SSR-open pages)', () => {
     // until positioning would stop working and the pre-hydration strip would
     // paint at offset 0. Pin the absence.
     const html = renderToString(
-      <LightboxRoot defaultOpen defaultValue={1}>
-        <LightboxTrigger index={0}>open</LightboxTrigger>
+      <LightboxRoot defaultOpen defaultValue="1" itemIds={['0', '1', '2']}>
+        <LightboxTrigger itemId="0">open</LightboxTrigger>
         <LightboxPortal container={null}>
           <LightboxContent aria-label="viewer">
             <LightboxSlides aria-label="Slides">
               {[0, 1, 2].map((i) => (
                 <LightboxSlide key={i}>
-                  <LightboxItem index={i}>item {i}</LightboxItem>
+                  <LightboxItem index={i} itemId={String(i)}>
+                    item {i}
+                  </LightboxItem>
                 </LightboxSlide>
               ))}
             </LightboxSlides>

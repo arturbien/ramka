@@ -137,25 +137,38 @@ function Viewer({
 } & Omit<LightboxRootProps<Payload>, 'children' | 'handle'>) {
   return (
     <LightboxRoot handle={handle} viewTransition awaitImageDecode={false} {...rootProps}>
-      {({ payload }) => {
-        onPayload?.(payload);
-        const message = messages.find((m) => m.id === payload?.messageId);
-        const images = message ? (reverse ? [...message.images].reverse() : message.images) : [];
-        return (
-          <LightboxPortal keepMounted={keepMounted}>
-            <LightboxContent aria-label="Viewer" data-testid="content">
-              <SlidesHost slideCount={images.length}>
-                {images.map((src, i) => (
-                  <LightboxItem key={src} index={i} itemId={src} data-testid={`item-${src}`}>
-                    {({ imageRef }) => <img ref={imageRef} src={`${src}-full.jpg`} alt="" />}
-                  </LightboxItem>
-                ))}
-              </SlidesHost>
-            </LightboxContent>
-          </LightboxPortal>
-        );
-      }}
+      <ViewerBody messages={messages} reverse={reverse} keepMounted={keepMounted} onPayload={onPayload} />
     </LightboxRoot>
+  );
+}
+
+function ViewerBody({
+  messages,
+  reverse,
+  keepMounted,
+  onPayload,
+}: {
+  messages: Message[];
+  reverse: boolean;
+  keepMounted: boolean;
+  onPayload?: (payload: Payload | undefined) => void;
+}) {
+  const payload = useLightboxPayload<Payload>();
+  onPayload?.(payload);
+  const message = messages.find((m) => m.id === payload?.messageId);
+  const images = message ? (reverse ? [...message.images].reverse() : message.images) : [];
+  return (
+    <LightboxPortal keepMounted={keepMounted}>
+      <LightboxContent aria-label="Viewer" data-testid="content">
+        <SlidesHost slideCount={images.length}>
+          {images.map((src, i) => (
+            <LightboxItem key={src} index={i} itemId={src} data-testid={`item-${src}`}>
+              {({ imageRef }) => <img ref={imageRef} src={`${src}-full.jpg`} alt="" />}
+            </LightboxItem>
+          ))}
+        </SlidesHost>
+      </LightboxContent>
+    </LightboxPortal>
   );
 }
 
@@ -170,18 +183,18 @@ function hiddenTriggers() {
 export function triggerPropTypeChecks(handle: LightboxHandle<Payload>, untyped: LightboxHandle) {
   return (
     <>
-      <LightboxTrigger index={0} />
+      <LightboxTrigger itemId="a" />
       <LightboxTrigger itemId="a" overflowItemIds={['b']} />
       <LightboxTrigger handle={handle} itemId="a" payload={{ messageId: 'A' }} />
       <LightboxTrigger handle={untyped} itemId="a" />
-      {/* @ts-expect-error `index` and `itemId` are mutually exclusive */}
+      {/* @ts-expect-error a Trigger needs an `itemId` */}
+      <LightboxTrigger />
+      {/* @ts-expect-error `index` is not a Trigger prop */}
       <LightboxTrigger index={0} itemId="a" />
       {/* @ts-expect-error `overflowItemIds` needs `itemId` */}
-      <LightboxTrigger index={0} overflowItemIds={['b']} />
+      <LightboxTrigger overflowItemIds={['b']} />
       {/* @ts-expect-error a typed handle requires `payload` */}
       <LightboxTrigger handle={handle} itemId="a" />
-      {/* @ts-expect-error a typed handle requires `payload` on index triggers too */}
-      <LightboxTrigger handle={handle} index={0} />
       {/* @ts-expect-error `payload` must match the handle's type */}
       <LightboxTrigger handle={handle} itemId="a" payload={{ other: 1 }} />
     </>
@@ -191,14 +204,14 @@ export function triggerPropTypeChecks(handle: LightboxHandle<Payload>, untyped: 
 // Compile-time only: handle, hook and Root typing.
 export function apiTypeChecks(handle: LightboxHandle<Payload>) {
   const plain: LightboxHandle = handle;
-  handle.open({ itemId: 'a', payload: { messageId: 'A' } });
-  handle.open(0, { payload: { messageId: 'A' } });
-  handle.goTo(1);
-  handle.goTo({ itemId: 'a' });
-  // @ts-expect-error goTo takes an index or `{ itemId }`
+  handle.open('a', { payload: { messageId: 'A' } });
   handle.goTo('a');
+  // @ts-expect-error open takes an itemId, not an index
+  handle.open(0);
+  // @ts-expect-error goTo takes an itemId, not an index
+  handle.goTo(1);
   // @ts-expect-error open's payload must match the handle's type
-  handle.open({ itemId: 'a', payload: { other: 1 } });
+  handle.open('a', { payload: { other: 1 } });
   function UsesPayload() {
     const payload: Payload | undefined = useLightboxPayload<Payload>();
     return <>{payload?.messageId}</>;
@@ -247,7 +260,7 @@ describe('keyed triggers (one Root, many galleries)', () => {
     fireEvent.click(screen.getByTestId('t-b0'));
     expect(hiddenTriggers()).toEqual(['t-b0']);
 
-    act(() => handle.goTo(1));
+    act(() => handle.goTo('b1'));
     expect(hiddenTriggers()).toEqual(['t-b1']);
   });
 
@@ -321,7 +334,7 @@ describe('keyed triggers (one Root, many galleries)', () => {
     fireEvent.click(screen.getByTestId('t-p3'));
     expect(screen.getByTestId('t-p3')).toHaveAttribute('data-crossfade', 'both');
 
-    act(() => handle.goTo(5));
+    act(() => handle.goTo('p5'));
     expect(screen.getByTestId('item-p5')).toHaveAttribute('data-active');
     expect(hiddenTriggers()).toEqual(['t-p3']);
 
@@ -364,15 +377,15 @@ describe('keyed triggers (one Root, many galleries)', () => {
     );
 
     fireEvent.click(screen.getByTestId('t-x3'));
-    act(() => handle.goTo(6));
+    act(() => handle.goTo('x6'));
     // x6 is hidden behind x's "+3" tile. With `closest` over the flat index
     // it would have picked y0 (one slide away) — the next message.
     expect(hiddenTriggers()).toEqual(['t-x3']);
 
-    act(() => handle.goTo(7));
+    act(() => handle.goTo('y0'));
     expect(hiddenTriggers()).toEqual(['t-y0']);
 
-    act(() => handle.goTo(5));
+    act(() => handle.goTo('x5'));
     act(() => handle.close());
     expect(morphNameOf(screen.getByTestId('t-x3'))).toBe(MORPH);
     expect(morphNameOf(screen.getByTestId('t-y0'))).toBe('');
@@ -395,7 +408,7 @@ describe('keyed triggers (one Root, many galleries)', () => {
     renderCounts.clear();
 
     fireEvent.click(screen.getByTestId('t-m7-1'));
-    act(() => handle.goTo(2));
+    act(() => handle.goTo('m7-2'));
 
     // Only the open message's tiles flip state; the other 57 never render.
     expect([...renderCounts.keys()].sort()).toEqual(['m7-0', 'm7-1', 'm7-2']);
@@ -464,11 +477,11 @@ describe('keyed triggers (one Root, many galleries)', () => {
     expect(handle.isOpen).toBe(false);
   });
 
-  it('opens from handle.open({ itemId, payload }) without a trigger element', () => {
+  it('opens from handle.open(itemId, { payload }) without a trigger element', () => {
     const handle = createHandle<Payload>();
     render(<Viewer handle={handle} messages={[messageA, messageB]} />);
 
-    act(() => handle.open({ itemId: 'a2', payload: { messageId: 'A' } }));
+    act(() => handle.open('a2', { payload: { messageId: 'A' } }));
 
     expect(screen.getByTestId('item-a2')).toHaveAttribute('data-active');
   });
@@ -478,7 +491,7 @@ describe('keyed triggers (one Root, many galleries)', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     render(<Viewer handle={handle} messages={[messageA]} />);
 
-    act(() => handle.open({ itemId: 'nope', payload: { messageId: 'A' } }));
+    act(() => handle.open('nope', { payload: { messageId: 'A' } }));
 
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('itemId "nope"'));
   });
@@ -501,7 +514,7 @@ describe('keyed triggers (one Root, many galleries)', () => {
     expect(screen.getByTestId('item-a2')).toHaveAttribute('data-active');
   });
 
-  it('handle.open({ itemId }) morphs from and marks the mounted trigger for that item', () => {
+  it('handle.open(itemId) morphs from and marks the mounted trigger for that item', () => {
     const handle = createHandle<Payload>();
     render(
       <>
@@ -511,7 +524,7 @@ describe('keyed triggers (one Root, many galleries)', () => {
       </>,
     );
 
-    act(() => handle.open({ itemId: 'b2', payload: { messageId: 'B' } }));
+    act(() => handle.open('b2', { payload: { messageId: 'B' } }));
 
     expect(screen.getByTestId('item-b2')).toHaveAttribute('data-active');
     expect(hiddenTriggers()).toEqual(['t-b2']);
@@ -519,7 +532,7 @@ describe('keyed triggers (one Root, many galleries)', () => {
     expect(screen.getByTestId('t-a2')).toHaveAttribute('aria-expanded', 'false');
   });
 
-  it('goTo({ itemId }) navigates by item and onValueChange reports the itemId', () => {
+  it('goTo(itemId) navigates by item and onValueChange reports the itemId', () => {
     const handle = createHandle<Payload>();
     const onValueChange = vi.fn();
     render(
@@ -530,41 +543,41 @@ describe('keyed triggers (one Root, many galleries)', () => {
     );
 
     fireEvent.click(screen.getByTestId('t-b0'));
-    act(() => handle.goTo({ itemId: 'b2' }));
+    act(() => handle.goTo('b2'));
 
     expect(screen.getByTestId('item-b2')).toHaveAttribute('data-active');
-    expect(onValueChange).toHaveBeenLastCalledWith(2, expect.objectContaining({ itemId: 'b2' }));
+    expect(onValueChange).toHaveBeenLastCalledWith('b2', expect.objectContaining({ index: 2 }));
   });
 
   it('keyed triggers work inside a Root without a handle', () => {
+    function InlineViewer() {
+      const payload = useLightboxPayload<Payload>();
+      const message = [messageA, messageB].find((m) => m.id === payload?.messageId);
+      return (
+        <LightboxPortal>
+          <LightboxContent aria-label="Viewer">
+            <SlidesHost slideCount={message?.images.length ?? 0}>
+              {(message?.images ?? []).map((src, i) => (
+                <LightboxItem key={src} index={i} itemId={src} data-testid={`item-${src}`}>
+                  {({ imageRef }) => <img ref={imageRef} src={`${src}-full.jpg`} alt="" />}
+                </LightboxItem>
+              ))}
+            </SlidesHost>
+          </LightboxContent>
+        </LightboxPortal>
+      );
+    }
     function Inline() {
       return (
         <LightboxRoot viewTransition awaitImageDecode={false}>
-          {({ payload }: { payload: Payload | undefined }) => {
-            const message = [messageA, messageB].find((m) => m.id === payload?.messageId);
-            return (
-              <>
-                {[messageA, messageB].map((m) =>
-                  m.images.map((src) => (
-                    <LightboxTrigger key={src} itemId={src} payload={{ messageId: m.id }} data-testid={`t-${src}`}>
-                      {({ imageRef }) => <img ref={imageRef} src={`${src}-thumb.jpg`} alt="" />}
-                    </LightboxTrigger>
-                  )),
-                )}
-                <LightboxPortal>
-                  <LightboxContent aria-label="Viewer">
-                    <SlidesHost slideCount={message?.images.length ?? 0}>
-                      {(message?.images ?? []).map((src, i) => (
-                        <LightboxItem key={src} index={i} itemId={src} data-testid={`item-${src}`}>
-                          {({ imageRef }) => <img ref={imageRef} src={`${src}-full.jpg`} alt="" />}
-                        </LightboxItem>
-                      ))}
-                    </SlidesHost>
-                  </LightboxContent>
-                </LightboxPortal>
-              </>
-            );
-          }}
+          {[messageA, messageB].map((m) =>
+            m.images.map((src) => (
+              <LightboxTrigger key={src} itemId={src} payload={{ messageId: m.id }} data-testid={`t-${src}`}>
+                {({ imageRef }) => <img ref={imageRef} src={`${src}-thumb.jpg`} alt="" />}
+              </LightboxTrigger>
+            )),
+          )}
+          <InlineViewer />
         </LightboxRoot>
       );
     }
@@ -724,8 +737,8 @@ describe('keyed triggers (one Root, many galleries)', () => {
     fireEvent.click(screen.getByTestId('t-m7-1'));
     expect(screen.getByTestId('item-m7-1')).toHaveAttribute('data-active');
     const viewerRendersOnOpen = viewerRenders;
-    act(() => handle.goTo({ itemId: 'm7-2' }));
-    act(() => handle.goTo({ itemId: 'm7-0' }));
+    act(() => handle.goTo('m7-2'));
+    act(() => handle.goTo('m7-0'));
     act(() => handle.close());
     await act(async () => {
       await Promise.resolve();
@@ -753,7 +766,7 @@ describe('keyed triggers (one Root, many galleries)', () => {
     const trigger = screen.getByTestId('t-b1');
     trigger.focus();
     fireEvent.click(trigger);
-    act(() => handle.goTo({ itemId: 'b2' }));
+    act(() => handle.goTo('b2'));
     act(() => handle.close());
     await act(async () => {
       await Promise.resolve();
@@ -785,7 +798,7 @@ describe('keyed triggers (one Root, many galleries)', () => {
     );
 
     fireEvent.click(screen.getByTestId('t-x3'));
-    act(() => handle.goTo({ itemId: 'x5' }));
+    act(() => handle.goTo('x5'));
     act(() => handle.close());
 
     expect(morphNameOf(screen.getByTestId('t-x3'))).toBe(MORPH);
@@ -824,7 +837,7 @@ describe('keyed triggers: virtualization and close races', () => {
     row.set(false);
     act(() => handle.close());
     const { signal } = revealTrigger.mock.calls[0]![0];
-    act(() => handle.open({ itemId: 'b2', payload: { messageId: 'B' } }));
+    act(() => handle.open('b2', { payload: { messageId: 'B' } }));
     for (let i = 0; i < 12; i += 1) act(() => flushRaf());
 
     expect(signal.aborted).toBe(true);
@@ -939,7 +952,7 @@ describe('keyed triggers: virtualization and close races', () => {
 
       fireEvent.click(screen.getByTestId('t-b0'));
       row.set(false);
-      act(() => handle.goTo({ itemId: 'b2' }));
+      act(() => handle.goTo('b2'));
       act(() => vi.advanceTimersByTime(200));
 
       expect(revealTrigger).toHaveBeenCalledOnce();
@@ -947,7 +960,7 @@ describe('keyed triggers: virtualization and close races', () => {
       expect(details).toMatchObject({ reason: 'change', itemId: 'b2' });
       expect(details.signal.aborted).toBe(false);
 
-      act(() => handle.goTo({ itemId: 'b1' }));
+      act(() => handle.goTo('b1'));
       expect(details.signal.aborted).toBe(true);
     } finally {
       vi.useRealTimers();
@@ -967,7 +980,7 @@ describe('keyed triggers: galleries and stand-ins', () => {
     );
 
     fireEvent.click(screen.getByTestId('t-a0'));
-    act(() => handle.open({ itemId: 'b2', payload: { messageId: 'B' } }));
+    act(() => handle.open('b2', { payload: { messageId: 'B' } }));
 
     expect(screen.getByTestId('item-b2')).toHaveAttribute('data-active');
     expect(screen.queryByTestId('item-a0')).toBeNull();
@@ -1023,7 +1036,7 @@ describe('keyed triggers: galleries and stand-ins', () => {
     );
 
     fireEvent.click(screen.getByTestId('t-x3'));
-    act(() => handle.goTo({ itemId: 'x5' }));
+    act(() => handle.goTo('x5'));
     expect(hiddenTriggers()).toEqual(['t-x5']);
     act(() => handle.close());
 
@@ -1047,7 +1060,7 @@ describe('keyed triggers: deep links, payload and controlled state', () => {
           onPayload={onPayload}
           defaultOpen
           defaultPayload={{ messageId: 'B' }}
-          defaultValue={2}
+          defaultValue="b2"
           viewTransition={false}
         />
       </>,
@@ -1133,7 +1146,7 @@ describe('keyed triggers: deep links, payload and controlled state', () => {
     fireEvent.click(screen.getByTestId('t-b2'));
     expect(handle.isOpen).toBe(true);
     expect(screen.getByTestId('item-b2')).toHaveAttribute('data-active');
-    expect(onValueChange).toHaveBeenLastCalledWith(2, expect.objectContaining({ itemId: 'b2' }));
+    expect(onValueChange).toHaveBeenLastCalledWith('b2', expect.objectContaining({ index: 2 }));
 
     act(() => setOpen(false));
     expect(handle.isOpen).toBe(false);
@@ -1150,18 +1163,37 @@ describe('keyed triggers: dev warnings and notification cost', () => {
     expect(() => render(<Orphan />)).toThrow('useLightboxPayload must be used within a Lightbox.Root');
   });
 
-  it('errors on a Trigger with neither or both of index and itemId', () => {
+  it('errors on a Trigger without an itemId, even one given a legacy index', () => {
     const error = vi.spyOn(console, 'error').mockImplementation(() => {});
     const Loose = LightboxTrigger as unknown as React.ComponentType<Record<string, unknown>>;
+    const needsItemId = expect.stringContaining('[ramka] Lightbox.Trigger needs an `itemId`');
+
     render(
       <LightboxRoot>
         <Loose />
-        <Loose index={0} itemId="a" />
+      </LightboxRoot>,
+    );
+    expect(error).toHaveBeenCalledWith(needsItemId);
+
+    cleanup();
+    error.mockClear();
+    render(
+      <LightboxRoot>
+        <Loose index={0} />
+      </LightboxRoot>,
+    );
+    expect(error).toHaveBeenCalledWith(needsItemId);
+  });
+
+  it('does not error on a Trigger with an itemId', () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    render(
+      <LightboxRoot>
+        <LightboxTrigger itemId="a" />
       </LightboxRoot>,
     );
 
-    expect(error).toHaveBeenCalledWith(expect.stringContaining('needs an `index` or an `itemId`'));
-    expect(error).toHaveBeenCalledWith(expect.stringContaining('not both'));
+    expect(error).not.toHaveBeenCalledWith(expect.stringContaining('needs an `itemId`'));
   });
 
   it('goTo to a missing itemId warns and stays put', () => {
@@ -1175,7 +1207,7 @@ describe('keyed triggers: dev warnings and notification cost', () => {
     );
 
     fireEvent.click(screen.getByTestId('t-b0'));
-    act(() => handle.goTo({ itemId: 'nope' }));
+    act(() => handle.goTo('nope'));
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('no mounted Lightbox.Item has itemId "nope"'));
     expect(screen.getByTestId('item-b0')).toHaveAttribute('data-active');
   });
