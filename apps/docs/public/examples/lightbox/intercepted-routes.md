@@ -1,61 +1,44 @@
 # Intercepted routes
 
-The nextgram pattern: grid of plain Links, a @modal parallel-route slot, and an (.)photos/[id] intercepting route mounting an already-open controlled lightbox — Back closes it, hard loads get a standalone photo page (one URL, two presentations).
+The nextgram pattern with a morph: tiles are Triggers rendered as Links, so a click morphs the viewer open and soft-navigates to the intercepted (.)photos/[id] route in a @modal slot — Back and Forward close and reopen it, hard loads get a standalone photo page (one URL, two presentations).
 
 ## Source
 
 ```tsx examples/lightbox/intercepted-routes/page.tsx
 import type { Metadata } from 'next';
-import Image from 'next/image';
-import Link from 'next/link';
 
 import { ExampleShell } from '../../../../_components/example-shell';
-import { EXAMPLE_BASE_PATH, EXAMPLE_PAGE_TITLE, interceptedPhotos } from './photos';
+import { PhotoTile } from './photo-viewer';
+import { EXAMPLE_PAGE_TITLE, interceptedPhotos } from './photos';
 
 export const metadata: Metadata = {
   title: EXAMPLE_PAGE_TITLE,
   description:
-    'A photo grid wired to Next.js intercepted + parallel routes: clicking a tile soft-navigates to the photo URL and the lightbox opens in a @modal slot over the grid; loading that URL cold renders a standalone photo page instead. Built with ramka.',
+    'A photo grid wired to Next.js intercepted + parallel routes: clicking a tile morphs the lightbox open and soft-navigates to the photo URL; loading that URL cold renders a standalone photo page instead. Built with ramka.',
 };
 
 /**
- * The grid is plain `<Link>`s — NOT `Lightbox.Trigger`s. Opening is a router
- * navigation: Next.js intercepts it (`@modal/(.)photos/[id]`) and mounts an
- * already-open lightbox in the layout's modal slot while this page stays on
- * screen underneath. That's the defining tradeoff of this pattern versus the
- * Shareable albums example: the open never flows through the library's
- * gesture path, so there is no trigger morph (the viewer fades in), and a
- * refresh on a photo URL renders a different presentation (the standalone
- * page) rather than this grid with the viewer open.
+ * Each tile is a `Lightbox.Trigger` rendered as a `<Link>` (see PhotoTile): the
+ * click opens the viewer through the gesture path, so it morphs from the tile,
+ * and the same click navigates to the photo URL, which Next.js intercepts
+ * (`@modal/(.)photos/[id]`) while this page stays on screen. A refresh on a
+ * photo URL still renders a different presentation (the standalone page);
+ * the Shareable albums example keeps the viewer open on refresh instead.
  *
- * `scroll={false}` keeps the grid's scroll position while the modal is up —
- * without it, Next scrolls the page to the top on every navigation.
+ * `scroll={false}` on the Links keeps the grid's scroll position — without
+ * it, Next scrolls the page to the top on every navigation.
  */
 export default function InterceptedRoutesGridPage() {
   return (
     <ExampleShell
       title="Intercepted routes"
-      description="The nextgram pattern: a grid of plain Next.js Links, a @modal parallel-route slot, and an (.)photos/[id] intercepting route that mounts an already-open, controlled lightbox during soft navigation — browser Back closes it. Hard-loading the same photo URL skips interception entirely and renders a standalone photo page: one URL, two presentations. Compare with the Shareable albums example, which keeps one presentation (albums + viewer) on refresh and keeps trigger morphs, at the cost of owning the History API writes itself."
+      description="The nextgram pattern with a morph: a @modal parallel-route slot and an (.)photos/[id] intercepting route, with one controlled lightbox in the layout. Every tile is a Lightbox.Trigger rendered as a Next.js Link, so a click morphs the viewer open from the tile and soft-navigates to the photo URL in one go. Swiping rewrites the URL in place, closing morphs back onto the tile and pops the entry, and browser Back and Forward close and reopen the viewer. Hard-loading a photo URL skips interception entirely and renders a standalone photo page: one URL, two presentations."
       docsHref="/docs/lightbox/state-lifecycle"
       docsLabel="State & lifecycle docs"
     >
       <div className="grid max-w-2xl grid-cols-2 gap-4 sm:grid-cols-3">
         {interceptedPhotos.map((photo) => (
-          <Link
-            key={photo.id}
-            href={`${EXAMPLE_BASE_PATH}/photos/${photo.id}`}
-            scroll={false}
-            className="block overflow-hidden rounded-xl"
-          >
-            <Image
-              src={photo.image}
-              alt={photo.alt}
-              placeholder="blur"
-              sizes="(min-width: 640px) 224px, 50vw"
-              loading="lazy"
-              className="block aspect-square h-auto w-full rounded-xl bg-neutral-100 object-cover transition duration-200 hover:opacity-90 dark:bg-neutral-800"
-            />
-          </Link>
+          <PhotoTile key={photo.id} photo={photo} />
         ))}
       </div>
     </ExampleShell>
@@ -64,13 +47,18 @@ export default function InterceptedRoutesGridPage() {
 ```
 
 ```tsx examples/lightbox/intercepted-routes/layout.tsx
+import { InterceptedViewer } from './photo-viewer';
+
 /**
  * The layout is what makes the parallel-route slot exist: `@modal` renders as
  * the `modal` prop NEXT TO the page, not inside it. During soft navigation to
- * `photos/[id]` the interception route fills this slot with the lightbox while
- * `children` keeps showing the grid the user was on; on hard loads the slot
- * renders `@modal/default.tsx` (null) and `children` is the standalone photo
- * page.
+ * `photos/[id]` the interception route fills this slot while `children` keeps
+ * showing the grid the user was on; on hard loads the slot renders
+ * `@modal/default.tsx` (null) and `children` is the standalone photo page.
+ *
+ * The viewer lives here, around both slots, so the grid's tiles can be its
+ * Triggers and the close can morph back onto them. The slot only tells it
+ * which photo the URL shows.
  */
 export default function InterceptedRoutesLayout({
   children,
@@ -80,120 +68,193 @@ export default function InterceptedRoutesLayout({
   modal: React.ReactNode;
 }) {
   return (
-    <>
+    <InterceptedViewer>
       {children}
       {modal}
-    </>
+    </InterceptedViewer>
   );
 }
 ```
 
-```tsx examples/lightbox/intercepted-routes/photo-modal.tsx
+```tsx examples/lightbox/intercepted-routes/photo-viewer.tsx
 'use client';
 
 import * as React from 'react';
+import Image from 'next/image';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import * as Lightbox from '@ramka/react/lightbox';
 
-import { LightboxGallery } from '../../../../_components/lightbox-chrome';
-import { EXAMPLE_BASE_PATH, EXAMPLE_PAGE_TITLE, interceptedPhotos, interceptedPhotoTitle } from './photos';
+import { LightboxGallery, triggerFocusClass } from '../../../../_components/lightbox-chrome';
+import {
+  EXAMPLE_BASE_PATH,
+  EXAMPLE_PAGE_TITLE,
+  interceptedPhotos,
+  interceptedPhotoTitle,
+  type InterceptedPhoto,
+} from './photos';
 
-const items = interceptedPhotos.map((photo) => ({
-  ...photo,
-  src: photo.image,
-  thumb: photo.image,
-  // No `Lightbox.Trigger`s exist anywhere in this pattern (the grid is plain
-  // Links), so no item has a trigger image and Ramka has nothing to bridge —
-  // per the Next.js Image guide, the destination LQIP is the only loading
-  // placeholder and belongs on every item.
-  destinationBlur: true,
-}));
-
+const items = interceptedPhotos.map((photo) => ({ ...photo, src: photo.image, thumb: photo.image }));
 const photoIds = interceptedPhotos.map((photo) => photo.id);
 
+function photoUrl(photoId: string) {
+  return `${EXAMPLE_BASE_PATH}/photos/${photoId}`;
+}
+
+function onPhotoUrl() {
+  return window.location.pathname.startsWith(`${EXAMPLE_BASE_PATH}/photos/`);
+}
+
+// History writes never re-run route metadata, so the tab title would stay on
+// the photo the viewer opened with. The suffix mirrors the root layout's
+// title template, which only applies on the server.
+function retitle(photoId: string | null) {
+  const photo = photoId ? interceptedPhotos.find((p) => p.id === photoId) : undefined;
+  document.title = `${photo ? interceptedPhotoTitle(photo) : EXAMPLE_PAGE_TITLE} — ramka`;
+}
+
+interface PhotoRouteSync {
+  /** The URL now shows this photo (the intercepted route mounted). */
+  show: (photoId: string) => void;
+  /** The URL left the photo (the intercepted route unmounted). */
+  hide: () => void;
+}
+
+const PhotoRouteSyncContext = React.createContext<PhotoRouteSync | null>(null);
+
 /**
- * The viewer the intercepting route mounts: a self-contained, ALREADY-OPEN
- * controlled lightbox. There are no `Lightbox.Trigger`s here — the router
- * opened this, not a gesture, which is the pattern's defining tradeoff: the
- * open never flows through the library's gesture path, so it fades in rather
- * than morphing from the clicked tile.
+ * One Root for the whole example, mounted by the layout around both slots, so
+ * the grid's tiles are real Triggers of the viewer. A tile click opens the
+ * viewer itself (with the morph) and, being a Link, also soft-navigates to the
+ * photo URL. The intercepted route then finds the viewer already open on its
+ * photo; it only has to open it when the URL got there some other way
+ * (Forward), and close it when the URL leaves (Back).
  *
- * The default body portal is fine here (unlike the Shareable albums example's
- * `container={null}`): interception only happens during client-side
- * navigation, where `document.body` exists. Nothing about this component is
- * ever server-painted into the page.
+ * Controlled, because the route drives it from effects: a controlled `open`
+ * is plain state, while handle calls belong in event handlers.
  */
-export function PhotoModal({ initialPhotoId }: { initialPhotoId: string }) {
+export function InterceptedViewer({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const [open, setOpen] = React.useState(false);
+  const [photoId, setPhotoId] = React.useState<string | null>(null);
+  // What the viewer shows right now, for callbacks that run before a render.
+  const openRef = React.useRef(false);
 
-  // Local `open` so a close gesture (Escape, ✕, pull-to-dismiss) can play the
-  // skin's fade BEFORE the route unmounts this component: flipping the route
-  // first (router.back() in onOpenChange) would yank the viewer out of the
-  // DOM mid-frame. Browser Back does exactly that — popstate unmounts the
-  // slot with no exit animation — which is unavoidable in this pattern.
-  const [open, setOpen] = React.useState(true);
-  const [photoId, setPhotoId] = React.useState(initialPhotoId);
-  const photo = interceptedPhotos.find((p) => p.id === photoId);
+  const sync = React.useMemo<PhotoRouteSync>(
+    () => ({
+      show(id) {
+        setPhotoId(id);
+        if (openRef.current) return;
+        openRef.current = true;
+        setOpen(true);
+      },
+      hide() {
+        if (!openRef.current) return;
+        openRef.current = false;
+        setOpen(false);
+        retitle(null);
+      },
+    }),
+    [],
+  );
 
-  // Swipes REPLACE the current history entry with the new photo URL — no
-  // history spam, and the grid entry underneath stays intact so one Back
-  // always closes the viewer. replaceState is a shallow write: Next.js keeps
-  // rendering this same mounted route (usePathname-style readers update, but
-  // no navigation happens), so the viewer never remounts mid-swipe.
+  const handleOpenChange = (nextOpen: boolean) => {
+    openRef.current = nextOpen;
+    setOpen(nextOpen);
+    if (!nextOpen) retitle(null);
+  };
+
+  // A tile click reports its photo before the open, and its Link pushes the
+  // URL. Swipes while open replace the URL in place, so one Back always
+  // closes the viewer.
   const handleValueChange = (nextPhotoId: string) => {
     setPhotoId(nextPhotoId);
-    window.history.replaceState(null, '', `${EXAMPLE_BASE_PATH}/photos/${nextPhotoId}`);
+    if (!openRef.current) return;
+    if (onPhotoUrl()) window.history.replaceState(null, '', photoUrl(nextPhotoId));
+    retitle(nextPhotoId);
   };
 
-  // Close = leave the photo route. router.back() (not push) pops the entry
-  // the grid's <Link> pushed, so the history stack ends the session exactly
-  // where it started. Deferred to onOpenChangeComplete so the fade finishes
-  // first; the popstate then unmounts the @modal slot.
-  const handleOpenChangeComplete = (isOpen: boolean) => {
-    if (!isOpen) router.back();
+  // A gesture close (Escape, ✕, pull) pops the entry the Link pushed, once the
+  // close has landed: popping mid-morph would run Next's navigation between
+  // the transition's snapshots. After Back the URL already left the photo.
+  const handleOpenChangeComplete = (nextOpen: boolean) => {
+    if (!nextOpen && onPhotoUrl()) router.back();
   };
-
-  // Shallow replaceState never re-runs route metadata, so swiping would
-  // strand the tab title on the photo the modal opened with — same lesson as
-  // the Shareable albums example: own the URL writes, own the title. The
-  // ` — ramka` suffix mirrors the root layout's title template, which only
-  // applies server-side.
-  React.useEffect(() => {
-    if (photo) document.title = `${interceptedPhotoTitle(photo)} — ramka`;
-  }, [photo]);
-
-  // Closing needs the same care: router.back() pops to the grid URL, but the
-  // grid page in the `children` slot never changed, so Next.js has no
-  // metadata update to apply — the photo title would stick to the grid.
-  // Restore it when the slot unmounts (close and browser Back both land on
-  // the grid, the only places this modal can exit to).
-  React.useEffect(() => {
-    return () => {
-      document.title = `${EXAMPLE_PAGE_TITLE} — ramka`;
-    };
-  }, []);
 
   return (
-    <Lightbox.Root
-      open={open}
-      onOpenChange={setOpen}
-      onOpenChangeComplete={handleOpenChangeComplete}
-      value={photoId}
-      onValueChange={handleValueChange}
-      // The Root mounts already open; `itemIds` covers the render before the
-      // items' registration effects run so the counter never reads "n of 0".
-      itemIds={photoIds}
-      loop
+    <PhotoRouteSyncContext.Provider value={sync}>
+      <Lightbox.Root
+        open={open}
+        onOpenChange={handleOpenChange}
+        onOpenChangeComplete={handleOpenChangeComplete}
+        value={photoId ?? undefined}
+        onValueChange={handleValueChange}
+        // Route opens (Forward) happen before the items register.
+        itemIds={photoIds}
+        loop
+        scrollTriggerIntoView={[
+          { type: 'onChange', behavior: 'instant' },
+          { type: 'onOpenComplete', behavior: 'instant' },
+        ]}
+      >
+        {children}
+        <LightboxGallery
+          items={items}
+          ariaLabel="Gallery photos"
+          backdrop="solid"
+          captionFallback={interceptedPhotos.find((p) => p.id === photoId)?.caption}
+        />
+      </Lightbox.Root>
+    </PhotoRouteSyncContext.Provider>
+  );
+}
+
+/**
+ * Rendered by the intercepting route: keeps the viewer in step with the URL.
+ * Closing is keyed to the URL rather than to unmounting alone, so Strict
+ * Mode's rehearsal unmount (URL unchanged) doesn't close a viewer that's open.
+ */
+export function PhotoRoute({ photoId }: { photoId: string }) {
+  const sync = React.useContext(PhotoRouteSyncContext);
+  React.useEffect(() => {
+    sync?.show(photoId);
+    return () => {
+      if (!onPhotoUrl()) sync?.hide();
+    };
+  }, [sync, photoId]);
+  return null;
+}
+
+/**
+ * A grid tile: a Trigger rendered as the photo's Link. A plain click opens the
+ * viewer and navigates; a modified click (new tab, new window) is left to the
+ * browser alone.
+ */
+export function PhotoTile({ photo }: { photo: InterceptedPhoto }) {
+  return (
+    <Lightbox.Trigger
+      itemId={photo.id}
+      render={<Link href={photoUrl(photo.id)} scroll={false} />}
+      onClickCapture={(event: React.MouseEvent) => {
+        if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) {
+          event.stopPropagation();
+        }
+      }}
+      // Breathing room for scrollTriggerIntoView: `block: 'nearest'` would
+      // otherwise leave the tile flush with the viewport edge.
+      className={`block scroll-my-12 overflow-hidden rounded-xl ${triggerFocusClass}`}
     >
-      <LightboxGallery
-        items={items}
-        ariaLabel="Gallery photos"
-        backdrop="solid"
-        // The Root mounts already open and captions register in effects (after
-        // the first paint) — the fallback covers that first-paint window.
-        captionFallback={photo?.caption}
-      />
-    </Lightbox.Root>
+      {({ imageRef }) => (
+        <Image
+          ref={imageRef}
+          src={photo.image}
+          alt={photo.alt}
+          placeholder="blur"
+          sizes="(min-width: 640px) 224px, 50vw"
+          className="block aspect-square h-auto w-full rounded-xl bg-neutral-100 object-cover transition duration-200 hover:opacity-90 dark:bg-neutral-800"
+        />
+      )}
+    </Lightbox.Trigger>
   );
 }
 ```
@@ -263,10 +324,23 @@ export default function ModalDefault() {
 ```
 
 ```tsx examples/lightbox/intercepted-routes/@modal/(.)photos/[id]/page.tsx
+import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 
-import { PhotoModal } from '../../../photo-modal';
-import { interceptedPhotos } from '../../../photos';
+import { PhotoRoute } from '../../../photo-viewer';
+import { interceptedPhotos, interceptedPhotoTitle } from '../../../photos';
+
+interface InterceptedPhotoRouteProps {
+  params: Promise<{ id: string }>;
+}
+
+// The intercepted navigation resolves metadata from this route, not the grid
+// underneath; without a title here the tab falls back to the site default.
+export async function generateMetadata({ params }: InterceptedPhotoRouteProps): Promise<Metadata> {
+  const { id } = await params;
+  const photo = interceptedPhotos.find((p) => p.id === id);
+  return photo ? { title: interceptedPhotoTitle(photo) } : {};
+}
 
 /**
  * The intercepting route: `(.)` matches `photos/[id]` at the same segment
@@ -274,11 +348,14 @@ import { interceptedPhotos } from '../../../photos';
  * layout's `@modal` slot instead of navigating to the standalone photo page —
  * the grid stays mounted underneath. Hard loads never come here (interception
  * is client-navigation-only); they get `photos/[id]/page.tsx`.
+ *
+ * It renders nothing: the viewer lives in the layout, and this only keeps it
+ * on the photo the URL names.
  */
-export default async function InterceptedPhotoRoute({ params }: { params: Promise<{ id: string }> }) {
+export default async function InterceptedPhotoRoute({ params }: InterceptedPhotoRouteProps) {
   const { id } = await params;
   if (!interceptedPhotos.some((photo) => photo.id === id)) notFound();
-  return <PhotoModal initialPhotoId={id} />;
+  return <PhotoRoute photoId={id} />;
 }
 ```
 
