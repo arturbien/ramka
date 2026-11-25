@@ -68,7 +68,16 @@ export default function CuratedGridPage() {
       docsHref="/docs/lightbox/view-transitions"
       docsLabel="View transitions docs"
     >
-      <Lightbox.Root handle={tour} loop>
+      <Lightbox.Root
+        handle={tour}
+        loop
+        // Keep the tile the close will land on in view behind the solid
+        // backdrop, so the morph never ends on a tile scrolled away.
+        scrollTriggerIntoView={[
+          { type: 'onChange', behavior: 'instant' },
+          { type: 'onOpenComplete', behavior: 'instant' },
+        ]}
+      >
         <div className="max-w-4xl pb-6">
           <div className="mb-4">
             <h2 className="text-2xl font-semibold tracking-tight text-neutral-900 dark:text-neutral-50">
@@ -167,7 +176,9 @@ function CoverTile({ photo, index, last }: { photo: ListingPhoto; index: number;
       // one lands here, crossfading since the tile shows a different photo.
       overflowItemIds={last ? offPagePhotoIds : undefined}
       aria-label={`Open ${photo.label}`}
-      className={`group relative block cursor-pointer overflow-hidden border-none bg-neutral-200 p-0 dark:bg-neutral-800 ${
+      // Breathing room for scrollTriggerIntoView: `block: 'nearest'` would
+      // otherwise leave the tile flush with the viewport edge.
+      className={`group relative block scroll-my-12 cursor-pointer overflow-hidden border-none bg-neutral-200 p-0 dark:bg-neutral-800 ${
         cover ? 'col-span-2 aspect-[3/2] md:col-span-1 md:row-span-2 md:aspect-auto' : 'aspect-[4/3] md:aspect-auto'
       } ${corners} ${triggerFocusClass}`}
     >

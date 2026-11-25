@@ -124,6 +124,15 @@ export function ShareableAlbumsDemo({ initialPhotoId }: { initialPhotoId: string
         // Photos behind "+N" have no tile, and they come right after the
         // visible ones, so the closest tile is the "+N" one.
         morphTo="closest"
+        // Keep the tile the close will land on in view behind the solid
+        // backdrop, so the morph never ends on a tile scrolled away. A link
+        // opens with no open transition and the page at the top, so only
+        // `onClose` brings its album's tile into view.
+        scrollTriggerIntoView={[
+          { type: 'onChange', behavior: 'instant' },
+          { type: 'onOpenComplete', behavior: 'instant' },
+          { type: 'onClose', behavior: 'instant' },
+        ]}
       >
         <div className="flex max-w-2xl flex-col gap-10">
           {albums.map((album) => (
@@ -257,7 +266,9 @@ const AlbumCard = React.memo(function AlbumCard({ album }: { album: Album }) {
               // The "+N" overlay dissolves into the photo instead of popping.
               crossfade={overflow ? 'both' : undefined}
               aria-label={overflow ? `Open ${photo.caption}, ${hiddenCount} more` : `Open ${photo.caption}`}
-              className={`relative block cursor-pointer overflow-hidden border-none bg-neutral-200 p-0 dark:bg-neutral-800 ${
+              // Breathing room for scrollTriggerIntoView: `block: 'nearest'`
+              // would otherwise leave the tile flush with the viewport edge.
+              className={`relative block scroll-my-12 cursor-pointer overflow-hidden border-none bg-neutral-200 p-0 dark:bg-neutral-800 ${
                 i === 0 ? 'col-span-2 row-span-2' : ''
               } ${tileCorners[i]} ${triggerFocusClass}`}
             >
