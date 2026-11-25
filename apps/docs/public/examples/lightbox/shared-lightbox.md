@@ -1,6 +1,6 @@
 # Shared lightbox
 
-One lightbox, many galleries: a 1,000-message chat with a single Root, where each trigger carries its message as a payload. The feed is virtualized, so triggers mount and unmount as you scroll; revealTrigger brings a row back for the close morph, and "+N" grids close onto their tile.
+One lightbox, many galleries: a 1,000-message chat with a single Root, where each trigger carries its message as a payload. The feed is virtualized, so triggers mount and unmount as you scroll; a reveal callback on scrollTriggerIntoView brings a row back for the close morph, and "+N" grids close onto their tile.
 
 ## Source
 
@@ -23,9 +23,10 @@ export default function SharedLightboxPage() {
           carries its message as a <code className={code}>payload</code>, and the viewer reads it with{' '}
           <code className={code}>useLightboxPayload()</code>, so opening, swiping and closing never re-render the feed.
           The feed is virtualized, so only the rows on screen exist, along with their Triggers. If the photo you close
-          on belongs to an unmounted row, <code className={code}>revealTrigger</code> scrolls it back so the close morph
-          has a tile to land on. With <code className={code}>morphTo=&quot;closest&quot;</code>, closing on a photo
-          behind &ldquo;+N&rdquo; lands on the &ldquo;+N&rdquo; tile.
+          on belongs to an unmounted row, the <code className={code}>reveal</code> option of{' '}
+          <code className={code}>scrollTriggerIntoView</code> scrolls it back so the close morph has a tile to land on.
+          With <code className={code}>morphTo=&quot;closest&quot;</code>, closing on a photo behind &ldquo;+N&rdquo;
+          lands on the &ldquo;+N&rdquo; tile.
         </>
       }
     >
@@ -101,7 +102,7 @@ export function ChatFeed() {
   // The close morph needs its trigger on screen. When the photo being viewed
   // belongs to a row the virtualizer has unmounted, bring that row back;
   // Ramka waits for its trigger to mount.
-  const revealTrigger = React.useCallback(({ itemId }: { itemId: string }) => {
+  const reveal = React.useCallback(({ itemId }: { itemId: string }) => {
     const row = rowOfImage.get(itemId);
     if (row !== undefined) virtualizerRef.current?.scrollToIndex(row, { align: 'center' });
   }, []);
@@ -115,10 +116,10 @@ export function ChatFeed() {
       // Photos behind "+N" have no tile; closing on one lands on the closest
       // tile before it, the "+N" one.
       morphTo="closest"
-      revealTrigger={revealTrigger}
       scrollTriggerIntoView={[
-        { type: 'onChange', behavior: 'instant' },
-        { type: 'onOpenComplete', behavior: 'instant' },
+        { type: 'onChange', behavior: 'instant', reveal },
+        { type: 'onOpenComplete', behavior: 'instant', reveal },
+        { type: 'onClose', behavior: 'instant', reveal },
       ]}
     >
       <div className="mx-auto flex h-[80vh] max-w-xl flex-col overflow-hidden rounded-2xl border border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-950">

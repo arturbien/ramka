@@ -16,9 +16,10 @@ export default function SharedLightboxPage() {
           carries its message as a <code className={code}>payload</code>, and the viewer reads it with{' '}
           <code className={code}>useLightboxPayload()</code>, so opening, swiping and closing never re-render the feed.
           The feed is virtualized, so only the rows on screen exist, along with their Triggers. If the photo you close
-          on belongs to an unmounted row, <code className={code}>revealTrigger</code> scrolls it back so the close morph
-          has a tile to land on. With <code className={code}>morphTo=&quot;closest&quot;</code>, closing on a photo
-          behind &ldquo;+N&rdquo; lands on the &ldquo;+N&rdquo; tile.
+          on belongs to an unmounted row, the <code className={code}>reveal</code> option of{' '}
+          <code className={code}>scrollTriggerIntoView</code> scrolls it back so the close morph has a tile to land on.
+          With <code className={code}>morphTo=&quot;closest&quot;</code>, closing on a photo behind &ldquo;+N&rdquo;
+          lands on the &ldquo;+N&rdquo; tile.
         </>
       }
     >

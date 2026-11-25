@@ -60,6 +60,9 @@ beforeEach(() => {
   if (!Element.prototype.getAnimations) {
     Element.prototype.getAnimations = vi.fn(() => []);
   }
+  if (!Element.prototype.scrollIntoView) {
+    Element.prototype.scrollIntoView = vi.fn();
+  }
   // jsdom has no layout: give every element a box so both morph ends resolve.
   originalRect = Object.getOwnPropertyDescriptor(Element.prototype, 'getBoundingClientRect');
   Object.defineProperty(Element.prototype, 'getBoundingClientRect', {
@@ -219,11 +222,14 @@ export function apiTypeChecks(handle: LightboxHandle<Payload>) {
   return (
     <>
       <UsesPayload />
-      <LightboxRoot handle={plain} revealTrigger={() => {}} />
-      <LightboxRoot handle={handle} revealTrigger={() => false} />
-      <LightboxRoot handle={handle} revealTrigger={({ payload }) => Promise.resolve(payload?.messageId)} />
-      {/* @ts-expect-error revealTrigger returns void, false, or a Promise */}
-      <LightboxRoot handle={handle} revealTrigger={() => true} />
+      <LightboxRoot handle={plain} scrollTriggerIntoView={{ type: 'onClose', reveal: () => {} }} />
+      <LightboxRoot handle={handle} scrollTriggerIntoView={[{ type: 'onChange', reveal: () => false }]} />
+      <LightboxRoot
+        handle={handle}
+        scrollTriggerIntoView={{ type: 'onClose', reveal: ({ payload }) => Promise.resolve(payload?.messageId) }}
+      />
+      {/* @ts-expect-error reveal returns void, false, or a Promise */}
+      <LightboxRoot handle={handle} scrollTriggerIntoView={{ type: 'onClose', reveal: () => true }} />
     </>
   );
 }
@@ -424,11 +430,11 @@ describe('keyed triggers (one Root, many galleries)', () => {
       setMounted = set;
       return mounted ? <MessageTiles message={messageB} handle={handle} /> : null;
     }
-    const revealTrigger = vi.fn(() => setMounted(true));
+    const reveal = vi.fn(() => setMounted(true));
     render(
       <>
         <VirtualRow />
-        <Viewer handle={handle} messages={[messageB]} revealTrigger={revealTrigger} />
+        <Viewer handle={handle} messages={[messageB]} scrollTriggerIntoView={{ type: 'onClose', reveal }} />
       </>,
     );
 
@@ -437,11 +443,11 @@ describe('keyed triggers (one Root, many galleries)', () => {
     act(() => setMounted(false));
     act(() => handle.close());
 
-    expect(revealTrigger).toHaveBeenCalledWith({
+    expect(reveal).toHaveBeenCalledWith({
       itemId: 'b1',
       index: 1,
       payload: { messageId: 'B' },
-      reason: 'close',
+      reason: 'onClose',
       signal: expect.any(AbortSignal),
     });
     // The close waits for the trigger to register and its rect to settle.
@@ -460,11 +466,11 @@ describe('keyed triggers (one Root, many galleries)', () => {
       setMounted = set;
       return mounted ? <MessageTiles message={messageB} handle={handle} /> : null;
     }
-    const revealTrigger = vi.fn();
+    const reveal = vi.fn();
     render(
       <>
         <VirtualRow />
-        <Viewer handle={handle} messages={[messageB]} revealTrigger={revealTrigger} />
+        <Viewer handle={handle} messages={[messageB]} scrollTriggerIntoView={{ type: 'onClose', reveal }} />
       </>,
     );
 
@@ -473,7 +479,7 @@ describe('keyed triggers (one Root, many galleries)', () => {
     act(() => handle.close());
     for (let i = 0; i < 10 && handle.isOpen; i += 1) act(() => flushRaf());
 
-    expect(revealTrigger).toHaveBeenCalledOnce();
+    expect(reveal).toHaveBeenCalledOnce();
     expect(handle.isOpen).toBe(false);
   });
 
@@ -591,7 +597,7 @@ describe('keyed triggers (one Root, many galleries)', () => {
     expect(screen.getByTestId('t-b1')).toHaveAttribute('aria-expanded', 'true');
   });
 
-  it('revealTrigger returning false closes without waiting', () => {
+  it('reveal returning false closes without waiting', () => {
     const handle = createHandle<Payload>();
     let setMounted: (mounted: boolean) => void = () => {};
     function VirtualRow() {
@@ -602,7 +608,11 @@ describe('keyed triggers (one Root, many galleries)', () => {
     render(
       <>
         <VirtualRow />
-        <Viewer handle={handle} messages={[messageB]} revealTrigger={() => false} />
+        <Viewer
+          handle={handle}
+          messages={[messageB]}
+          scrollTriggerIntoView={{ type: 'onClose', reveal: () => false }}
+        />
       </>,
     );
 
@@ -613,7 +623,7 @@ describe('keyed triggers (one Root, many galleries)', () => {
     expect(handle.isOpen).toBe(false);
   });
 
-  it('revealTrigger returning a Promise waits for it before measuring', async () => {
+  it('reveal returning a Promise waits for it before measuring', async () => {
     const handle = createHandle<Payload>();
     let setMounted: (mounted: boolean) => void = () => {};
     function VirtualRow() {
@@ -622,11 +632,11 @@ describe('keyed triggers (one Root, many galleries)', () => {
       return mounted ? <MessageTiles message={messageB} handle={handle} /> : null;
     }
     let resolve: () => void = () => {};
-    const revealTrigger = vi.fn(() => new Promise<void>((r) => (resolve = r)));
+    const reveal = vi.fn(() => new Promise<void>((r) => (resolve = r)));
     render(
       <>
         <VirtualRow />
-        <Viewer handle={handle} messages={[messageB]} revealTrigger={revealTrigger} />
+        <Viewer handle={handle} messages={[messageB]} scrollTriggerIntoView={{ type: 'onClose', reveal }} />
       </>,
     );
 
@@ -655,21 +665,26 @@ describe('keyed triggers (one Root, many galleries)', () => {
       return mounted ? <MessageTiles message={messageB} handle={handle} /> : null;
     }
     const onOpenChange = vi.fn();
-    const revealTrigger = vi.fn(({ signal }: { signal: AbortSignal }) => {
+    const reveal = vi.fn(({ signal }: { signal: AbortSignal }) => {
       expect(signal.aborted).toBe(false);
       return new Promise<void>(() => {});
     });
     const { rerender } = render(
       <>
         <VirtualRow />
-        <Viewer handle={handle} messages={[messageB]} revealTrigger={revealTrigger} onOpenChange={onOpenChange} />
+        <Viewer
+          handle={handle}
+          messages={[messageB]}
+          scrollTriggerIntoView={{ type: 'onClose', reveal }}
+          onOpenChange={onOpenChange}
+        />
       </>,
     );
 
     fireEvent.click(screen.getByTestId('t-b1'));
     act(() => setMounted(false));
     act(() => handle.close());
-    const { signal } = revealTrigger.mock.calls[0]![0];
+    const { signal } = reveal.mock.calls[0]![0];
     onOpenChange.mockClear();
     rerender(<VirtualRow />);
     for (let i = 0; i < 70; i += 1) act(() => flushRaf());
@@ -825,18 +840,18 @@ describe('keyed triggers: virtualization and close races', () => {
   it('a new open during a reveal wait aborts it and stays open on the new item', () => {
     const handle = createHandle<Payload>();
     const { VirtualRow, row } = createVirtualRow(handle, messageB);
-    const revealTrigger = vi.fn((_details: { signal: AbortSignal }) => new Promise<void>(() => {}));
+    const reveal = vi.fn((_details: { signal: AbortSignal }) => new Promise<void>(() => {}));
     render(
       <>
         <VirtualRow />
-        <Viewer handle={handle} messages={[messageB]} revealTrigger={revealTrigger} />
+        <Viewer handle={handle} messages={[messageB]} scrollTriggerIntoView={{ type: 'onClose', reveal }} />
       </>,
     );
 
     fireEvent.click(screen.getByTestId('t-b1'));
     row.set(false);
     act(() => handle.close());
-    const { signal } = revealTrigger.mock.calls[0]![0];
+    const { signal } = reveal.mock.calls[0]![0];
     act(() => handle.open('b2', { payload: { messageId: 'B' } }));
     for (let i = 0; i < 12; i += 1) act(() => flushRaf());
 
@@ -849,12 +864,17 @@ describe('keyed triggers: virtualization and close races', () => {
     const handle = createHandle<Payload>();
     const { VirtualRow, row } = createVirtualRow(handle, messageB);
     let resolve: () => void = () => {};
-    const revealTrigger = vi.fn(() => new Promise<void>((r) => (resolve = r)));
+    const reveal = vi.fn(() => new Promise<void>((r) => (resolve = r)));
     const onOpenChange = vi.fn();
     render(
       <>
         <VirtualRow />
-        <Viewer handle={handle} messages={[messageB]} revealTrigger={revealTrigger} onOpenChange={onOpenChange} />
+        <Viewer
+          handle={handle}
+          messages={[messageB]}
+          scrollTriggerIntoView={{ type: 'onClose', reveal }}
+          onOpenChange={onOpenChange}
+        />
       </>,
     );
 
@@ -869,7 +889,7 @@ describe('keyed triggers: virtualization and close races', () => {
     });
     for (let i = 0; i < 5 && handle.isOpen; i += 1) act(() => flushRaf());
 
-    expect(revealTrigger).toHaveBeenCalledOnce();
+    expect(reveal).toHaveBeenCalledOnce();
     expect(handle.isOpen).toBe(false);
     expect(onOpenChange.mock.calls).toEqual([[false]]);
   });
@@ -899,11 +919,16 @@ describe('keyed triggers: virtualization and close races', () => {
   it('without view transitions, a close skips the reveal wait', () => {
     const handle = createHandle<Payload>();
     const { VirtualRow, row } = createVirtualRow(handle, messageB);
-    const revealTrigger = vi.fn();
+    const reveal = vi.fn();
     render(
       <>
         <VirtualRow />
-        <Viewer handle={handle} messages={[messageB]} revealTrigger={revealTrigger} viewTransition={false} />
+        <Viewer
+          handle={handle}
+          messages={[messageB]}
+          scrollTriggerIntoView={{ type: 'onClose', reveal }}
+          viewTransition={false}
+        />
       </>,
     );
 
@@ -914,7 +939,7 @@ describe('keyed triggers: virtualization and close races', () => {
     expect(handle.isOpen).toBe(false);
   });
 
-  it('with no mounted trigger and no revealTrigger, the close fades instead of morphing', () => {
+  it('with no mounted trigger and no reveal, the close fades instead of morphing', () => {
     const handle = createHandle<Payload>();
     const { VirtualRow, row } = createVirtualRow(handle, messageB);
     render(
@@ -932,20 +957,19 @@ describe('keyed triggers: virtualization and close races', () => {
     expect(morphNamedElements()).toEqual([]);
   });
 
-  it("asks to reveal on navigation ('change') and aborts that reveal on the next navigation", () => {
+  it("asks to reveal on navigation ('onChange') and aborts that reveal on the next navigation", () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
     try {
       const handle = createHandle<Payload>();
       const { VirtualRow, row } = createVirtualRow(handle, messageB);
-      const revealTrigger = vi.fn((_details: { reason: string; itemId: string; signal: AbortSignal }) => {});
+      const reveal = vi.fn((_details: { reason: string; itemId: string; signal: AbortSignal }) => {});
       render(
         <>
           <VirtualRow />
           <Viewer
             handle={handle}
             messages={[messageB]}
-            revealTrigger={revealTrigger}
-            scrollTriggerIntoView={[{ type: 'onChange', behavior: 'instant' }]}
+            scrollTriggerIntoView={[{ type: 'onChange', behavior: 'instant', reveal }]}
           />
         </>,
       );
@@ -955,9 +979,9 @@ describe('keyed triggers: virtualization and close races', () => {
       act(() => handle.goTo('b2'));
       act(() => vi.advanceTimersByTime(200));
 
-      expect(revealTrigger).toHaveBeenCalledOnce();
-      const details = revealTrigger.mock.calls[0]![0];
-      expect(details).toMatchObject({ reason: 'change', itemId: 'b2' });
+      expect(reveal).toHaveBeenCalledOnce();
+      const details = reveal.mock.calls[0]![0];
+      expect(details).toMatchObject({ reason: 'onChange', itemId: 'b2' });
       expect(details.signal.aborted).toBe(false);
 
       act(() => handle.goTo('b1'));
@@ -965,6 +989,56 @@ describe('keyed triggers: virtualization and close races', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it("asks to reveal once the open completes ('onOpenComplete') when the trigger isn't mounted", async () => {
+    const handle = createHandle<Payload>();
+    const { VirtualRow, row } = createVirtualRow(handle, messageB);
+    const reveal = vi.fn((_details: { reason: string; itemId: string }) => {});
+    render(
+      <>
+        <VirtualRow />
+        <Viewer
+          handle={handle}
+          messages={[messageB]}
+          viewTransition={false}
+          scrollTriggerIntoView={[{ type: 'onOpenComplete', behavior: 'instant', reveal }]}
+        />
+      </>,
+    );
+
+    row.set(false);
+    act(() => handle.open('b2', { payload: { messageId: 'B' } }));
+    // Open completes after a frame plus the (empty) animations' settle microtask.
+    await act(async () => {
+      flushRaf();
+      await Promise.resolve();
+    });
+
+    expect(reveal).toHaveBeenCalledOnce();
+    expect(reveal.mock.calls[0]![0]).toMatchObject({ reason: 'onOpenComplete', itemId: 'b2' });
+  });
+
+  it("a close doesn't call another moment's reveal when there's no onClose option", () => {
+    const handle = createHandle<Payload>();
+    const { VirtualRow, row } = createVirtualRow(handle, messageB);
+    const reveal = vi.fn((_details: { reason: string; itemId: string }) => {});
+    render(
+      <>
+        <VirtualRow />
+        <Viewer
+          handle={handle}
+          messages={[messageB]}
+          scrollTriggerIntoView={[{ type: 'onChange', behavior: 'instant', reveal }]}
+        />
+      </>,
+    );
+
+    fireEvent.click(screen.getByTestId('t-b1'));
+    row.set(false);
+    act(() => handle.close());
+
+    expect(reveal).not.toHaveBeenCalled();
   });
 });
 

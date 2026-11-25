@@ -79,7 +79,7 @@ export const lightboxExamples: ExampleLink[] = [
     slug: 'shared-lightbox',
     title: 'Shared lightbox',
     description:
-      'One lightbox, many galleries: a 1,000-message chat with a single Root, where each trigger carries its message as a payload. The feed is virtualized, so triggers mount and unmount as you scroll; revealTrigger brings a row back for the close morph, and "+N" grids close onto their tile.',
+      'One lightbox, many galleries: a 1,000-message chat with a single Root, where each trigger carries its message as a payload. The feed is virtualized, so triggers mount and unmount as you scroll; a reveal callback on scrollTriggerIntoView brings a row back for the close morph, and "+N" grids close onto their tile.',
     extraSources: [
       '(docs)/examples/lightbox/shared-lightbox/chat-feed.tsx',
       '(docs)/examples/lightbox/shared-lightbox/chat-data.ts',

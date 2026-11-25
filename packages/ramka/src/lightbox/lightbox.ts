@@ -138,13 +138,18 @@ export { LightboxCSPProvider as CSPProvider } from './lightbox-csp';
 
 export type {
   LightboxRootProps,
-  LightboxRevealTrigger,
-  LightboxRevealTriggerDetails,
   LightboxBeforeOpen,
   LightboxBeforeOpenContext,
   LightboxBeforeClose,
   LightboxBeforeCloseContext,
 } from './lightbox-root';
+export type {
+  ScrollTriggerIntoView as LightboxScrollTriggerIntoView,
+  ScrollTriggerOption as LightboxScrollTriggerOption,
+  ScrollTriggerMoment as LightboxScrollTriggerMoment,
+  ScrollTriggerReveal as LightboxScrollTriggerReveal,
+  ScrollTriggerRevealDetails as LightboxScrollTriggerRevealDetails,
+} from './scroll-trigger';
 export type { LightboxViewTransitionPreset } from './vt-timing';
 export type {
   LightboxTriggerProps,

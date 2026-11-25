@@ -19,11 +19,6 @@ export const generatedProps: Record<string, PropRow[]> = {
       description: "Imperative handle from `Lightbox.createHandle()`. Pass the same handle to detached `Lightbox.Trigger`s outside this Root.",
     },
     {
-      name: "revealTrigger",
-      type: "LightboxRevealTrigger<Payload>",
-      description: "Bring an unmounted trigger back so the close morph has somewhere to land — for triggers inside a virtualized list, whose rows unmount when they scroll away. Called with the active item's `itemId` when the close target has no mounted trigger. Scroll the row that holds the item into view here, e.g. `virtualizer.scrollToIndex(row)`.\n\n- On close (`reason: 'close'`) the morph waits for the trigger to mount and its position to settle, up to a few frames, then morphs (or fades if it never mounts). Return a Promise to wait for your own signal instead (bound it yourself; `signal` aborts if a newer open/close wins), or `false` when the item can't be revealed, to skip the wait.\n- While open (`reason: 'change'`) it is called after navigation settles, only when `scrollTriggerIntoView` includes `onChange` — the same moments Root scrolls a mounted trigger into view.\n\nWithout view transitions nothing waits: the trigger is revealed and focus returns to it once it mounts. Use `behavior: 'instant'` scrolling; a smooth scroll outlasts the wait.",
-    },
-    {
       name: "defaultPayload",
       type: "Payload",
       description: "Payload for a Root that starts open (`defaultOpen` / controlled `open`) — a deep link rendered from the URL. Later opens set the payload from the opening Trigger or `handle.open(itemId, { payload })`. Pair with `defaultValue` (or `value`) for the item, e.g. `params.photo`.",
@@ -90,9 +85,9 @@ export const generatedProps: Record<string, PropRow[]> = {
     },
     {
       name: "scrollTriggerIntoView",
-      type: "ScrollTriggerIntoView",
+      type: "ScrollTriggerIntoView<Payload>",
       default: "null",
-      description: "Scroll the active trigger element into the viewport so close animations land on-screen instead of animating off-viewport.\n\nAccepts a single option or an array of options, so you can combine the moments below. Per option:\n\n- `behavior` — `\"smooth\"` (default) or `\"instant\"`\n- `block` / `inline` — `scrollIntoView` alignment (`\"nearest\"` default). Use `inline: \"center\"` for horizontal snap strips with variable-width tiles.\n\n- `null` (default) — no automatic scrolling\n- `{ type: \"onChange\" }` — scroll to the trigger the close morph will land on whenever the active item changes while the lightbox is open (preemptive; respects `morphTo`, so `closest` scrolls the nearest trigger when the active item has none)\n- `{ type: \"onOpenComplete\" }` — scroll to that same trigger once the open transition finishes. The viewer covers the page and scroll is locked, so this reposition is invisible — it only pays off by ensuring the close morph lands on-screen without a jump when the trigger was partially off-screen at open time. `\"instant\"` recommended.\n- `{ type: \"onClose\" }` — scroll to that trigger just before the close morph runs (visible reposition at close start)",
+      description: "Scroll the active trigger element into the viewport so close animations land on-screen instead of animating off-viewport.\n\nAccepts a single option or an array of options, so you can combine the moments below. Per option:\n\n- `behavior` — `\"smooth\"` (default) or `\"instant\"`\n- `block` / `inline` — `scrollIntoView` alignment (`\"nearest\"` default). Use `inline: \"center\"` for horizontal snap strips with variable-width tiles.\n\n- `null` (default) — no automatic scrolling\n- `{ type: \"onChange\" }` — scroll to the trigger the close morph will land on whenever the active item changes while the lightbox is open (preemptive; respects `morphTo`, so `closest` scrolls the nearest trigger when the active item has none)\n- `{ type: \"onOpenComplete\" }` — scroll to that same trigger once the open transition finishes. The viewer covers the page and scroll is locked, so this reposition is invisible — it only pays off by ensuring the close morph lands on-screen without a jump when the trigger was partially off-screen at open time. `\"instant\"` recommended.\n- `{ type: \"onClose\" }` — scroll to that trigger just before the close morph runs (visible reposition at close start)\n\nFor triggers in a virtualized list, add `reveal` to bring an unmounted row back. At that option's moment, Root calls it instead of `scrollIntoView` when the trigger isn't mounted. On `onClose` it gives the morph somewhere to land: return a Promise to make the close wait for it, or `false` to skip the wait.",
     },
     {
       name: "morphTo",

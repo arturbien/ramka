@@ -10,7 +10,30 @@ type ScrollTriggerMoment = 'onChange' | 'onOpenComplete' | 'onClose';
 /** Alignment passed through to `Element.scrollIntoView`. */
 type ScrollTriggerAlign = ScrollLogicalPosition;
 
-interface ScrollTriggerOption {
+/** Passed to {@link ScrollTriggerOption.reveal}. */
+interface ScrollTriggerRevealDetails<Payload = unknown> {
+  /** `itemId` of the active item, whose trigger is not mounted. */
+  itemId: string;
+  /** Viewer index of the active item. */
+  index: number;
+  /** Payload of the current open. */
+  payload: Payload | undefined;
+  /** The moment that asked for the trigger. */
+  reason: ScrollTriggerMoment;
+  /** Aborts when a newer navigation, open or close supersedes this one. */
+  signal: AbortSignal;
+}
+
+/**
+ * Return a Promise to make the close wait for it (e.g. until a virtualizer has
+ * rendered the row). Return `false` when the trigger can't be revealed, so the
+ * close doesn't wait at all.
+ */
+type ScrollTriggerReveal<Payload = unknown> = (
+  details: ScrollTriggerRevealDetails<Payload>,
+) => void | false | Promise<unknown>;
+
+interface ScrollTriggerOption<Payload = unknown> {
   type: ScrollTriggerMoment;
   behavior?: 'smooth' | 'instant';
   /**
@@ -28,15 +51,28 @@ interface ScrollTriggerOption {
    * @default 'nearest'
    */
   inline?: ScrollTriggerAlign;
+  /**
+   * Called instead of `scrollIntoView` when the trigger isn't mounted — a
+   * virtualized list unmounted its row. Bring the row back here, e.g.
+   * `virtualizer.scrollToIndex(row)`; `behavior`, `block` and `inline` don't
+   * apply, since your code does the scrolling.
+   *
+   * On an `onClose` option, the close morph waits up to a few frames for the
+   * revealed trigger to mount and stop moving, then morphs into it (or fades
+   * out if it never appears). Scroll instantly there: a smooth scroll is
+   * still moving when the wait ends.
+   */
+  reveal?(details: ScrollTriggerRevealDetails<Payload>): void | false | Promise<unknown>;
 }
 
 /** Single option, an array of options, or `null` to disable. */
-type ScrollTriggerIntoView = null | ScrollTriggerOption | ScrollTriggerOption[];
+type ScrollTriggerIntoView<Payload = unknown> = null | ScrollTriggerOption<Payload> | ScrollTriggerOption<Payload>[];
 
 interface ResolvedScrollTrigger {
   behavior: ScrollBehavior;
   block: ScrollTriggerAlign;
   inline: ScrollTriggerAlign;
+  reveal?: ScrollTriggerReveal;
 }
 
 /**
@@ -58,6 +94,7 @@ function resolveScrollTriggerOption(
     behavior: match.behavior ?? 'smooth',
     block: match.block ?? 'nearest',
     inline: match.inline ?? 'nearest',
+    reveal: match.reveal,
   };
 }
 
@@ -104,14 +141,12 @@ function resolveTriggerIndex(
   return best >= 0 ? best : activeIndex;
 }
 
-export {
-  resolveScrollTriggerOption,
-  scrollTriggerEl,
-  resolveTriggerIndex,
-};
+export { resolveScrollTriggerOption, scrollTriggerEl, resolveTriggerIndex };
 export type {
   ScrollTriggerIntoView,
   ScrollTriggerOption,
+  ScrollTriggerReveal,
+  ScrollTriggerRevealDetails,
   ScrollTriggerMoment,
   ScrollTriggerAlign,
   ResolvedScrollTrigger,

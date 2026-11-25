@@ -43,6 +43,8 @@ import {
   resolveTriggerIndex,
   scrollTriggerEl,
   type ScrollTriggerIntoView,
+  type ScrollTriggerMoment,
+  type ScrollTriggerReveal,
 } from './scroll-trigger';
 import { isAndroidBlinkSnapshotRoot } from './is-android-blink';
 import { findDestinationMorphTarget } from './morph-target';
@@ -52,33 +54,6 @@ import { DEFAULT_DECODE_MAX_WAIT, isLowEndDevice, supportsViewTransitions } from
 import type { LightboxViewTransitionPreset } from './vt-timing';
 import type { ViewTransitionMorph, ViewTransitionMorphConfig } from './use-view-transition-morph';
 import type { TextDirection } from './lightbox-direction';
-
-/** Passed to {@link LightboxRootProps.revealTrigger}. */
-interface LightboxRevealTriggerDetails<Payload = unknown> {
-  /** `itemId` of the active item, whose trigger is not mounted. */
-  itemId: string;
-  /** Viewer index of the active item. */
-  index: number;
-  /** Payload of the current open. */
-  payload: Payload | undefined;
-  /**
-   * `'close'` — the lightbox is closing and the morph needs the trigger.
-   * `'change'` — navigation settled while open and `scrollTriggerIntoView`
-   * asks for `onChange` (only then is this called while open).
-   */
-  reason: 'close' | 'change';
-  /** Aborts when a newer open/close supersedes this close. */
-  signal: AbortSignal;
-}
-
-/**
- * Return a Promise to make the close wait for it (e.g. until a virtualizer has
- * rendered the row). Return `false` when the trigger can't be revealed, so the
- * close doesn't wait at all.
- */
-type LightboxRevealTrigger<Payload = unknown> = (
-  details: LightboxRevealTriggerDetails<Payload>,
-) => void | false | Promise<unknown>;
 
 interface LightboxRootProps<Payload = unknown> {
   /**
@@ -92,27 +67,6 @@ interface LightboxRootProps<Payload = unknown> {
    * detached `Lightbox.Trigger`s outside this Root.
    */
   handle?: LightboxHandle<Payload>;
-  /**
-   * Bring an unmounted trigger back so the close morph has somewhere to
-   * land — for triggers inside a virtualized list, whose rows unmount when
-   * they scroll away. Called with the active item's `itemId` when the close
-   * target has no mounted trigger. Scroll the row that holds the item into
-   * view here, e.g. `virtualizer.scrollToIndex(row)`.
-   *
-   * - On close (`reason: 'close'`) the morph waits for the trigger to mount
-   *   and its position to settle, up to a few frames, then morphs (or fades
-   *   if it never mounts). Return a Promise to wait for your own signal
-   *   instead (bound it yourself; `signal` aborts if a newer open/close
-   *   wins), or `false` when the item can't be revealed, to skip the wait.
-   * - While open (`reason: 'change'`) it is called after navigation settles,
-   *   only when `scrollTriggerIntoView` includes `onChange` — the same
-   *   moments Root scrolls a mounted trigger into view.
-   *
-   * Without view transitions nothing waits: the trigger is revealed and
-   * focus returns to it once it mounts. Use `behavior: 'instant'` scrolling;
-   * a smooth scroll outlasts the wait.
-   */
-  revealTrigger?: LightboxRevealTrigger<Payload>;
   /**
    * Payload for a Root that starts open (`defaultOpen` / controlled `open`) —
    * a deep link rendered from the URL. Later opens set the payload from the
@@ -217,6 +171,12 @@ interface LightboxRootProps<Payload = unknown> {
    * - `{ type: "onClose" }` — scroll to that trigger just before the close
    *   morph runs (visible reposition at close start)
    *
+   * For triggers in a virtualized list, add `reveal` to bring an unmounted
+   * row back. At that option's moment, Root calls it instead of
+   * `scrollIntoView` when the trigger isn't mounted. On `onClose` it gives
+   * the morph somewhere to land: return a Promise to make the close wait for
+   * it, or `false` to skip the wait.
+   *
    * @example
    * // Trigger is always positioned for the close morph, with no visible jump:
    * scrollTriggerIntoView={[
@@ -231,9 +191,18 @@ interface LightboxRootProps<Payload = unknown> {
    *   { type: 'onOpenComplete', behavior: 'instant', inline: 'center' },
    * ]}
    *
+   * @example
+   * // Virtualized feed: bring the row back when its trigger is unmounted.
+   * const reveal = ({ itemId }) => virtualizer.scrollToIndex(rowOf(itemId), { align: 'center' });
+   * scrollTriggerIntoView={[
+   *   { type: 'onChange', behavior: 'instant', reveal },
+   *   { type: 'onOpenComplete', behavior: 'instant', reveal },
+   *   { type: 'onClose', behavior: 'instant', reveal },
+   * ]}
+   *
    * @default null
    */
-  scrollTriggerIntoView?: ScrollTriggerIntoView;
+  scrollTriggerIntoView?: ScrollTriggerIntoView<Payload>;
   /**
    * Controls which trigger receives the View Transition morph on close.
    *
@@ -346,7 +315,7 @@ function runAfterAnimations(
 }
 
 /**
- * Frames a close waits for `revealTrigger` to mount a trigger and for its
+ * Frames a close waits for `reveal` to mount a trigger and for its
  * position to settle (~130ms at 60Hz) — long enough for a virtualizer to
  * scroll, render and re-measure a row, short enough that a miss reads as a
  * slightly late fade rather than a hang.
@@ -383,7 +352,6 @@ function LightboxRoot<Payload = unknown>(props: LightboxRootProps<Payload>) {
   const {
     children,
     handle: handleProp,
-    revealTrigger,
     defaultPayload,
     defaultOpen = false,
     open: openProp,
@@ -537,13 +505,23 @@ function LightboxRoot<Payload = unknown>(props: LightboxRootProps<Payload>) {
   // resolved at fire time, so late config changes are honored too.
   const scrollTriggerIntoViewRef = React.useRef(scrollTriggerIntoView);
   // Assigned in an effect (not during render) so an interrupted concurrent
-  // render can't publish a config no committed render produced. Declared
-  // BEFORE the scroll effect: effects run in declaration order within a
-  // commit, so a schedule-time read below always sees this commit's config.
-  React.useEffect(() => {
+  // render can't publish a config no committed render produced. Layout
+  // timing: it runs before every passive effect (the scroll effect below
+  // reads it at schedule time), and a close in the same task as a prop
+  // change must see the new `reveal`.
+  React.useLayoutEffect(() => {
     scrollTriggerIntoViewRef.current = scrollTriggerIntoView;
   });
-  const changeRevealAbortRef = React.useRef<AbortController | null>(null);
+  // A `reveal` asked for while open: the next navigation, the close, or
+  // unmount supersedes it.
+  const openRevealAbortRef = React.useRef<AbortController | null>(null);
+  React.useEffect(
+    () => () => {
+      openRevealAbortRef.current?.abort();
+      openRevealAbortRef.current = null;
+    },
+    [open, activeIndex],
+  );
   React.useEffect(() => {
     const prev = scrollSyncRef.current;
     scrollSyncRef.current = { open, activeIndex };
@@ -556,26 +534,10 @@ function LightboxRoot<Payload = unknown>(props: LightboxRootProps<Payload>) {
     const index = activeIndex;
     scrollSyncTimerRef.current = window.setTimeout(() => {
       if (!scrollSyncRef.current.open || scrollSyncRef.current.activeIndex !== index) return;
-      const scroll = resolveScrollTriggerOption(scrollTriggerIntoViewRef.current, 'onChange');
-      if (!scroll) return;
-      // A keyed gallery whose close target scrolled out of a virtualized list:
-      // ask the consumer to bring it back rather than scrolling nothing.
-      if (!resolveCloseTriggerElement()) {
-        const controller = new AbortController();
-        changeRevealAbortRef.current = controller;
-        requestRevealTrigger('change', controller.signal);
-        return;
-      }
-      const idx = resolveTriggerIndex(index, morphTo, openingTriggerIndexRef.current, triggerElementsRef.current);
-      scrollTriggerEl(triggerElementsRef.current.get(idx), scroll);
+      scrollTriggerForMoment('onChange');
     }, 120);
 
-    return () => {
-      window.clearTimeout(scrollSyncTimerRef.current);
-      // The next navigation, the close, or unmount supersedes this reveal.
-      changeRevealAbortRef.current?.abort();
-      changeRevealAbortRef.current = null;
-    };
+    return () => window.clearTimeout(scrollSyncTimerRef.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [morphTo, open, activeIndex]);
 
@@ -1018,12 +980,6 @@ function LightboxRoot<Payload = unknown>(props: LightboxRootProps<Payload>) {
     setPayload(() => next as Payload);
   }, []);
 
-  // Layout timing: a close in the same task as a prop change must see it.
-  const revealTriggerRef = React.useRef(revealTrigger);
-  React.useLayoutEffect(() => {
-    revealTriggerRef.current = revealTrigger;
-  }, [revealTrigger]);
-
   // The connected trigger the close morph would land on right now, if any.
   const resolveCloseTriggerElement = React.useCallback((): HTMLElement | null => {
     const idx = resolveTriggerIndex(
@@ -1036,13 +992,15 @@ function LightboxRoot<Payload = unknown>(props: LightboxRootProps<Payload>) {
     return el?.isConnected ? el : null;
   }, []);
 
-  // Ask the consumer to remount the active item's keyed trigger. `null` when
-  // nothing was requested (no handler, the active item isn't keyed, or the
-  // handler returned `false`); otherwise what the handler returned.
-  const requestRevealTrigger = React.useCallback(
-    (reason: 'close' | 'change', signal: AbortSignal): { wait: Promise<unknown> | null } | null => {
-      const reveal = revealTriggerRef.current;
-      if (!reveal) return null;
+  // Ask the consumer to remount the active item's trigger. `null` when nothing
+  // was requested (the active item has no itemId, or `reveal` returned
+  // `false`); otherwise what `reveal` returned.
+  const requestReveal = React.useCallback(
+    (
+      reveal: ScrollTriggerReveal,
+      reason: ScrollTriggerMoment,
+      signal: AbortSignal,
+    ): { wait: Promise<unknown> | null } | null => {
       const index = activeIndexRef.current;
       const itemId = itemIdByIndexRef.current.get(index);
       if (itemId === undefined) return null;
@@ -1051,6 +1009,26 @@ function LightboxRoot<Payload = unknown>(props: LightboxRootProps<Payload>) {
       return { wait: result && typeof result.then === 'function' ? result : null };
     },
     [],
+  );
+
+  // `scrollTriggerIntoView` while open: scroll the close target into view, or
+  // ask the moment's `reveal` to bring it back when it isn't mounted.
+  const scrollTriggerForMoment = React.useCallback(
+    (moment: 'onChange' | 'onOpenComplete') => {
+      const scroll = resolveScrollTriggerOption(scrollTriggerIntoViewRef.current, moment);
+      if (!scroll) return;
+      const el = resolveCloseTriggerElement();
+      if (el) {
+        scrollTriggerEl(el, scroll);
+        return;
+      }
+      if (!scroll.reveal) return;
+      openRevealAbortRef.current?.abort();
+      const controller = new AbortController();
+      openRevealAbortRef.current = controller;
+      requestReveal(scroll.reveal, moment, controller.signal);
+    },
+    [resolveCloseTriggerElement, requestReveal],
   );
 
   // Connected registration for an item, its own trigger first, then a "+N"
@@ -1219,6 +1197,7 @@ function LightboxRoot<Payload = unknown>(props: LightboxRootProps<Payload>) {
     commitReveal,
     commitAbortPrepare,
     commitClose,
+    scrollTriggerOnOpenComplete: () => scrollTriggerForMoment('onOpenComplete'),
     onOpenComplete: handleOpenComplete,
     onCloseComplete: handleCloseComplete,
     activeZoomRef,
@@ -1285,16 +1264,7 @@ function LightboxRoot<Payload = unknown>(props: LightboxRootProps<Payload>) {
           requestAnimationFrame(() => {
             if (closeGenRef.current !== gen) return;
             runAfterAnimations(dialogElementRef.current, gen, closeGenRef, () => {
-              const openCompleteScroll = resolveScrollTriggerOption(scrollTriggerIntoView, 'onOpenComplete');
-              if (openCompleteScroll) {
-                const idx = resolveTriggerIndex(
-                  activeIndexRef.current,
-                  morphTo,
-                  openingTriggerIndexRef.current,
-                  triggerElementsRef.current,
-                );
-                scrollTriggerEl(triggerElementsRef.current.get(idx), openCompleteScroll);
-              }
+              scrollTriggerForMoment('onOpenComplete');
               settleOpenTransition();
               onOpenChangeCompleteRef.current?.(true);
             });
@@ -1371,10 +1341,11 @@ function LightboxRoot<Payload = unknown>(props: LightboxRootProps<Payload>) {
       settleOpenTransition,
       focusReturnTarget,
       notifyBeforeClose,
+      scrollTriggerForMoment,
     ],
   );
 
-  // A close waiting on `revealTrigger`: superseded (aborted) by any newer
+  // A close waiting on `reveal`: superseded (aborted) by any newer
   // open, and by unmount. Repeat closes while waiting join the same wait.
   const revealWaitRef = React.useRef<AbortController | null>(null);
   React.useEffect(
@@ -1394,7 +1365,8 @@ function LightboxRoot<Payload = unknown>(props: LightboxRootProps<Payload>) {
         return;
       }
       const controller = new AbortController();
-      const request = requestRevealTrigger('close', controller.signal);
+      const reveal = resolveScrollTriggerOption(scrollTriggerIntoViewRef.current, 'onClose')?.reveal;
+      const request = reveal ? requestReveal(reveal, 'onClose', controller.signal) : null;
       // Only the morph needs the trigger on screen this instant; the fade
       // path just reveals it, and focus return finds it once it mounts.
       if (!request || !willUseViewTransition()) {
@@ -1437,7 +1409,7 @@ function LightboxRoot<Payload = unknown>(props: LightboxRootProps<Payload>) {
         waitForStableTrigger();
       }
     },
-    [setOpenNow, resolveCloseTriggerElement, requestRevealTrigger, willUseViewTransition],
+    [setOpenNow, resolveCloseTriggerElement, requestReveal, willUseViewTransition],
   );
 
   // Sync `mounted` to externally-driven changes of a controlled
@@ -1996,8 +1968,6 @@ LightboxRoot.displayName = 'LightboxRoot';
 export { LightboxRoot };
 export type {
   LightboxRootProps,
-  LightboxRevealTriggerDetails,
-  LightboxRevealTrigger,
   LightboxBeforeOpen,
   LightboxBeforeOpenContext,
   LightboxBeforeClose,

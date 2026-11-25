@@ -63,7 +63,7 @@ export function ChatFeed() {
   // The close morph needs its trigger on screen. When the photo being viewed
   // belongs to a row the virtualizer has unmounted, bring that row back;
   // Ramka waits for its trigger to mount.
-  const revealTrigger = React.useCallback(({ itemId }: { itemId: string }) => {
+  const reveal = React.useCallback(({ itemId }: { itemId: string }) => {
     const row = rowOfImage.get(itemId);
     if (row !== undefined) virtualizerRef.current?.scrollToIndex(row, { align: 'center' });
   }, []);
@@ -77,10 +77,10 @@ export function ChatFeed() {
       // Photos behind "+N" have no tile; closing on one lands on the closest
       // tile before it, the "+N" one.
       morphTo="closest"
-      revealTrigger={revealTrigger}
       scrollTriggerIntoView={[
-        { type: 'onChange', behavior: 'instant' },
-        { type: 'onOpenComplete', behavior: 'instant' },
+        { type: 'onChange', behavior: 'instant', reveal },
+        { type: 'onOpenComplete', behavior: 'instant', reveal },
+        { type: 'onClose', behavior: 'instant', reveal },
       ]}
     >
       <div className="mx-auto flex h-[80vh] max-w-xl flex-col overflow-hidden rounded-2xl border border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-950">

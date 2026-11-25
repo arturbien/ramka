@@ -727,6 +727,11 @@ interface ViewTransitionMorphConfig {
   commitAbortPrepare: () => void;
   /** flushSync body that hides the viewer; unmount waits for onCloseComplete. */
   commitClose: () => void;
+  /**
+   * Runs the `onOpenComplete` moment of `scrollTriggerIntoView` (scroll the
+   * close target into view, or `reveal` it), just before `onOpenComplete`.
+   */
+  scrollTriggerOnOpenComplete: () => void;
   /** Fired once the open morph settles (and its generation is still current). */
   onOpenComplete: () => void;
   /**
@@ -1047,16 +1052,7 @@ function createViewTransitionMorph(getConfig: () => ViewTransitionMorphConfig): 
       // Reposition the active trigger while the viewer still covers the page
       // (and scroll is locked), so a later close morph lands on-screen with no
       // visible jump at close start. Invisible now; only pays off on close.
-      const openCompleteScroll = resolveScrollTriggerOption(cfg.scrollTriggerIntoView, 'onOpenComplete');
-      if (openCompleteScroll) {
-        const idx = resolveTriggerIndex(
-          cfg.activeIndexRef.current,
-          cfg.morphTo,
-          cfg.openingTriggerIndexRef.current,
-          cfg.triggerElementsRef.current,
-        );
-        scrollTriggerEl(cfg.triggerElementsRef.current.get(idx), openCompleteScroll);
-      }
+      cfg.scrollTriggerOnOpenComplete();
 
       cfg.onOpenComplete();
     });
