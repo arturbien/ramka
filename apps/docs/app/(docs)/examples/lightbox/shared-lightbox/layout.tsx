@@ -5,7 +5,7 @@ import type { ReactNode } from 'react';
 export const metadata: Metadata = {
   title: 'Shared lightbox example',
   description:
-    'One lightbox for many galleries: a virtualized group chat in React where every photo opens in a single shared morphing lightbox, built with ramka.',
+    'One lightbox for many galleries: a virtualized React group chat where every photo, in any message, opens in a single shared morphing lightbox, built with ramka.',
 };
 
 export default function SharedLightboxLayout({ children }: { children: ReactNode }) {

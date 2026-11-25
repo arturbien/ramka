@@ -1,6 +1,6 @@
 # Shared lightbox
 
-One lightbox, many galleries: a virtualized 1,000-message chat with a single Root, where each trigger carries its message as a payload, "+N" grids close onto their tile, and revealTrigger brings unmounted rows back for the close morph.
+One lightbox, many galleries: a 1,000-message chat with a single Root, where each trigger carries its message as a payload. The feed is virtualized, so triggers mount and unmount as you scroll; revealTrigger brings a row back for the close morph, and "+N" grids close onto their tile.
 
 ## Source
 
@@ -18,13 +18,14 @@ export default function SharedLightboxPage() {
       title="Shared lightbox"
       description={
         <>
-          One lightbox, many galleries: a virtualized group chat with a thousand messages and one{' '}
-          <code className={code}>Lightbox.Root</code> wrapping all of them. Every photo&apos;s{' '}
-          <code className={code}>Lightbox.Trigger</code> carries its message as a <code className={code}>payload</code>,
-          and the viewer reads it with <code className={code}>useLightboxPayload()</code>; opening, swiping and closing
-          never re-render the feed. With <code className={code}>morphTo=&quot;closest&quot;</code>, closing on a photo
-          behind &ldquo;+N&rdquo; lands on the &ldquo;+N&rdquo; tile, and <code className={code}>revealTrigger</code>{' '}
-          scrolls an unmounted row back so the close morph has somewhere to land.
+          One lightbox, many galleries: a group chat with a thousand messages and a single{' '}
+          <code className={code}>Lightbox.Root</code>. Every photo&apos;s <code className={code}>Lightbox.Trigger</code>{' '}
+          carries its message as a <code className={code}>payload</code>, and the viewer reads it with{' '}
+          <code className={code}>useLightboxPayload()</code>, so opening, swiping and closing never re-render the feed.
+          The feed is virtualized, so only the rows on screen exist, along with their Triggers. If the photo you close
+          on belongs to an unmounted row, <code className={code}>revealTrigger</code> scrolls it back so the close morph
+          has a tile to land on. With <code className={code}>morphTo=&quot;closest&quot;</code>, closing on a photo
+          behind &ldquo;+N&rdquo; lands on the &ldquo;+N&rdquo; tile.
         </>
       }
     >
