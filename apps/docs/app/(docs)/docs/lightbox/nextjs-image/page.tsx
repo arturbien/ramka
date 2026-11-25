@@ -111,8 +111,8 @@ export default function LightboxNextjsImagePage() {
           server-rendered open has no gesture, and before hydration nothing is decoded to paint from — while{' '}
           <code className="text-xs">blurDataURL</code> is inlined into the server HTML itself. For those visits,
           destination blur is the only placeholder that can exist on first paint: enable it for the deep-link visit and
-          keep destinations clean for regular visits (decide once per mount, like the portal container). See the
-          URL-synced state example.
+          keep destinations clean for regular visits (decide once per mount, like the portal container). See the{' '}
+          <DocsLink href="/examples/lightbox/shareable-albums">Shareable albums</DocsLink> example.
         </p>
       </DocsSection>
 

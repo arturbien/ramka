@@ -153,3 +153,9 @@ export function findPhoto(id: string | null | undefined): { album: Album; photo:
 }
 
 export const ALBUMS_PAGE_TITLE = 'Shareable albums example';
+
+/** One title for the server metadata and the client's retitling, so they never drift. */
+export function photoPageTitle(id: string | null | undefined): string {
+  const linked = findPhoto(id);
+  return linked ? `${linked.photo.caption} · ${linked.album.title} — ${ALBUMS_PAGE_TITLE}` : ALBUMS_PAGE_TITLE;
+}

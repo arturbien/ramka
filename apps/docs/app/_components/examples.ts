@@ -43,25 +43,6 @@ export const lightboxExamples: ExampleLink[] = [
       'An endless feed where the lightbox paginates too — one photo array drives grid tiles and slides; the grid loads pages via an IntersectionObserver sentinel, and onValueChange fetches ahead inside the open viewer, appending slides to the native scroll-snap track with a minimal Previous/Next chrome (no thumbnails).',
   },
   {
-    slug: 'url-synced-state',
-    title: 'URL-synced state',
-    description:
-      'Masonry wall wired to Next.js dynamic routes ([[...id]]) — every photo is a shareable URL: deep links open the viewer on that slide, swiping rewrites the URL in place, and browser Back closes the viewer.',
-    pagePath: 'url-synced-state/[[...id]]/page.tsx',
-    extraSources: [
-      '(docs)/examples/lightbox/url-synced-state/url-synced-state-demo.tsx',
-      '(docs)/examples/lightbox/url-synced-state/photos.ts',
-      // The SSR deep-link pattern is inert without these: the no-transitions
-      // rule and the strip's data-positioned reveal. A copy made from the .md
-      // alone would fade itself in on load and snap the strip — with no error
-      // to notice. (Painting the RIGHT slide pre-hydration is library-owned:
-      // `Slides ssrSlideShift`, plus the `--lightbox-ssr-slide-gap` var set in
-      // the chrome next to the track's gap utilities.)
-      'lightbox-demo/ssr-no-transitions.css',
-      'lightbox-demo/thumbnail-strip-scroll-link.css',
-    ],
-  },
-  {
     slug: 'intercepted-routes',
     title: 'Intercepted routes',
     description:
@@ -93,6 +74,14 @@ export const lightboxExamples: ExampleLink[] = [
     extraSources: [
       '(docs)/examples/lightbox/shareable-albums/albums-demo.tsx',
       '(docs)/examples/lightbox/shareable-albums/albums.ts',
+      // The SSR deep-link pattern is inert without these: the no-transitions
+      // rule and the strip's data-positioned reveal. A copy made from the .md
+      // alone would fade itself in on load and snap the strip — with no error
+      // to notice. (Painting the RIGHT slide pre-hydration is library-owned:
+      // `Slides ssrSlideShift`, plus the `--lightbox-ssr-slide-gap` var set in
+      // the chrome next to the track's gap utilities.)
+      'lightbox-demo/ssr-no-transitions.css',
+      'lightbox-demo/thumbnail-strip-scroll-link.css',
     ],
   },
   {

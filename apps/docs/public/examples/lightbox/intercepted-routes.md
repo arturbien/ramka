@@ -23,7 +23,7 @@ export const metadata: Metadata = {
  * navigation: Next.js intercepts it (`@modal/(.)photos/[id]`) and mounts an
  * already-open lightbox in the layout's modal slot while this page stays on
  * screen underneath. That's the defining tradeoff of this pattern versus the
- * URL-synced state example: the open never flows through the library's
+ * Shareable albums example: the open never flows through the library's
  * gesture path, so there is no trigger morph (the viewer fades in), and a
  * refresh on a photo URL renders a different presentation (the standalone
  * page) rather than this grid with the viewer open.
@@ -35,7 +35,7 @@ export default function InterceptedRoutesGridPage() {
   return (
     <ExampleShell
       title="Intercepted routes"
-      description="The nextgram pattern: a grid of plain Next.js Links, a @modal parallel-route slot, and an (.)photos/[id] intercepting route that mounts an already-open, controlled lightbox during soft navigation — browser Back closes it. Hard-loading the same photo URL skips interception entirely and renders a standalone photo page: one URL, two presentations. Compare with the URL-synced state example, which keeps one presentation (grid + viewer) on refresh and keeps trigger morphs, at the cost of owning the History API writes itself."
+      description="The nextgram pattern: a grid of plain Next.js Links, a @modal parallel-route slot, and an (.)photos/[id] intercepting route that mounts an already-open, controlled lightbox during soft navigation — browser Back closes it. Hard-loading the same photo URL skips interception entirely and renders a standalone photo page: one URL, two presentations. Compare with the Shareable albums example, which keeps one presentation (albums + viewer) on refresh and keeps trigger morphs, at the cost of owning the History API writes itself."
       docsHref="/docs/lightbox/state-lifecycle"
       docsLabel="State & lifecycle docs"
     >
@@ -118,7 +118,7 @@ const photoIds = interceptedPhotos.map((photo) => photo.id);
  * open never flows through the library's gesture path, so it fades in rather
  * than morphing from the clicked tile.
  *
- * The default body portal is fine here (unlike the URL-synced state example's
+ * The default body portal is fine here (unlike the Shareable albums example's
  * `container={null}`): interception only happens during client-side
  * navigation, where `document.body` exists. Nothing about this component is
  * ever server-painted into the page.
@@ -155,7 +155,7 @@ export function PhotoModal({ initialPhotoId }: { initialPhotoId: string }) {
 
   // Shallow replaceState never re-runs route metadata, so swiping would
   // strand the tab title on the photo the modal opened with — same lesson as
-  // the URL-synced state example: own the URL writes, own the title. The
+  // the Shareable albums example: own the URL writes, own the title. The
   // ` — ramka` suffix mirrors the root layout's title template, which only
   // applies server-side.
   React.useEffect(() => {
@@ -201,9 +201,8 @@ export function PhotoModal({ initialPhotoId }: { initialPhotoId: string }) {
 ```ts examples/lightbox/intercepted-routes/photos.ts
 import type { StaticImageData } from 'next/image';
 
-// Static imports (not the download-images generator) — this example reuses the
-// photo assets downloaded for the URL-synced state example, so there is no
-// per-example image set to generate.
+// Static imports (not the download-images generator) — the photos are
+// listed in scripts/download-images.mjs with no generated module.
 import p1 from '../../../../_assets/photos/mb-01.jpg';
 import p2 from '../../../../_assets/photos/mb-02.jpg';
 import p4 from '../../../../_assets/photos/mb-04.jpg';
@@ -289,11 +288,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
-import {
-  EXAMPLE_BASE_PATH,
-  interceptedPhotos,
-  interceptedPhotoTitle,
-} from '../../photos';
+import { EXAMPLE_BASE_PATH, interceptedPhotos, interceptedPhotoTitle } from '../../photos';
 
 /**
  * The hard-load presentation. Interception is a client-side navigation concept
@@ -301,8 +296,8 @@ import {
  * `@modal/(.)photos/[id]` — Next.js serves THIS standalone page instead
  * (Instagram's dedicated photo page is the same move). That is the pattern's
  * defining tradeoff: one URL, two presentations. If the refresh should keep
- * the grid + open-viewer presentation instead, that's the URL-synced state
- * example (dynamic route + container={null} + ssrSlideShift).
+ * the grid + open-viewer presentation instead, that's the Shareable albums
+ * example (container={null} + ssrSlideShift).
  */
 interface PhotoPageProps {
   params: Promise<{ id: string }>;
@@ -357,14 +352,12 @@ export default async function StandalonePhotoPage({ params }: PhotoPageProps) {
           priority
           className="block h-auto w-full rounded-2xl bg-neutral-100 dark:bg-neutral-800"
         />
-        <figcaption className="mt-4 text-[15px] text-neutral-600 dark:text-neutral-300">
-          {photo.caption}
-        </figcaption>
+        <figcaption className="mt-4 text-[15px] text-neutral-600 dark:text-neutral-300">{photo.caption}</figcaption>
       </figure>
       <p className="mt-8 max-w-2xl text-[13px] leading-6 text-neutral-500">
-        You hard-loaded this photo URL, so route interception did not apply and you got this
-        standalone page instead of the lightbox over the grid — one URL, two presentations. Navigate
-        back to the gallery and click the same photo to see the intercepted modal presentation.
+        You hard-loaded this photo URL, so route interception did not apply and you got this standalone page instead of
+        the lightbox over the grid — one URL, two presentations. Navigate back to the gallery and click the same photo
+        to see the intercepted modal presentation.
       </p>
     </div>
   );

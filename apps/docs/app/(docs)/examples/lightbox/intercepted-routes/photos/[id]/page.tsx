@@ -3,11 +3,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
-import {
-  EXAMPLE_BASE_PATH,
-  interceptedPhotos,
-  interceptedPhotoTitle,
-} from '../../photos';
+import { EXAMPLE_BASE_PATH, interceptedPhotos, interceptedPhotoTitle } from '../../photos';
 
 /**
  * The hard-load presentation. Interception is a client-side navigation concept
@@ -15,8 +11,8 @@ import {
  * `@modal/(.)photos/[id]` — Next.js serves THIS standalone page instead
  * (Instagram's dedicated photo page is the same move). That is the pattern's
  * defining tradeoff: one URL, two presentations. If the refresh should keep
- * the grid + open-viewer presentation instead, that's the URL-synced state
- * example (dynamic route + container={null} + ssrSlideShift).
+ * the grid + open-viewer presentation instead, that's the Shareable albums
+ * example (container={null} + ssrSlideShift).
  */
 interface PhotoPageProps {
   params: Promise<{ id: string }>;
@@ -71,14 +67,12 @@ export default async function StandalonePhotoPage({ params }: PhotoPageProps) {
           priority
           className="block h-auto w-full rounded-2xl bg-neutral-100 dark:bg-neutral-800"
         />
-        <figcaption className="mt-4 text-[15px] text-neutral-600 dark:text-neutral-300">
-          {photo.caption}
-        </figcaption>
+        <figcaption className="mt-4 text-[15px] text-neutral-600 dark:text-neutral-300">{photo.caption}</figcaption>
       </figure>
       <p className="mt-8 max-w-2xl text-[13px] leading-6 text-neutral-500">
-        You hard-loaded this photo URL, so route interception did not apply and you got this
-        standalone page instead of the lightbox over the grid — one URL, two presentations. Navigate
-        back to the gallery and click the same photo to see the intercepted modal presentation.
+        You hard-loaded this photo URL, so route interception did not apply and you got this standalone page instead of
+        the lightbox over the grid — one URL, two presentations. Navigate back to the gallery and click the same photo
+        to see the intercepted modal presentation.
       </p>
     </div>
   );

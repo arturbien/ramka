@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 
 import { ShareableAlbumsDemo } from './albums-demo';
-import { ALBUMS_PAGE_TITLE, findPhoto } from './albums';
+import { ALBUMS_PAGE_TITLE, findPhoto, photoPageTitle } from './albums';
 
 /**
  * `?photo=<id>` links open the viewer on that photo. The page reads the param
@@ -27,7 +27,7 @@ export async function generateMetadata(props: ShareableAlbumsRouteProps): Promis
     };
   }
   const { album, photo } = linked;
-  const title = `${photo.caption} · ${album.title} — ${ALBUMS_PAGE_TITLE}`;
+  const title = photoPageTitle(photo.id);
   return {
     title,
     description: `${photo.alt}, from ${album.title} by ${album.author.name}.`,

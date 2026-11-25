@@ -1,8 +1,7 @@
 import type { StaticImageData } from 'next/image';
 
-// Static imports (not the download-images generator) — this example reuses the
-// photo assets downloaded for the URL-synced state example, so there is no
-// per-example image set to generate.
+// Static imports (not the download-images generator) — the photos are
+// listed in scripts/download-images.mjs with no generated module.
 import p1 from '../../../../_assets/photos/mb-01.jpg';
 import p2 from '../../../../_assets/photos/mb-02.jpg';
 import p4 from '../../../../_assets/photos/mb-04.jpg';

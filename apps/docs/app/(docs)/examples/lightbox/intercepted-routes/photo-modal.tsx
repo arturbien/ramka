@@ -27,7 +27,7 @@ const photoIds = interceptedPhotos.map((photo) => photo.id);
  * open never flows through the library's gesture path, so it fades in rather
  * than morphing from the clicked tile.
  *
- * The default body portal is fine here (unlike the URL-synced state example's
+ * The default body portal is fine here (unlike the Shareable albums example's
  * `container={null}`): interception only happens during client-side
  * navigation, where `document.body` exists. Nothing about this component is
  * ever server-painted into the page.
@@ -64,7 +64,7 @@ export function PhotoModal({ initialPhotoId }: { initialPhotoId: string }) {
 
   // Shallow replaceState never re-runs route metadata, so swiping would
   // strand the tab title on the photo the modal opened with — same lesson as
-  // the URL-synced state example: own the URL writes, own the title. The
+  // the Shareable albums example: own the URL writes, own the title. The
   // ` — ramka` suffix mirrors the root layout's title template, which only
   // applies server-side.
   React.useEffect(() => {

@@ -124,9 +124,8 @@ export default function LightboxCompositionPage() {
           <code className="text-xs">&lt;img&gt;</code> (from known pixel dims or CMS metadata) so the box and aspect
           ratio exist <em>before</em> pixels load. That avoids CLS, keeps the morph target sized on slow networks, and
           prevents an unloaded <code className="text-xs">size: auto</code> image from collapsing to 0×0 (which can skip
-          or weaken the open morph). When dimensions are unknown, see{' '}
-          <DocsLink href="/examples/lightbox/url-synced-state">URL-synced state</DocsLink>. For mixed media (photos plus
-          WebGL) with <DocsLink href={lightboxApiHref.root}>onBeforeOpen</DocsLink> preheat, see{' '}
+          or weaken the open morph). For mixed media (photos plus WebGL) with{' '}
+          <DocsLink href={lightboxApiHref.root}>onBeforeOpen</DocsLink> preheat, see{' '}
           <DocsLink href="/examples/lightbox/3d-models">3D models</DocsLink>.
         </p>
         <p>

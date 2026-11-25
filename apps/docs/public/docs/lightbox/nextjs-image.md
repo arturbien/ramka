@@ -15,7 +15,7 @@ Decide **per item**, not per gallery. Ramka paints an open bridge only when that
 | Lightbox image, item *has* a trigger image (`imageRef`) | No | While the full-size image loads, Ramka paints the trigger’s image — already decoded and on screen — onto a canvas *behind* the lightbox image. Next’s LQIP renders as a background on the lightbox image itself, in front of that canvas, so blur here hides a sharp placeholder behind a blurry one. |
 | Lightbox image, item has *no* trigger image | Yes | Ramka has no trigger image to paint, so the LQIP is the only loading placeholder (see [No trigger image](#no-trigger-image)). |
 
-**One exception:** pages that server-render the lightbox already open (deep links). The bridge is painted on gesture opens — a server-rendered open has no gesture, and before hydration nothing is decoded to paint from — while `blurDataURL` is inlined into the server HTML itself. For those visits, destination blur is the only placeholder that can exist on first paint: enable it for the deep-link visit and keep destinations clean for regular visits (decide once per mount, like the portal container). See the URL-synced state example.
+**One exception:** pages that server-render the lightbox already open (deep links). The bridge is painted on gesture opens — a server-rendered open has no gesture, and before hydration nothing is decoded to paint from — while `blurDataURL` is inlined into the server HTML itself. For those visits, destination blur is the only placeholder that can exist on first paint: enable it for the deep-link visit and keep destinations clean for regular visits (decide once per mount, like the portal container). See the [Shareable albums](examples/lightbox/shareable-albums.md) example.
 
 ## Do
 

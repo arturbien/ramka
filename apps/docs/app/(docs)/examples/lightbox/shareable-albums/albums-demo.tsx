@@ -14,7 +14,7 @@ import {
   triggerFocusClass,
   type LightboxGalleryItem,
 } from '../../../../_components/lightbox-chrome';
-import { albums, findPhoto, type Album } from './albums';
+import { albums, findPhoto, photoPageTitle, type Album } from './albums';
 
 const BASE_PATH = '/examples/lightbox/shareable-albums';
 const VISIBLE_TILES = 3;
@@ -31,6 +31,13 @@ function photoIdInUrl(): string | null {
   return new URLSearchParams(window.location.search).get('photo');
 }
 
+// History writes never re-run the route's metadata, so the tab title would
+// stay on the photo the page loaded with. The suffix mirrors the root
+// layout's title template, which only applies on the server.
+function retitle(photoId: string | null) {
+  document.title = `${photoPageTitle(photoId)} — ramka`;
+}
+
 export function ShareableAlbumsDemo({ initialPhotoId }: { initialPhotoId: string | null }) {
   // The `?photo=` link this page was loaded with, if any, decided once per
   // mount. A link renders the viewer already open, in the server HTML:
@@ -43,8 +50,14 @@ export function ShareableAlbumsDemo({ initialPhotoId }: { initialPhotoId: string
   const openRef = React.useRef(deepLink !== null);
   const photoIdRef = React.useRef(deepLink?.photo.id ?? null);
 
-  // A server-rendered open viewer must not fade in on load; see the
-  // URL-synced state example for the full rationale.
+  // A server-rendered open viewer must not fade in: the skin's open fades run
+  // off @starting-style, which applies on first render, and for server HTML
+  // that's page load. While this is on, a host class flattens every
+  // transition inside (ssr-no-transitions.css), so the server paint is the
+  // final frame. It comes off one frame after the first client paint:
+  // dropping it in the same style recalc where the strip's data-positioned
+  // lands would start the very fades it suppresses. Double rAF, because the
+  // first can fire before the pending paint.
   const [ssrNoTransitions, setSsrNoTransitions] = React.useState(deepLink !== null);
   React.useEffect(() => {
     let raf = requestAnimationFrame(() => {
@@ -58,9 +71,11 @@ export function ShareableAlbumsDemo({ initialPhotoId }: { initialPhotoId: string
   // URL already says it, which is the case when the URL drove the change.
   const handleValueChange = (photoId: string) => {
     photoIdRef.current = photoId;
-    if (openRef.current && photoIdInUrl() !== photoId) {
+    if (!openRef.current) return;
+    if (photoIdInUrl() !== photoId) {
       window.history.replaceState(null, '', photoUrl(photoId));
     }
+    retitle(photoId);
   };
   const handleOpenChange = (open: boolean) => {
     openRef.current = open;
@@ -70,6 +85,7 @@ export function ShareableAlbumsDemo({ initialPhotoId }: { initialPhotoId: string
     } else if (!open && photoIdInUrl() !== null) {
       window.history.replaceState(null, '', BASE_PATH);
     }
+    retitle(open ? photoId : null);
   };
 
   // URL → lightbox, for Back and Forward. The Root is uncontrolled, so the

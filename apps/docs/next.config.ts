@@ -34,11 +34,11 @@ const nextConfig: NextConfig = {
         permanent: true,
       },
       {
-        // The example shipped as "Moodboard" before being renamed for what it
-        // actually showcases. `:path*` matches zero segments too, so both the
-        // grid URL and every photo deep link redirect.
-        source: '/examples/lightbox/moodboard/:path*',
-        destination: '/examples/lightbox/url-synced-state/:path*',
+        // Shipped as "Moodboard", then "URL-synced state", before Shareable
+        // albums replaced it. Photo deep links had numeric ids that don't
+        // exist there, so every path lands on the album list.
+        source: '/examples/lightbox/:old(moodboard|url-synced-state)/:path*',
+        destination: '/examples/lightbox/shareable-albums',
         permanent: true,
       },
       {

@@ -16,7 +16,7 @@ export const metadata: Metadata = {
  * navigation: Next.js intercepts it (`@modal/(.)photos/[id]`) and mounts an
  * already-open lightbox in the layout's modal slot while this page stays on
  * screen underneath. That's the defining tradeoff of this pattern versus the
- * URL-synced state example: the open never flows through the library's
+ * Shareable albums example: the open never flows through the library's
  * gesture path, so there is no trigger morph (the viewer fades in), and a
  * refresh on a photo URL renders a different presentation (the standalone
  * page) rather than this grid with the viewer open.
@@ -28,7 +28,7 @@ export default function InterceptedRoutesGridPage() {
   return (
     <ExampleShell
       title="Intercepted routes"
-      description="The nextgram pattern: a grid of plain Next.js Links, a @modal parallel-route slot, and an (.)photos/[id] intercepting route that mounts an already-open, controlled lightbox during soft navigation — browser Back closes it. Hard-loading the same photo URL skips interception entirely and renders a standalone photo page: one URL, two presentations. Compare with the URL-synced state example, which keeps one presentation (grid + viewer) on refresh and keeps trigger morphs, at the cost of owning the History API writes itself."
+      description="The nextgram pattern: a grid of plain Next.js Links, a @modal parallel-route slot, and an (.)photos/[id] intercepting route that mounts an already-open, controlled lightbox during soft navigation — browser Back closes it. Hard-loading the same photo URL skips interception entirely and renders a standalone photo page: one URL, two presentations. Compare with the Shareable albums example, which keeps one presentation (albums + viewer) on refresh and keeps trigger morphs, at the cost of owning the History API writes itself."
       docsHref="/docs/lightbox/state-lifecycle"
       docsLabel="State & lifecycle docs"
     >
