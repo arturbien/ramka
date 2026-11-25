@@ -41,6 +41,18 @@ const nextConfig: NextConfig = {
         destination: '/examples/lightbox/url-synced-state/:path*',
         permanent: true,
       },
+      {
+        // Shipped as "Text message", which described the UI rather than the
+        // one-Root-for-many-galleries pattern it demonstrates.
+        source: '/examples/lightbox/text-message',
+        destination: '/examples/lightbox/shared-lightbox',
+        permanent: true,
+      },
+      {
+        source: '/examples/lightbox/text-message.md',
+        destination: '/examples/lightbox/shared-lightbox.md',
+        permanent: true,
+      },
     ];
   },
 };

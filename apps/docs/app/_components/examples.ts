@@ -76,13 +76,13 @@ export const lightboxExamples: ExampleLink[] = [
     ],
   },
   {
-    slug: 'text-message',
-    title: 'Text message',
+    slug: 'shared-lightbox',
+    title: 'Shared lightbox',
     description:
-      'Virtualized 1,000-message chat with one global Root: triggers carry a payload per message, "+N" grids close onto their tile, and revealTrigger brings unmounted rows back for the close morph.',
+      'One lightbox, many galleries: a virtualized 1,000-message chat with a single Root, where each trigger carries its message as a payload, "+N" grids close onto their tile, and revealTrigger brings unmounted rows back for the close morph.',
     extraSources: [
-      '(docs)/examples/lightbox/text-message/chat-feed.tsx',
-      '(docs)/examples/lightbox/text-message/chat-data.ts',
+      '(docs)/examples/lightbox/shared-lightbox/chat-feed.tsx',
+      '(docs)/examples/lightbox/shared-lightbox/chat-data.ts',
     ],
   },
   {

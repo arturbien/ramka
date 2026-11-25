@@ -148,7 +148,7 @@ const urlSyncedState = URL_SYNCED_STATE_DEFS.map(([id, w, h]) =>
   picsum(id, 800, Math.round((h * 800) / w)),
 );
 
-// examples/lightbox/text-message
+// examples/lightbox/shared-lightbox
 const textMessage = [1, 2, 3].map((i) => picsum(`msg${i}`, 1200, 1600));
 
 // examples/lightbox/film-trailers — Wikimedia Commons posters (CC-BY,
@@ -310,7 +310,7 @@ const modules = [
     arrays: { galleryImages: urlSyncedState },
   },
   {
-    out: 'app/(docs)/examples/lightbox/text-message/images.generated.ts',
+    out: 'app/(docs)/examples/lightbox/shared-lightbox/images.generated.ts',
     arrays: { messageImageFiles: textMessage },
   },
   {
