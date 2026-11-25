@@ -1062,6 +1062,25 @@ describe('keyed triggers: galleries and stand-ins', () => {
     expect(screen.getByTestId('t-a0')).toHaveAttribute('aria-expanded', 'false');
   });
 
+  it("reports the opened item when it sits at the active index of another gallery's item", () => {
+    const handle = createHandle<Payload>();
+    const onValueChange = vi.fn();
+    render(
+      <>
+        <MessageTiles message={messageA} handle={handle} />
+        <MessageTiles message={messageB} handle={handle} />
+        <Viewer handle={handle} messages={[messageA, messageB]} onValueChange={onValueChange} />
+      </>,
+    );
+
+    fireEvent.click(screen.getByTestId('t-a0'));
+    expect(onValueChange).toHaveBeenLastCalledWith('a0', expect.objectContaining({ index: 0 }));
+    act(() => handle.close());
+    fireEvent.click(screen.getByTestId('t-b0'));
+    expect(onValueChange).toHaveBeenLastCalledWith('b0', expect.objectContaining({ index: 0 }));
+    expect(screen.getByTestId('item-b0')).toHaveAttribute('data-active');
+  });
+
   it('the same item rendered twice (a reply quote): the clicked copy is the origin', () => {
     const handle = createHandle<Payload>();
     render(

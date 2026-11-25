@@ -1699,7 +1699,10 @@ function LightboxRoot<Payload = unknown>(props: LightboxRootProps<Payload>) {
   // resolves to its index (and re-renders at it) inside that same flush.
   const resolveOpenIndex = React.useCallback((index: number) => {
     openingTriggerIndexRef.current = index;
-    if (activeIndexRef.current !== index) setActiveIndexActionRef.current(index, pendingOpenSourceRef.current);
+    // Another gallery's item can sit at the active index: same index, new item.
+    if (activeIndexRef.current !== index || activeItemIdRef.current !== itemIdByIndexRef.current.get(index)) {
+      setActiveIndexActionRef.current(index, pendingOpenSourceRef.current);
+    }
     setResolvingOpen(false);
   }, []);
   const registerItemId = React.useCallback(

@@ -10632,6 +10632,786 @@ export const rowOfImage = new Map<string, number>(
 );
 ```
 
+# Shareable albums
+
+A photo journal where every photo in every album has its own link, and all albums share one Root. A link renders the viewer already open from the server, with defaultPayload naming the album no Trigger was tapped for; Back and Forward reopen albums with handle.open.
+
+## Source
+
+```tsx examples/lightbox/shareable-albums/page.tsx
+import type { Metadata } from 'next';
+
+import { ShareableAlbumsDemo } from './albums-demo';
+import { ALBUMS_PAGE_TITLE, findPhoto } from './albums';
+
+/**
+ * `?photo=<id>` links open the viewer on that photo. The page reads the param
+ * on the server so the link renders with the viewer already open, and so a
+ * shared link unfurls with the photo itself.
+ */
+interface ShareableAlbumsRouteProps {
+  searchParams: Promise<{ photo?: string | string[] }>;
+}
+
+async function linkedPhoto({ searchParams }: ShareableAlbumsRouteProps) {
+  const { photo } = await searchParams;
+  return findPhoto(typeof photo === 'string' ? photo : undefined);
+}
+
+export async function generateMetadata(props: ShareableAlbumsRouteProps): Promise<Metadata> {
+  const linked = await linkedPhoto(props);
+  if (!linked) {
+    return {
+      title: ALBUMS_PAGE_TITLE,
+      description:
+        'A photo journal where every photo has a shareable link: one lightbox for every album, server-rendered open from the link with defaultPayload. Built with ramka.',
+    };
+  }
+  const { album, photo } = linked;
+  const title = `${photo.caption} · ${album.title} — ${ALBUMS_PAGE_TITLE}`;
+  return {
+    title,
+    description: `${photo.alt}, from ${album.title} by ${album.author.name}.`,
+    openGraph: {
+      title,
+      description: photo.alt,
+      images: [{ url: photo.image.src, width: photo.image.width, height: photo.image.height, alt: photo.alt }],
+    },
+    twitter: { card: 'summary_large_image' },
+  };
+}
+
+export default async function ShareableAlbumsRoute(props: ShareableAlbumsRouteProps) {
+  const linked = await linkedPhoto(props);
+  return <ShareableAlbumsDemo initialPhotoId={linked?.photo.id ?? null} />;
+}
+```
+
+```tsx examples/lightbox/shareable-albums/albums-demo.tsx
+'use client';
+
+import * as React from 'react';
+import Image from 'next/image';
+import * as Lightbox from '@ramka/react/lightbox';
+import { useLightboxPayload } from '@ramka/react';
+import { Check, Link2 } from 'lucide-react';
+
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { ExampleShell } from '../../../../_components/example-shell';
+import {
+  LightboxGallery,
+  lightboxChromeButton,
+  triggerFocusClass,
+  type LightboxGalleryItem,
+} from '../../../../_components/lightbox-chrome';
+import { albums, findPhoto, type Album } from './albums';
+
+const BASE_PATH = '/examples/lightbox/shareable-albums';
+const VISIBLE_TILES = 3;
+const code = 'rounded bg-neutral-100 px-1 py-0.5 text-xs dark:bg-neutral-800';
+
+/** One viewer for every album; each Trigger hands it its album as the payload. */
+const viewer = Lightbox.createHandle<Album>();
+
+function photoUrl(photoId: string): string {
+  return `${BASE_PATH}?photo=${encodeURIComponent(photoId)}`;
+}
+
+function photoIdInUrl(): string | null {
+  return new URLSearchParams(window.location.search).get('photo');
+}
+
+export function ShareableAlbumsDemo({ initialPhotoId }: { initialPhotoId: string | null }) {
+  // The `?photo=` link this page was loaded with, if any, decided once per
+  // mount. A link renders the viewer already open, in the server HTML:
+  // `defaultOpen` + `defaultValue` pick the photo, and `defaultPayload` hands
+  // the viewer its album, since no Trigger was tapped to provide one.
+  const [deepLink] = React.useState(() => findPhoto(initialPhotoId) ?? null);
+
+  // What the lightbox shows right now, written from its callbacks. The URL
+  // effect below compares against these so it never replays our own writes.
+  const openRef = React.useRef(deepLink !== null);
+  const photoIdRef = React.useRef(deepLink?.photo.id ?? null);
+
+  // A server-rendered open viewer must not fade in on load; see the
+  // URL-synced state example for the full rationale.
+  const [ssrNoTransitions, setSsrNoTransitions] = React.useState(deepLink !== null);
+  React.useEffect(() => {
+    let raf = requestAnimationFrame(() => {
+      raf = requestAnimationFrame(() => setSsrNoTransitions(false));
+    });
+    return () => cancelAnimationFrame(raf);
+  }, []);
+
+  // Lightbox → URL. Opening pushes one entry so Back closes the viewer;
+  // swiping and closing rewrite it in place. Each write is skipped when the
+  // URL already says it, which is the case when the URL drove the change.
+  const handleValueChange = (photoId: string) => {
+    photoIdRef.current = photoId;
+    if (openRef.current && photoIdInUrl() !== photoId) {
+      window.history.replaceState(null, '', photoUrl(photoId));
+    }
+  };
+  const handleOpenChange = (open: boolean) => {
+    openRef.current = open;
+    const photoId = photoIdRef.current;
+    if (open && photoId && photoIdInUrl() !== photoId) {
+      window.history.pushState(null, '', photoUrl(photoId));
+    } else if (!open && photoIdInUrl() !== null) {
+      window.history.replaceState(null, '', BASE_PATH);
+    }
+  };
+
+  // URL → lightbox, for Back and Forward. The Root is uncontrolled, so the
+  // handle does the work, and `open` takes the album as its payload: there's
+  // no `payload` prop to control, the album travels with the open. Handle
+  // calls belong in event handlers, so this listens to `popstate` rather
+  // than reacting to the URL in an effect.
+  React.useEffect(() => {
+    const onPopState = () => {
+      const target = findPhoto(photoIdInUrl());
+      if (!target) {
+        if (openRef.current) viewer.close();
+        return;
+      }
+      const current = findPhoto(photoIdRef.current);
+      if (!openRef.current || current?.album !== target.album) {
+        viewer.open(target.photo.id, { payload: target.album });
+      } else if (current.photo !== target.photo) {
+        viewer.goTo(target.photo.id);
+      }
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
+
+  return (
+    <ExampleShell
+      title="Shareable albums"
+      description={
+        <>
+          A photo journal where every photo in every album has its own link, and all albums share one{' '}
+          <code className={code}>Lightbox.Root</code>. Open a photo, then copy its link or reload: the page comes back
+          with the viewer already open on that photo, straight from the server HTML. No Trigger was tapped to say which
+          album to show, so the page passes it as <code className={code}>defaultPayload</code>, next to{' '}
+          <code className={code}>defaultOpen</code> and <code className={code}>defaultValue</code>. Back and Forward
+          reopen other albums with <code className={code}>handle.open(photoId, {'{ payload }'})</code>.
+        </>
+      }
+      docsHref="/docs/lightbox/state-lifecycle"
+      docsLabel="State & lifecycle docs"
+    >
+      <Lightbox.Root
+        handle={viewer}
+        defaultOpen={deepLink !== null}
+        defaultValue={deepLink?.photo.id}
+        defaultPayload={deepLink?.album}
+        // Items register in effects, which don't run on the server; this lets
+        // the server paint the right counter and slide for a link.
+        itemIds={deepLink?.album.photos.map((photo) => photo.id)}
+        onValueChange={handleValueChange}
+        onOpenChange={handleOpenChange}
+        // Photos behind "+N" have no tile, and they come right after the
+        // visible ones, so the closest tile is the "+N" one.
+        morphTo="closest"
+      >
+        <div className="flex max-w-2xl flex-col gap-10">
+          {albums.map((album) => (
+            <AlbumCard key={album.id} album={album} />
+          ))}
+        </div>
+        <AlbumViewer
+          deepLinked={deepLink !== null}
+          initialCaption={deepLink?.photo.caption}
+          ssrNoTransitions={ssrNoTransitions}
+        />
+      </Lightbox.Root>
+    </ExampleShell>
+  );
+}
+
+const noAlbumItems: LightboxGalleryItem[] = [];
+
+function AlbumViewer({
+  deepLinked,
+  initialCaption,
+  ssrNoTransitions,
+}: {
+  deepLinked: boolean;
+  initialCaption: string | undefined;
+  ssrNoTransitions: boolean;
+}) {
+  const album = useLightboxPayload<Album>();
+  const items = React.useMemo<LightboxGalleryItem[]>(
+    () =>
+      album?.photos.map((photo, i) => ({
+        id: photo.id,
+        src: photo.image,
+        thumb: photo.image,
+        alt: photo.alt,
+        caption: photo.caption,
+        // No tile to bridge the morph from (behind "+N"), or a link loading
+        // cold: blur up instead.
+        destinationBlur: deepLinked || i >= VISIBLE_TILES,
+      })) ?? noAlbumItems,
+    [album, deepLinked],
+  );
+  return (
+    <LightboxGallery
+      items={items}
+      ariaLabel={album ? `${album.title} by ${album.author.name}` : 'Album photos'}
+      backdrop="solid"
+      overlay={album ? <AlbumBadge album={album} /> : null}
+      // Server paint of a link: the right slide and caption before hydration.
+      ssrSlideShift
+      captionFallback={initialCaption}
+      // A portal can't be server-rendered, so a link renders the viewer in place.
+      portalProps={
+        deepLinked
+          ? {
+              container: null,
+              className: `relative z-50${ssrNoTransitions ? ' lightbox-demo-ssr-no-transitions' : ''}`,
+            }
+          : undefined
+      }
+    />
+  );
+}
+
+/** Top-left of the viewer: whose album this is, and a link to the photo. */
+function AlbumBadge({ album }: { album: Album }) {
+  const [copied, setCopied] = React.useState(false);
+  React.useEffect(() => {
+    if (!copied) return;
+    const timer = window.setTimeout(() => setCopied(false), 1600);
+    return () => window.clearTimeout(timer);
+  }, [copied]);
+  const copyLink = () => {
+    void navigator.clipboard?.writeText(window.location.href).then(() => setCopied(true));
+  };
+  return (
+    <div className="lightbox-demo-chrome-top lightbox-demo-chrome-hide absolute start-3 top-[calc(0.75rem+env(safe-area-inset-top,0px))] z-30 flex items-center gap-2.5">
+      <AuthorAvatar album={album} />
+      <div className="leading-tight">
+        <div className="text-[13px] font-semibold text-neutral-900 dark:text-neutral-50">{album.title}</div>
+        <div className="text-[11px] text-neutral-500 dark:text-neutral-400">{album.author.name}</div>
+      </div>
+      <button type="button" onClick={copyLink} className={lightboxChromeButton} aria-label="Copy link to photo">
+        {copied ? (
+          <Check aria-hidden className="size-4" strokeWidth={2.25} />
+        ) : (
+          <Link2 aria-hidden className="size-4" strokeWidth={2.25} />
+        )}
+      </button>
+      <span role="status" className="sr-only">
+        {copied ? 'Link copied' : ''}
+      </span>
+    </div>
+  );
+}
+
+function AuthorAvatar({ album }: { album: Album }) {
+  return (
+    <Avatar aria-hidden>
+      <AvatarFallback className={`text-xs font-semibold ${album.author.colorClass}`}>
+        {album.author.initials}
+      </AvatarFallback>
+    </Avatar>
+  );
+}
+
+const tileCorners = ['rounded-l-xl', 'rounded-tr-xl', 'rounded-br-xl'];
+
+const AlbumCard = React.memo(function AlbumCard({ album }: { album: Album }) {
+  const tiles = album.photos.slice(0, VISIBLE_TILES);
+  const hiddenCount = album.photos.length - tiles.length;
+  return (
+    <article>
+      <header className="mb-3 flex items-center gap-3">
+        <AuthorAvatar album={album} />
+        <div className="min-w-0 leading-tight">
+          <div className="text-sm font-semibold text-neutral-900 dark:text-neutral-50">{album.title}</div>
+          <div className="text-xs text-neutral-500">
+            {album.author.name} · {album.location} · {album.posted}
+          </div>
+        </div>
+      </header>
+      <div className="grid h-64 grid-cols-3 grid-rows-2 gap-1 sm:h-80">
+        {tiles.map((photo, i) => {
+          const overflow = i === VISIBLE_TILES - 1 && hiddenCount > 0;
+          return (
+            <Lightbox.Trigger
+              key={photo.id}
+              itemId={photo.id}
+              payload={album}
+              // The "+N" overlay dissolves into the photo instead of popping.
+              crossfade={overflow ? 'both' : undefined}
+              aria-label={overflow ? `Open ${photo.caption}, ${hiddenCount} more` : `Open ${photo.caption}`}
+              className={`relative block cursor-pointer overflow-hidden border-none bg-neutral-200 p-0 dark:bg-neutral-800 ${
+                i === 0 ? 'col-span-2 row-span-2' : ''
+              } ${tileCorners[i]} ${triggerFocusClass}`}
+            >
+              {({ imageRef }) => (
+                <>
+                  <Image
+                    ref={imageRef}
+                    src={photo.image}
+                    alt=""
+                    placeholder="blur"
+                    sizes={i === 0 ? '(min-width: 672px) 448px, 66vw' : '(min-width: 672px) 224px, 33vw'}
+                    className={`block size-full object-cover ${tileCorners[i]}`}
+                  />
+                  {overflow ? (
+                    <span className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/45 text-2xl font-semibold text-white">
+                      +{hiddenCount}
+                    </span>
+                  ) : null}
+                </>
+              )}
+            </Lightbox.Trigger>
+          );
+        })}
+      </div>
+    </article>
+  );
+});
+```
+
+```ts examples/lightbox/shareable-albums/albums.ts
+import type { StaticImageData } from 'next/image';
+
+import { cityImages, coastImages, fogImages, forestImages, mountainsImages, oldtownImages } from './images.generated';
+
+/**
+ * Plain data (no `'use client'`): the server page uses it to validate the
+ * `?photo=` param and build per-photo metadata, the client demo to render the
+ * feed and the viewer. One list, so a link can never point at a missing photo.
+ */
+export interface AlbumPhoto {
+  /** Unique across all albums, so `?photo=` alone names the album too. */
+  id: string;
+  alt: string;
+  caption: string;
+  image: StaticImageData;
+}
+
+export interface Album {
+  id: string;
+  title: string;
+  location: string;
+  author: { name: string; initials: string; colorClass: string };
+  posted: string;
+  photos: AlbumPhoto[];
+}
+
+function album(
+  meta: Omit<Album, 'photos'>,
+  images: StaticImageData[],
+  photos: ReadonlyArray<{ alt: string; caption: string }>,
+): Album {
+  return {
+    ...meta,
+    photos: photos.map((photo, i) => ({ ...photo, id: `${meta.id}-${i + 1}`, image: images[i]! })),
+  };
+}
+
+export const albums: Album[] = [
+  album(
+    {
+      id: 'mountains',
+      title: 'Above the clouds',
+      location: 'Dolomites, Italy',
+      author: { name: 'Noa Brandt', initials: 'NB', colorClass: 'bg-sky-100 text-sky-700' },
+      posted: '2 days ago',
+    },
+    mountainsImages,
+    [
+      { alt: 'Mist rolling over a forested ridge', caption: 'First light on the ridge' },
+      { alt: 'Snowy peaks under a teal sky', caption: 'The north faces' },
+      { alt: 'Jagged snow-covered summit', caption: 'Summit day' },
+      { alt: 'Peak rising above a sea of fog', caption: 'Cloud inversion' },
+      { alt: 'Distant spires in violet haze', caption: 'Dusk over the spires' },
+      { alt: 'Cliff edge disappearing into cloud', caption: 'Into the white' },
+      { alt: 'Hiker looking over a mountain lake', caption: 'Lake stop' },
+    ],
+  ),
+  album(
+    {
+      id: 'forest',
+      title: 'Forest mornings',
+      location: 'Bavarian Forest, Germany',
+      author: { name: 'Theo Lindqvist', initials: 'TL', colorClass: 'bg-emerald-100 text-emerald-700' },
+      posted: '5 days ago',
+    },
+    forestImages,
+    [
+      { alt: 'Frost on the forest floor between pines', caption: 'Frost' },
+      { alt: 'Trail winding between tall pines', caption: 'The long trail' },
+      { alt: 'Path through a dark green forest', caption: 'Deep woods' },
+      { alt: 'Worn dirt path through grass', caption: 'Off the map' },
+      { alt: 'Footpath through a meadow at sunset', caption: 'Meadow crossing' },
+      { alt: 'Tree silhouette in golden fog', caption: 'Golden hour fog' },
+      { alt: 'Oak in morning haze', caption: 'The old oak' },
+    ],
+  ),
+  album(
+    {
+      id: 'oldtown',
+      title: 'Doors of the old town',
+      location: 'Porto, Portugal',
+      author: { name: 'Inês Duarte', initials: 'ID', colorClass: 'bg-amber-100 text-amber-700' },
+      posted: '1 week ago',
+    },
+    oldtownImages,
+    [
+      { alt: 'Green wooden door in an ornate facade', caption: 'Rua das Flores' },
+      { alt: 'Carved wooden double door', caption: 'Number 27' },
+      { alt: 'Street with string lights at night', caption: 'After dark' },
+      { alt: 'Colourful houses along a canal', caption: 'Along the water' },
+      { alt: 'Looking up between ornate buildings', caption: 'Look up' },
+    ],
+  ),
+  album(
+    {
+      id: 'coast',
+      title: 'Coastline',
+      location: 'Big Sur, California',
+      author: { name: 'Malia Kekona', initials: 'MK', colorClass: 'bg-cyan-100 text-cyan-700' },
+      posted: '2 weeks ago',
+    },
+    coastImages,
+    [
+      { alt: 'Rocky shore under a pale sky', caption: 'Low tide' },
+      { alt: 'Wave breaking over dark rocks', caption: 'Spray' },
+      { alt: 'Long pier in black and white', caption: 'The pier' },
+      { alt: 'Pebble beach curving into the sea', caption: 'Pebble cove' },
+      { alt: 'Tripod on a grassy bluff over the water', caption: 'Setting up' },
+      { alt: 'Sailboat mast from the deck', caption: 'Heading out' },
+    ],
+  ),
+  album(
+    {
+      id: 'fog',
+      title: 'Fog days',
+      location: 'Hokkaido, Japan',
+      author: { name: 'Jun Mori', initials: 'JM', colorClass: 'bg-neutral-200 text-neutral-700' },
+      posted: '3 weeks ago',
+    },
+    fogImages,
+    [
+      { alt: 'Blue-grey fog over a dark hill', caption: 'Blue hour' },
+      { alt: 'Violet fog over a lakeshore', caption: 'Lavender shore' },
+      { alt: 'Hay bale in a misty field', caption: 'Harvest' },
+      { alt: 'Stairs fading into fog', caption: 'Nowhere stairs' },
+    ],
+  ),
+  album(
+    {
+      id: 'city',
+      title: 'Concrete and colour',
+      location: 'Rotterdam, Netherlands',
+      author: { name: 'Sam Okafor', initials: 'SO', colorClass: 'bg-rose-100 text-rose-700' },
+      posted: '1 month ago',
+    },
+    cityImages,
+    [
+      { alt: 'Tower blocks seen through a rainy window', caption: 'Rain check' },
+      { alt: 'Steel lattice of a tower from below', caption: 'Lattice' },
+      { alt: 'Red, yellow and white striped facade', caption: 'Stripes' },
+      { alt: 'Spiral staircase in a white stairwell', caption: 'Stairwell' },
+      { alt: 'Skyline in morning haze', caption: 'Morning haze' },
+    ],
+  ),
+];
+
+const photoLookup = new Map<string, { album: Album; photo: AlbumPhoto }>(
+  albums.flatMap((album) => album.photos.map((photo) => [photo.id, { album, photo }] as const)),
+);
+
+export function findPhoto(id: string | null | undefined): { album: Album; photo: AlbumPhoto } | undefined {
+  return id ? photoLookup.get(id) : undefined;
+}
+
+export const ALBUMS_PAGE_TITLE = 'Shareable albums example';
+```
+
+# Curated grid
+
+A vacation-rental cover grid showing the host's five picks from a 21-photo tour. Photos without a tile close onto the last tile through overflowItemIds, crossfading, while the five picks morph back to their own tiles.
+
+## Source
+
+```tsx examples/lightbox/curated-grid/page.tsx
+'use client';
+
+import Image from 'next/image';
+import * as Lightbox from '@ramka/react/lightbox';
+import { Bath, BedDouble, Grip, MapPin, Star, Users, Waves, Wifi, type LucideIcon } from 'lucide-react';
+
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
+import { Separator } from '@/components/ui/separator';
+import { ExampleShell } from '../../../../_components/example-shell';
+import { LightboxGallery, triggerFocusClass, type LightboxGalleryItem } from '../../../../_components/lightbox-chrome';
+import { hostAvatar } from './images.generated';
+import { coverPhotoIds, listingPhotos, type ListingPhoto } from './listing-data';
+
+const code = 'rounded bg-neutral-100 px-1 py-0.5 text-xs dark:bg-neutral-800';
+
+const tour = Lightbox.createHandle();
+
+const coverIds = new Set<string>(coverPhotoIds);
+const coverPhotos = coverPhotoIds.map((id) => listingPhotos.find((photo) => photo.id === id)!);
+/** Photos with no tile on the page: the last tile stands in for them. */
+const offPagePhotoIds = listingPhotos.filter((photo) => !coverIds.has(photo.id)).map((photo) => photo.id);
+
+const galleryItems: LightboxGalleryItem[] = listingPhotos.map((photo) => ({
+  id: photo.id,
+  src: photo.image,
+  thumb: photo.image,
+  alt: photo.alt,
+  caption: `${photo.room} · ${photo.label}`,
+  // No tile on the page to bridge the morph from, so blur up instead.
+  destinationBlur: !coverIds.has(photo.id),
+}));
+
+/**
+ * Cover grid corners: on mobile the cover spans the top row over a 2×2 grid;
+ * from `md` it's the tall left column of a 3-column grid. The radius goes on
+ * the Trigger as well as the image, since the morph reads it from the Trigger.
+ */
+const tileCorners = [
+  'rounded-t-xl md:rounded-tr-none md:rounded-l-xl',
+  '',
+  'md:rounded-tr-xl',
+  'rounded-bl-xl md:rounded-bl-none',
+  'rounded-br-xl',
+];
+
+export default function CuratedGridPage() {
+  return (
+    <ExampleShell
+      title="Curated grid"
+      description={
+        <>
+          A vacation-rental listing whose cover grid shows the host&apos;s five picks out of a 21-photo tour: the cover
+          shot, then one photo per room. Every photo opens in the viewer, but most have no tile on the page.{' '}
+          <code className={code}>morphTo=&quot;closest&quot;</code> would close those onto the nearest tile by position,
+          which shows a different photo: the double-height lounge would shrink into the living-room tile. Instead, the
+          last tile lists them in <code className={code}>overflowItemIds</code>, so they all close onto it with a
+          crossfade, while the five cover photos still morph back to their own tiles.
+        </>
+      }
+      docsHref="/docs/lightbox/view-transitions"
+      docsLabel="View transitions docs"
+    >
+      <Lightbox.Root handle={tour} loop>
+        <div className="max-w-4xl pb-6">
+          <div className="mb-4">
+            <h2 className="text-2xl font-semibold tracking-tight text-neutral-900 dark:text-neutral-50">
+              Casa Alba, a whitewashed villa above the bay
+            </h2>
+            <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-neutral-600 dark:text-neutral-400">
+              <span className="inline-flex items-center gap-1 font-medium text-neutral-900 dark:text-neutral-100">
+                <Star aria-hidden className="size-3.5 fill-current" /> 4.96
+              </span>
+              <span className="underline underline-offset-2">128 reviews</span>
+              <span className="inline-flex items-center gap-1">
+                <MapPin aria-hidden className="size-3.5" /> Marbella, Spain
+              </span>
+            </div>
+          </div>
+
+          <CoverGrid />
+
+          <div className="mt-8 grid gap-8 md:grid-cols-[1fr_300px]">
+            <div>
+              <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-50">
+                Entire villa hosted by Claire
+              </h3>
+              <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                10 guests · 5 bedrooms · 6 beds · 4.5 baths
+              </p>
+              <Separator className="my-6" />
+              <ul className="grid gap-4 text-sm text-neutral-700 sm:grid-cols-2 dark:text-neutral-300">
+                <Amenity icon={Waves} label="Heated infinity pool" />
+                <Amenity icon={BedDouble} label="Primary suite with sea view" />
+                <Amenity icon={Bath} label="Freestanding soaking tub" />
+                <Amenity icon={Wifi} label="Fast wifi, 600 Mbps" />
+                <Amenity icon={Users} label="Great for families" />
+              </ul>
+              <Separator className="my-6" />
+              <p className="text-sm leading-relaxed text-neutral-700 dark:text-neutral-300">
+                Set on a quiet hillside ten minutes from the old town, Casa Alba opens onto a pool terrace with views
+                across the bay. Inside, a double-height lounge, a kitchen built for long dinners, and five bedrooms
+                spread over two floors.
+              </p>
+            </div>
+
+            <aside className="h-fit rounded-xl border border-neutral-200 p-5 shadow-sm dark:border-neutral-800">
+              <div className="text-xl font-semibold text-neutral-900 dark:text-neutral-50">
+                €1,240 <span className="text-sm font-normal text-neutral-500">night</span>
+              </div>
+              <Button className="mt-4 w-full">Reserve</Button>
+              <p className="mt-2 text-center text-xs text-neutral-500">You won&apos;t be charged yet</p>
+              <Separator className="my-4" />
+              <div className="flex items-center gap-3">
+                <Avatar size="lg">
+                  <AvatarImage src={hostAvatar.src} alt="" />
+                  <AvatarFallback>CR</AvatarFallback>
+                </Avatar>
+                <div className="text-sm">
+                  <div className="font-medium text-neutral-900 dark:text-neutral-50">Claire Rousseau</div>
+                  <div className="text-neutral-500">Superhost · 6 years hosting</div>
+                </div>
+              </div>
+            </aside>
+          </div>
+        </div>
+
+        <LightboxGallery items={galleryItems} ariaLabel="Casa Alba photo tour" backdrop="solid" />
+      </Lightbox.Root>
+    </ExampleShell>
+  );
+}
+
+function CoverGrid() {
+  return (
+    <div className="relative grid grid-cols-2 gap-1.5 md:aspect-[2.2/1] md:grid-cols-[2fr_1fr_1fr] md:grid-rows-2">
+      {coverPhotos.map((photo, i) => (
+        <CoverTile key={photo.id} photo={photo} index={i} last={i === coverPhotos.length - 1} />
+      ))}
+      <button
+        type="button"
+        // Starts the tour at the first photo, morphing from the cover tile.
+        onClick={() => tour.open(listingPhotos[0]!.id)}
+        className="absolute end-3 bottom-3 inline-flex items-center gap-1.5 rounded-lg border border-neutral-900/80 bg-white px-3 py-1.5 text-[13px] font-medium text-neutral-900 shadow-sm transition-colors hover:bg-neutral-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 dark:border-white/20 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
+      >
+        <Grip aria-hidden className="size-4" />
+        Show all {listingPhotos.length} photos
+      </button>
+    </div>
+  );
+}
+
+function CoverTile({ photo, index, last }: { photo: ListingPhoto; index: number; last: boolean }) {
+  const cover = index === 0;
+  const corners = tileCorners[index] ?? '';
+  return (
+    <Lightbox.Trigger
+      itemId={photo.id}
+      // The last tile also stands in for every photo without a tile: closing on
+      // one lands here, crossfading since the tile shows a different photo.
+      overflowItemIds={last ? offPagePhotoIds : undefined}
+      aria-label={`Open ${photo.label}`}
+      className={`group relative block cursor-pointer overflow-hidden border-none bg-neutral-200 p-0 dark:bg-neutral-800 ${
+        cover ? 'col-span-2 aspect-[3/2] md:col-span-1 md:row-span-2 md:aspect-auto' : 'aspect-[4/3] md:aspect-auto'
+      } ${corners} ${triggerFocusClass}`}
+    >
+      {({ imageRef }) => (
+        <>
+          <Image
+            ref={imageRef}
+            src={photo.image}
+            alt={photo.alt}
+            placeholder="blur"
+            sizes={cover ? '(min-width: 768px) 440px, 100vw' : '(min-width: 768px) 220px, 50vw'}
+            priority={cover}
+            className={`block size-full object-cover ${corners}`}
+          />
+          <span
+            aria-hidden
+            className="pointer-events-none absolute inset-0 bg-black/0 transition-colors group-hover:bg-black/10"
+          />
+        </>
+      )}
+    </Lightbox.Trigger>
+  );
+}
+
+function Amenity({ icon: Icon, label }: { icon: LucideIcon; label: string }) {
+  return (
+    <li className="flex items-center gap-3">
+      <Icon aria-hidden className="size-5 shrink-0 text-neutral-500" />
+      {label}
+    </li>
+  );
+}
+```
+
+```ts examples/lightbox/curated-grid/listing-data.ts
+import type { StaticImageData } from 'next/image';
+
+import { listingImages } from './images.generated';
+
+export interface ListingPhoto {
+  id: string;
+  room: string;
+  label: string;
+  alt: string;
+  image: StaticImageData;
+}
+
+/** The full photo tour, room by room, in the order the viewer shows it. */
+export const listingPhotos: ListingPhoto[] = (
+  [
+    {
+      id: 'pool-terrace',
+      room: 'Outdoors',
+      label: 'Pool terrace',
+      alt: 'White villa with a pool terrace and sun loungers',
+    },
+    { id: 'front', room: 'Outdoors', label: 'Front elevation', alt: 'Two-storey white villa behind a long pool' },
+    { id: 'garden-facade', room: 'Outdoors', label: 'Garden facade', alt: 'Villa facade over a lap pool and lawn' },
+    { id: 'courtyard-pool', room: 'Outdoors', label: 'Courtyard pool', alt: 'Courtyard pool lined with palms' },
+    { id: 'living', room: 'Living', label: 'Living room', alt: 'Open living room with sofas facing glass doors' },
+    { id: 'lounge', room: 'Living', label: 'Double-height lounge', alt: 'Lounge under a floating staircase' },
+    { id: 'open-plan', room: 'Living', label: 'Open-plan living', alt: 'Open-plan living and dining space' },
+    { id: 'family-room', room: 'Living', label: 'Family room', alt: 'Family room with a grey sectional and TV wall' },
+    { id: 'fireplace', room: 'Living', label: 'Fireplace lounge', alt: 'Lounge with a fireplace and built-in shelves' },
+    { id: 'great-room', room: 'Living', label: 'Great room', alt: 'Great room with tall arched windows' },
+    {
+      id: 'kitchen',
+      room: 'Kitchen & dining',
+      label: 'Kitchen',
+      alt: 'White kitchen with an island and pendant lights',
+    },
+    { id: 'dining', room: 'Kitchen & dining', label: 'Dining room', alt: 'Dining table with green chairs' },
+    {
+      id: 'kitchen-lounge',
+      room: 'Kitchen & dining',
+      label: 'Kitchen and lounge',
+      alt: 'Kitchen opening onto a lounge',
+    },
+    {
+      id: 'primary-bedroom',
+      room: 'Bedrooms',
+      label: 'Primary bedroom',
+      alt: 'Bright primary bedroom with a king bed',
+    },
+    { id: 'guest-bedroom', room: 'Bedrooms', label: 'Guest bedroom', alt: 'Guest bedroom with a tufted headboard' },
+    { id: 'primary-bath', room: 'Bathrooms', label: 'Primary bathroom', alt: 'Bathroom with a glass walk-in shower' },
+    { id: 'soaking-tub', room: 'Bathrooms', label: 'Soaking tub', alt: 'Freestanding tub under a window' },
+    {
+      id: 'guest-bath',
+      room: 'Bathrooms',
+      label: 'Guest bathroom',
+      alt: 'Guest bathroom with a pedestal sink and plants',
+    },
+    { id: 'reading-corner', room: 'Details', label: 'Reading corner', alt: 'Yellow armchair in a reading corner' },
+    { id: 'stair-view', room: 'Details', label: 'Staircase view', alt: 'Glass staircase overlooking the pool' },
+    { id: 'sitting-room', room: 'Details', label: 'Sitting room', alt: 'Sitting room with rattan mirrors' },
+  ] as const
+).map((photo, i) => ({ ...photo, image: listingImages[i]! }));
+
+/**
+ * The host's picks for the cover grid: the cover shot, then one per room.
+ * Not the first five photos, so "the closest tile" isn't the right place to
+ * close a photo that isn't on the page.
+ */
+export const coverPhotoIds = ['pool-terrace', 'living', 'kitchen', 'primary-bedroom', 'soaking-tub'] as const;
+```
+
 # Film trailers
 
 Movie posters morph into a fullscreen <video> that auto-plays on becoming active.

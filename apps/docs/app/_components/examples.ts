@@ -86,6 +86,23 @@ export const lightboxExamples: ExampleLink[] = [
     ],
   },
   {
+    slug: 'shareable-albums',
+    title: 'Shareable albums',
+    description:
+      'A photo journal where every photo in every album has its own link, and all albums share one Root. A link renders the viewer already open from the server, with defaultPayload naming the album no Trigger was tapped for; Back and Forward reopen albums with handle.open.',
+    extraSources: [
+      '(docs)/examples/lightbox/shareable-albums/albums-demo.tsx',
+      '(docs)/examples/lightbox/shareable-albums/albums.ts',
+    ],
+  },
+  {
+    slug: 'curated-grid',
+    title: 'Curated grid',
+    description:
+      "A vacation-rental cover grid showing the host's five picks from a 21-photo tour. Photos without a tile close onto the last tile through overflowItemIds, crossfading, while the five picks morph back to their own tiles.",
+    extraSources: ['(docs)/examples/lightbox/curated-grid/listing-data.ts'],
+  },
+  {
     slug: 'film-trailers',
     title: 'Film trailers',
     description: 'Movie posters morph into a fullscreen <video> that auto-plays on becoming active.',
