@@ -5,6 +5,7 @@ import type { ViewTransitionMorph, ViewTransitionMorphConfig } from './use-view-
 export interface MorphRuntime {
   createViewTransitionMorph: (getConfig: () => ViewTransitionMorphConfig) => ViewTransitionMorph;
   ensureVtStructuralStyles: () => void;
+  waitForStableTrigger: typeof import('./reveal-wait').waitForStableTrigger;
 }
 
 let cached: MorphRuntime | null = null;

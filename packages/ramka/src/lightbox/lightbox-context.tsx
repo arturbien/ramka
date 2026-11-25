@@ -311,8 +311,6 @@ interface LightboxStableContextValue {
   touchKeyedTrigger: (reg: LightboxHandleTriggerRegistration) => void;
   /** The Root's host (same object a bound handle exposes). */
   keyedHost: LightboxHandleHost;
-  /** Subscribe to host changes (open, navigation, join). */
-  subscribeKeyed: (listener: () => void) => () => void;
   /**
    * Root's `itemIds` as a set, written during Root's render: which items
    * belong to the open gallery during a server render, before any item has

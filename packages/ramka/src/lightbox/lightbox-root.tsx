@@ -315,20 +315,6 @@ function runAfterAnimations(
 }
 
 /**
- * Frames a close waits for `reveal` to mount a trigger and for its
- * position to settle (~130ms at 60Hz) — long enough for a virtualizer to
- * scroll, render and re-measure a row, short enough that a miss reads as a
- * slightly late fade rather than a hang.
- */
-const REVEAL_TRIGGER_MAX_FRAMES = 8;
-/** Consecutive frames a revealed trigger's rect must hold before the morph reads it. */
-const REVEAL_TRIGGER_STABLE_FRAMES = 2;
-
-function sameRect(a: DOMRect, b: DOMRect): boolean {
-  return a.top === b.top && a.left === b.left && a.width === b.width && a.height === b.height;
-}
-
-/**
  * Most recently mounted connected registration, preferring `preferred` (the
  * trigger that opened the lightbox) — a message can render the same image
  * twice, e.g. a reply quote.
@@ -859,19 +845,15 @@ function LightboxRoot<Payload = unknown>(props: LightboxRootProps<Payload>) {
   // that row (virtualizer churn) re-adopts the new element as the origin.
   const openingItemIdRef = React.useRef<string | null>(null);
 
-  // Keyed Triggers (handle-bound or in the Root tree) subscribe here; a bound
-  // handle's listeners are notified alongside.
-  const keyedListenersRef = React.useRef(new Set<() => void>());
+  // Trigger and item registrations change what keyed Triggers read without
+  // changing the hot state: Root-tree Triggers listen on the store, detached
+  // ones on the bound handle. The store itself is created below, once the hot
+  // state is known.
+  const storeRef = React.useRef<LightboxStore | null>(null);
   const notifyKeyed = React.useCallback(() => {
-    keyedListenersRef.current.forEach((listener) => listener());
+    storeRef.current?.notify();
     if (handleProp) notifyLightboxHandle(handleProp);
   }, [handleProp]);
-  const subscribeKeyed = React.useCallback((listener: () => void) => {
-    keyedListenersRef.current.add(listener);
-    return () => {
-      keyedListenersRef.current.delete(listener);
-    };
-  }, []);
   // Item registrations during one commit (a gallery mounting) notify once:
   // from Root's layout effect, which runs after every descendant's, or a
   // microtask when the commit didn't re-render Root.
@@ -1379,35 +1361,14 @@ function LightboxRoot<Payload = unknown>(props: LightboxRootProps<Payload>) {
         revealWaitRef.current = null;
         setOpenNow(false, options);
       };
-      // Wait for the trigger to mount AND hold its position: a virtualizer
-      // keeps correcting its scroll for a few frames after the row renders,
-      // and the morph reads the trigger's rect once, when it starts.
-      const waitForStableTrigger = () => {
-        let frames = 0;
-        let stableFrames = 0;
-        let lastRect: DOMRect | null = null;
-        const tick = () => {
-          if (controller.signal.aborted) return;
-          frames += 1;
-          const el = resolveCloseTriggerElement();
-          if (el) {
-            const rect = el.getBoundingClientRect();
-            stableFrames = lastRect && sameRect(rect, lastRect) ? stableFrames + 1 : 0;
-            lastRect = rect;
-          }
-          if (stableFrames >= REVEAL_TRIGGER_STABLE_FRAMES || frames >= REVEAL_TRIGGER_MAX_FRAMES) {
-            finish();
-            return;
-          }
-          requestAnimationFrame(tick);
-        };
-        requestAnimationFrame(tick);
-      };
-      if (request.wait) {
-        request.wait.then(waitForStableTrigger, waitForStableTrigger);
-      } else {
-        waitForStableTrigger();
-      }
+      // The morph needs its runtime anyway; a failed load just closes.
+      const wait = () =>
+        loadMorphRuntime().then(
+          (runtime) => runtime.waitForStableTrigger(resolveCloseTriggerElement, controller.signal, finish),
+          finish,
+        );
+      if (request.wait) request.wait.then(wait, wait);
+      else void wait();
     },
     [setOpenNow, resolveCloseTriggerElement, requestReveal, willUseViewTransition],
   );
@@ -1684,14 +1645,14 @@ function LightboxRoot<Payload = unknown>(props: LightboxRootProps<Payload>) {
     [syncTrigger, scheduleKeyedNotify],
   );
 
-  // Keep keyed / detached Triggers in sync with Root state. Layout timing so a
+  // Keep detached Triggers in sync with Root state. Layout timing so a
   // detached morph source hides in the same commit that reveals the viewer —
   // inside the open transition's capture, like Root-tree triggers driven by
   // the store.
   React.useLayoutEffect(() => {
     keyedNotifyPendingRef.current = false;
-    notifyKeyed();
-  }, [notifyKeyed, open, activeIndex, morphTo]);
+    if (handleProp) notifyLightboxHandle(handleProp);
+  }, [handleProp, open, activeIndex, morphTo]);
 
   // Item `itemId` registry — the other half of the keyed-trigger join.
   // Registered from Item's layout effect, so during an open's pre-mount every
@@ -1779,7 +1740,6 @@ function LightboxRoot<Payload = unknown>(props: LightboxRootProps<Payload>) {
     morphTo,
     viewTransition: viewTransition !== false,
   };
-  const storeRef = React.useRef<LightboxStore | null>(null);
   if (storeRef.current === null) {
     storeRef.current = createLightboxStore(hotState);
   }
@@ -1835,7 +1795,6 @@ function LightboxRoot<Payload = unknown>(props: LightboxRootProps<Payload>) {
       registerKeyedTrigger,
       touchKeyedTrigger,
       keyedHost: host,
-      subscribeKeyed,
       serverItemIdsRef,
       registerCaption,
       subscribeOpenComplete,
@@ -1860,7 +1819,6 @@ function LightboxRoot<Payload = unknown>(props: LightboxRootProps<Payload>) {
       registerKeyedTrigger,
       touchKeyedTrigger,
       host,
-      subscribeKeyed,
       registerCaption,
       subscribeOpenComplete,
     ],

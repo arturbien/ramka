@@ -35,6 +35,17 @@ function morphNameOf(el: Element | null): string {
   return (el as HTMLElement | null)?.style.getPropertyValue('view-transition-name') ?? '';
 }
 
+// A close's reveal wait starts once the morph runtime chunk resolves, so let
+// promises settle between frames.
+async function settleRevealWait(handle: LightboxHandle<Payload>, maxFrames: number) {
+  for (let i = 0; i < maxFrames && handle.isOpen; i += 1) {
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      flushRaf();
+    });
+  }
+}
+
 function mockViewTransitionAPI() {
   const startViewTransition = vi.fn((callback: () => void) => {
     callback();
@@ -422,7 +433,7 @@ describe('keyed triggers (one Root, many galleries)', () => {
     expect(screen.getByTestId('t-m6-0')).not.toHaveAttribute('data-popup-open');
   });
 
-  it('asks to reveal an unmounted trigger before closing, then morphs onto it', () => {
+  it('asks to reveal an unmounted trigger before closing, then morphs onto it', async () => {
     const handle = createHandle<Payload>();
     let setMounted: (mounted: boolean) => void = () => {};
     function VirtualRow() {
@@ -452,13 +463,13 @@ describe('keyed triggers (one Root, many galleries)', () => {
     });
     // The close waits for the trigger to register and its rect to settle.
     expect(handle.isOpen).toBe(true);
-    for (let i = 0; i < 5 && handle.isOpen; i += 1) act(() => flushRaf());
+    await settleRevealWait(handle, 5);
 
     expect(handle.isOpen).toBe(false);
     expect(morphNameOf(screen.getByTestId('t-b1'))).toBe(MORPH);
   });
 
-  it('closes anyway when a revealed trigger never mounts', () => {
+  it('closes anyway when a revealed trigger never mounts', async () => {
     const handle = createHandle<Payload>();
     let setMounted: (mounted: boolean) => void = () => {};
     function VirtualRow() {
@@ -477,7 +488,7 @@ describe('keyed triggers (one Root, many galleries)', () => {
     fireEvent.click(screen.getByTestId('t-b1'));
     act(() => setMounted(false));
     act(() => handle.close());
-    for (let i = 0; i < 10 && handle.isOpen; i += 1) act(() => flushRaf());
+    await settleRevealWait(handle, 10);
 
     expect(reveal).toHaveBeenCalledOnce();
     expect(handle.isOpen).toBe(false);
@@ -650,7 +661,7 @@ describe('keyed triggers (one Root, many galleries)', () => {
       setMounted(true);
       resolve();
     });
-    for (let i = 0; i < 5 && handle.isOpen; i += 1) act(() => flushRaf());
+    await settleRevealWait(handle, 5);
 
     expect(handle.isOpen).toBe(false);
     expect(morphNameOf(screen.getByTestId('t-b1'))).toBe(MORPH);
@@ -887,7 +898,7 @@ describe('keyed triggers: virtualization and close races', () => {
       row.set(true);
       resolve();
     });
-    for (let i = 0; i < 5 && handle.isOpen; i += 1) act(() => flushRaf());
+    await settleRevealWait(handle, 5);
 
     expect(reveal).toHaveBeenCalledOnce();
     expect(handle.isOpen).toBe(false);

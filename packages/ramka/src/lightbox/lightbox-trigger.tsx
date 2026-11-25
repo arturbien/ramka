@@ -211,7 +211,7 @@ const LightboxTriggerImpl = React.forwardRef<HTMLButtonElement, LightboxTriggerA
     // "open" only while the viewer shows its gallery, so opening one message
     // re-renders that message's tiles, not the feed. Elements (not indexes)
     // decide morph target / opened-by-this-trigger, so duplicates stay apart.
-    const subscribeRoot = rootContext?.subscribeKeyed;
+    const subscribeRoot = rootContext?.store.subscribe;
     const subscribe = React.useCallback(
       (onStoreChange: () => void) => {
         if (handleProp) return subscribeLightboxHandle(handleProp, onStoreChange);
