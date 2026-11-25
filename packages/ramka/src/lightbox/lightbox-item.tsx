@@ -144,9 +144,7 @@ const LightboxItem = React.forwardRef<HTMLDivElement, LightboxItemProps>(functio
     openingTriggerIndexRef,
     openingTriggerElementRef,
     openingTriggerImageRef,
-    triggerImageElementsRef,
-    standInTriggerIndexesRef,
-    triggerElementsRef,
+    triggerAt,
     openTransitionPendingRef,
     subscribeOpenComplete,
     baseId,
@@ -242,7 +240,7 @@ const LightboxItem = React.forwardRef<HTMLDivElement, LightboxItemProps>(functio
   );
 
   // Before the placeholder effect below: registering joins this item's
-  // trigger into the index maps that effect reads its thumbnail from.
+  // trigger to its index, where that effect reads its thumbnail from.
   React.useLayoutEffect(() => {
     if (process.env.NODE_ENV !== 'production' && typeof itemId !== 'string') {
       console.error(`[ramka] Lightbox.Item index=${index} needs an \`itemId\`.`);
@@ -276,23 +274,24 @@ const LightboxItem = React.forwardRef<HTMLDivElement, LightboxItemProps>(functio
     if (img.complete && img.naturalWidth > 0) return; // already decoded
 
     const clicked = openingTriggerIndexRef.current === index ? openingTriggerImageRef.current : null;
-    const source = clicked ?? triggerImageElementsRef.current?.get(index) ?? null;
+    const trigger = triggerAt(index);
+    const source = clicked ?? trigger?.image ?? null;
     const src = source?.currentSrc ?? '';
 
     if (!src) {
       if (process.env.NODE_ENV !== 'production' && !warnedRef.current) {
-        const hasTriggerImage = triggerImageElementsRef.current?.has(index) ?? false;
+        const hasTriggerImage = !!trigger?.image;
         // Only nag when the trigger genuinely *has* an image that wasn't wired
         // up (a real mistake) — never for intentionally non-image triggers
         // (e.g. a colour swatch). This DOM check is dev-only and off the
         // runtime placeholder path.
         const triggerRoot =
           (openingTriggerIndexRef.current === index ? openingTriggerElementRef.current : null) ??
-          triggerElementsRef.current?.get(index) ??
+          trigger?.element ??
           null;
         // A "+N" tile standing in for this item shows a different photo — by
         // design it lends no placeholder, so there's nothing to wire up.
-        const standIn = standInTriggerIndexesRef.current?.has(index) ?? false;
+        const standIn = trigger?.standIn ?? false;
         const triggerHasImage = !standIn && !!triggerRoot?.querySelector('img');
         if (triggerHasImage && !hasTriggerImage) {
           warnedRef.current = true;

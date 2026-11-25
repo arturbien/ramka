@@ -121,24 +121,25 @@ function scrollTriggerEl(
   });
 }
 
+/**
+ * The index whose trigger a close lands on. `closest` searches outward from
+ * the active item, the earlier one first on a tie, so every open Trigger can
+ * ask without scanning the gallery.
+ */
 function resolveTriggerIndex(
   activeIndex: number,
   morphTo: 'active' | 'origin' | 'closest',
   openingIndex: number,
-  triggerElements: Map<number, HTMLElement>,
+  hasTrigger: (index: number) => boolean,
+  itemCount: number,
 ): number {
   if (morphTo === 'origin') return openingIndex;
-  if (morphTo === 'active' || triggerElements.has(activeIndex)) return activeIndex;
-  let best = -1;
-  let bestDist = Infinity;
-  for (const idx of triggerElements.keys()) {
-    const dist = Math.abs(idx - activeIndex);
-    if (dist < bestDist) {
-      bestDist = dist;
-      best = idx;
-    }
+  if (morphTo === 'active' || hasTrigger(activeIndex)) return activeIndex;
+  for (let d = 1; activeIndex - d >= 0 || activeIndex + d < itemCount; d += 1) {
+    if (hasTrigger(activeIndex - d)) return activeIndex - d;
+    if (hasTrigger(activeIndex + d)) return activeIndex + d;
   }
-  return best >= 0 ? best : activeIndex;
+  return activeIndex;
 }
 
 export { resolveScrollTriggerOption, scrollTriggerEl, resolveTriggerIndex };

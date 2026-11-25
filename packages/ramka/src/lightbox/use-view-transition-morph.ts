@@ -15,8 +15,9 @@ import { findDestinationMorphTarget, findItemMorphTarget, findTriggerMorphTarget
 import { DEFAULT_DECODE_MAX_WAIT, VIEW_TRANSITION_NAME } from './vt-constants';
 import { LightboxDocumentCssVars } from './lightbox-css-vars';
 import { LightboxDocumentDataAttributes, LightboxSlideDataAttributes } from './lightbox-data-attributes';
-import { resolveScrollTriggerOption, resolveTriggerIndex, scrollTriggerEl } from './scroll-trigger';
+import { resolveScrollTriggerOption, scrollTriggerEl } from './scroll-trigger';
 import type { InitializedRef } from '../react-compat';
+import type { LightboxTriggerMatch } from './lightbox-context';
 import type { ScrollTriggerIntoView } from './scroll-trigger';
 
 // ---------------------------------------------------------------------------
@@ -666,7 +667,6 @@ function clearMorphState(docEl: HTMLElement, owner: number) {
 // ---------------------------------------------------------------------------
 
 interface ViewTransitionMorphConfig {
-  morphTo: 'active' | 'origin' | 'closest';
   scrollTriggerIntoView: ScrollTriggerIntoView;
   /** Upper bound (ms) to await the destination image decode; 0 disables. */
   decodeMaxWait: number;
@@ -679,14 +679,15 @@ interface ViewTransitionMorphConfig {
   >;
   /** Holds the AbortController for the in-flight `onBeforeOpen` (if any). */
   beforeOpenAbortRef: React.MutableRefObject<AbortController | null>;
-  triggerElementsRef: InitializedRef<Map<number, HTMLElement>>;
+  /**
+   * The connected trigger of the open gallery's item at an index. Closing onto
+   * a stand-in (a "+N" tile) always crossfades: it shows a different photo.
+   */
+  triggerAt: (index: number) => LightboxTriggerMatch | null;
+  /** The index whose trigger the close lands on (respects `morphTo`). */
+  resolveCloseTriggerIndex: () => number;
   /** Trigger element → its designated morph descendant (see findTriggerMorphTarget). */
   triggerMorphElementsRef: InitializedRef<WeakMap<HTMLElement, HTMLElement>>;
-  /**
-   * Indexes whose trigger stands in for an item it doesn't show (a "+N" tile).
-   * Closing onto one always crossfades: the tile shows a different photo.
-   */
-  standInTriggerIndexesRef: InitializedRef<Set<number>>;
   activeItemElementRef: React.RefObject<HTMLElement | null>;
   /** Item element → its designated morph descendant (see findItemMorphTarget). */
   itemMorphElementsRef: InitializedRef<WeakMap<HTMLElement, HTMLElement>>;
@@ -697,11 +698,10 @@ interface ViewTransitionMorphConfig {
   destinationMorphElementRef: React.RefObject<HTMLElement | null>;
   openingTriggerIndexRef: InitializedRef<number>;
   /**
-   * Exact opening trigger (the clicked one, or the item's for handle.open). Preferred over the
-   * index map so morph is correct when several triggers share one index.
+   * Exact opening trigger (the clicked one, or the item's for handle.open). Preferred over
+   * `triggerAt` so the morph is correct when several triggers show one item.
    */
   openingTriggerElementRef: React.RefObject<HTMLElement | null>;
-  activeIndexRef: InitializedRef<number>;
   /**
    * The Root's `viewTransition` prop value. Named presets select the morph
    * timing (see vt-timing.ts); `true`/unknown values run the default preset.
@@ -772,7 +772,7 @@ function createViewTransitionMorph(getConfig: () => ViewTransitionMorphConfig): 
       decodeMaxWait,
       onBeforeOpenRef,
       beforeOpenAbortRef,
-      triggerElementsRef,
+      triggerAt,
       triggerMorphElementsRef,
       activeItemElementRef,
       itemMorphElementsRef,
@@ -799,9 +799,9 @@ function createViewTransitionMorph(getConfig: () => ViewTransitionMorphConfig): 
     beforeOpenAbortRef.current = beforeOpenAbort;
 
     const triggerIdx = openingTriggerIndexRef.current;
-    // Prefer the exact origin element (click / handle.open) over the
-    // index map — last-registered wins in the map when indexes collide.
-    const triggerEl = openingTriggerElementRef.current ?? triggerElementsRef.current.get(triggerIdx) ?? undefined;
+    // Prefer the exact origin element (click / handle.open) over the item's
+    // trigger: several triggers can show one item.
+    const triggerEl = openingTriggerElementRef.current ?? triggerAt(triggerIdx)?.element;
     const triggerTarget = triggerEl ? findTriggerMorphTarget(triggerEl, triggerMorphElementsRef.current) : null;
     const useCrossfade = shouldUseCrossfade(triggerEl?.dataset.crossfade, 'opening');
 
@@ -1090,16 +1090,13 @@ function createViewTransitionMorph(getConfig: () => ViewTransitionMorphConfig): 
 
   const runClose = (gen: number, releaseTouchGuard: () => void) => {
     const {
-      morphTo,
       scrollTriggerIntoView,
-      triggerElementsRef,
+      triggerAt,
+      resolveCloseTriggerIndex,
       triggerMorphElementsRef,
-      standInTriggerIndexesRef,
       activeItemElementRef,
       itemMorphElementsRef,
       destinationMorphElementRef,
-      openingTriggerIndexRef,
-      activeIndexRef,
       commitClose,
     } = getConfig();
 
@@ -1111,13 +1108,8 @@ function createViewTransitionMorph(getConfig: () => ViewTransitionMorphConfig): 
       itemMorphElementsRef.current,
       destinationMorphElementRef.current,
     );
-    const triggerIdx = resolveTriggerIndex(
-      activeIndexRef.current,
-      morphTo,
-      openingTriggerIndexRef.current,
-      triggerElementsRef.current,
-    );
-    const triggerEl = triggerElementsRef.current.get(triggerIdx);
+    const trigger = triggerAt(resolveCloseTriggerIndex());
+    const triggerEl = trigger?.element;
     const triggerTarget = triggerEl ? findTriggerMorphTarget(triggerEl, triggerMorphElementsRef.current) : null;
     // Mirror open: a morph needs both ends. Naming only the item (no trigger)
     // lifts it out of the root snapshot so chrome fades while the photo sticks,
@@ -1125,7 +1117,7 @@ function createViewTransitionMorph(getConfig: () => ViewTransitionMorphConfig): 
     // root crossfade instead.
     const canMorph = !!triggerTarget && !!itemTarget;
     const useCrossfade = canMorph
-      ? standInTriggerIndexesRef.current.has(triggerIdx) || shouldUseCrossfade(triggerEl?.dataset.crossfade, 'closing')
+      ? trigger?.standIn || shouldUseCrossfade(triggerEl?.dataset.crossfade, 'closing')
       : true;
 
     // Batch all reads before any writes to avoid forced reflow. Resolve to
@@ -1207,7 +1199,6 @@ export {
   startViewTransition,
   waitForImageDecode,
   scrollTriggerEl,
-  resolveTriggerIndex,
   resolveScrollTriggerOption,
   getFullBleedAxes,
   isHorizontallyFullBleed,

@@ -18,6 +18,15 @@ import type { TextDirection } from './lightbox-direction';
 
 type NavigationSource = 'trigger' | 'keyboard' | 'thumbnail' | 'button' | 'scroll' | 'imperative';
 
+/** The connected Trigger an item of the open gallery morphs to and from. */
+interface LightboxTriggerMatch {
+  element: HTMLElement;
+  /** The trigger's own `imageRef`; `null` for a stand-in, which shows another photo. */
+  image: HTMLImageElement | null;
+  /** A "+N" tile covering the item through `overflowItemIds`. */
+  standIn: boolean;
+}
+
 /** Options for a close (`setOpen(false, …)`) that tune return-focus behavior. */
 interface LightboxCloseOptions {
   /**
@@ -175,14 +184,6 @@ interface LightboxMorphSlice {
    */
   transitionPreset: boolean | LightboxViewTransitionPreset | undefined;
   morphTo: 'active' | 'origin' | 'closest';
-  triggerElementsRef: InitializedRef<Map<number, HTMLElement>>;
-  /**
-   * Registry mapping each trigger element → the descendant it should morph
-   * into, as designated by the trigger render-prop's `morphRef`. Keyed
-   * by the trigger *element* (not its index) so it stays correct when several
-   * triggers share an index. A trigger with no entry morphs itself.
-   */
-  triggerMorphElementsRef: InitializedRef<WeakMap<HTMLElement, HTMLElement>>;
   activeItemElementRef: React.MutableRefObject<HTMLElement | null>;
   /**
    * Registry mapping each item element → the descendant it should morph into.
@@ -203,26 +204,18 @@ interface LightboxMorphSlice {
   /**
    * The exact trigger element that opened the lightbox (the clicked one, or
    * the item's mounted trigger for `handle.open(itemId)`). Cleared (null) on opens with no
-   * originating element. Unlike `triggerElementsRef` (keyed by index,
-   * last-registered wins), this disambiguates the origin when several
-   * triggers share one index.
+   * originating element. Disambiguates the origin when several triggers
+   * show one item.
    */
   openingTriggerElementRef: React.MutableRefObject<HTMLElement | null>;
   /**
    * The `<img>` of the opening trigger, as designated via the trigger
    * render-prop's `imageRef`. Its live `currentSrc` is what `Lightbox.Item`
    * paints as the destination image's placeholder background. Cleared when
-   * there is no originating trigger; falls back to `triggerImageElementsRef`
-   * keyed by index.
+   * there is no originating trigger; items then fall back to their own
+   * trigger's image (`triggerAt`).
    */
   openingTriggerImageRef: React.MutableRefObject<HTMLImageElement | null>;
-  /**
-   * Per-index map of the `<img>` each trigger designated via `imageRef`.
-   * Last-registered wins (like `triggerElementsRef`); used as the placeholder
-   * source when a specific item opens without a clicked element (controlled /
-   * programmatic open) or for preloaded adjacent slides.
-   */
-  triggerImageElementsRef: InitializedRef<Map<number, HTMLImageElement>>;
 }
 
 /** Slides viewport/geometry pub-sub + strip-aware `navigate`. */
@@ -322,11 +315,8 @@ interface LightboxStableContextValue {
   openTransitionPendingRef: React.MutableRefObject<boolean>;
   activeItemElementRef: React.MutableRefObject<HTMLElement | null>;
   itemMorphElementsRef: InitializedRef<WeakMap<HTMLElement, HTMLElement>>;
-  triggerElementsRef: InitializedRef<Map<number, HTMLElement>>;
-  triggerMorphElementsRef: InitializedRef<WeakMap<HTMLElement, HTMLElement>>;
-  triggerImageElementsRef: InitializedRef<Map<number, HTMLImageElement>>;
-  /** Indexes covered only by a stand-in trigger (`overflowItemIds`), which lends no image. */
-  standInTriggerIndexesRef: InitializedRef<Set<number>>;
+  /** The connected trigger of the open gallery's item at `index`, if any. */
+  triggerAt: (index: number) => LightboxTriggerMatch | null;
   openingTriggerIndexRef: React.MutableRefObject<number>;
   openingTriggerElementRef: React.MutableRefObject<HTMLElement | null>;
   openingTriggerImageRef: React.MutableRefObject<HTMLImageElement | null>;
@@ -385,4 +375,5 @@ export type {
   LightboxSlidesBridgeSlice,
   NavigationSource,
   LightboxCloseOptions,
+  LightboxTriggerMatch,
 };
