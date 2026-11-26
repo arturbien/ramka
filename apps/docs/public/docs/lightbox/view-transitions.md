@@ -222,6 +222,8 @@ import * as Lightbox from '@ramka/react/lightbox';
 </Lightbox.Root>
 ```
 
+Grid virtualized, so the trigger may not be mounted? Add `reveal` — see [Large galleries](docs/lightbox/large-galleries.md#virtual-grid).
+
 ## Programmatic open
 
 Prefer [createHandle()](docs/lightbox/api.md#api-create-handle): `open(itemId)` morphs from that item's mounted Trigger, if it has one. Without one, the open falls back to the fade path. Trigger clicks still morph. Demo: [State & lifecycle → Imperative API](docs/lightbox/state-lifecycle.md#imperative).

@@ -20,6 +20,10 @@ export const lightboxDocsPages = {
     href: '/docs/lightbox/view-transitions',
     title: 'View transitions',
   },
+  largeGalleries: {
+    href: '/docs/lightbox/large-galleries',
+    title: 'Large galleries',
+  },
   gestures: {
     href: '/docs/lightbox/gestures',
     title: 'Gestures',
@@ -49,6 +53,7 @@ export const lightboxDocsPagerOrder = [
   lightboxDocsPages.composition,
   lightboxDocsPages.nextjsImage,
   lightboxDocsPages.viewTransitions,
+  lightboxDocsPages.largeGalleries,
   lightboxDocsPages.gestures,
   lightboxDocsPages.zoom,
   lightboxDocsPages.rtl,

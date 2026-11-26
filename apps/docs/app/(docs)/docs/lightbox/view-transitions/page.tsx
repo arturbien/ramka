@@ -233,6 +233,10 @@ const hidden = photos.filter((photo) => !shown.includes(photo.id));
           code={lightboxExcerpts['scroll-trigger-into-view'].code}
           title={lightboxExcerpts['scroll-trigger-into-view'].title}
         />
+        <p>
+          Grid virtualized, so the trigger may not be mounted? Add <code className="text-xs">reveal</code> — see{' '}
+          <DocsLink href={`${lightboxDocsPages.largeGalleries.href}#virtual-grid`}>Large galleries</DocsLink>.
+        </p>
       </DocsSection>
 
       <DocsSection id="programmatic" title="Programmatic open">
@@ -392,7 +396,7 @@ const hidden = photos.filter((photo) => !shown.includes(photo.id));
         </p>
       </DocsSection>
 
-      <DocsPager prev={lightboxDocsPages.nextjsImage} next={lightboxDocsPages.gestures} />
+      <DocsPager prev={lightboxDocsPages.nextjsImage} next={lightboxDocsPages.largeGalleries} />
     </DocsShell>
   );
 }
