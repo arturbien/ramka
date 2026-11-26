@@ -311,12 +311,6 @@ interface LightboxStableContextValue {
   touchKeyedTrigger: (reg: LightboxHandleTriggerRegistration) => void;
   /** The Root's host (same object a bound handle exposes). */
   keyedHost: LightboxHandleHost;
-  /**
-   * Root's `itemIds` as a set, written during Root's render: which items
-   * belong to the open gallery during a server render, before any item has
-   * registered.
-   */
-  serverItemIdsRef: React.MutableRefObject<ReadonlySet<string> | null>;
   registerCaption: (index: number, caption: React.ReactNode) => () => void;
   subscribeOpenComplete: (listener: () => void) => () => void;
   openTransitionPendingRef: React.MutableRefObject<boolean>;

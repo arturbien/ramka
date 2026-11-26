@@ -578,7 +578,7 @@ export const generatedAttributes: Record<string, AttrRow[]> = {
     },
     {
       name: "data-popup-open",
-      description: "Present when the corresponding lightbox is open.",
+      description: "Present while the lightbox is open and this trigger opened it (by click, or as the trigger `handle.open(itemId)` morphed from). Other triggers of the gallery don't get it; use `data-active` for the one showing the current item.",
     },
     {
       name: "data-active",

@@ -63,7 +63,7 @@ Opens the lightbox at the Item with the same itemId and is the morph source (vie
 | Name | Description |
 | --- | --- |
 | `data-ramka-trigger` | Always present on the trigger element. |
-| `data-popup-open` | Present when the corresponding lightbox is open. |
+| `data-popup-open` | Present while the lightbox is open and this trigger opened it (by click, or as the trigger `handle.open(itemId)` morphed from). Other triggers of the gallery don't get it; use `data-active` for the one showing the current item. |
 | `data-active` | Present when this trigger’s index is the active item. |
 | `data-morph-target` | Present on the resolved morph element while it is the open/close morph source: the trigger root by default, or the node designated via `morphRef` when attached. Style hide/opacity against this attribute directly — do not assume it lives on the Trigger button. |
 | `data-crossfade` | Reflects the crossfade prop: `open` \| `close` \| `both`. |

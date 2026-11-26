@@ -239,9 +239,17 @@ describe('Lightbox.VirtualSlides', () => {
     expect(viewport.scrollLeft).toBe(420 * WIDTH);
   });
 
-  it('marks triggers of unmounted slides as part of the open gallery', () => {
-    render(<VirtualGallery defaultValue="photo-0" triggers={['photo-0', 'photo-900']} />);
-    expect(screen.getByTestId('trigger-photo-900')).toHaveAttribute('data-popup-open');
+  it('marks the trigger of an unmounted slide active once it is the current item', () => {
+    const handle = createHandle();
+    render(<VirtualGallery defaultValue="photo-0" handle={handle} triggers={['photo-0', 'photo-900']} />);
+    setupViewport();
+    expect(screen.getByTestId('trigger-photo-900')).not.toHaveAttribute('data-active');
+    act(() => {
+      handle.goTo('photo-900');
+      flushRaf();
+    });
+    expect(screen.getByTestId('trigger-photo-900')).toHaveAttribute('data-active');
+    expect(screen.getByTestId('trigger-photo-900')).not.toHaveAttribute('data-popup-open');
   });
 
   it('warns without itemIds on Root', () => {

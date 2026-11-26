@@ -575,9 +575,6 @@ function LightboxRoot<Payload = unknown>(props: LightboxRootProps<Payload>) {
   }, []);
   const effectiveItemCount =
     virtualSlidesCount > 0 && itemIds ? itemIds.length : itemCount > 0 ? itemCount : (itemIds?.length ?? 0);
-  const serverItemIdsRef = React.useRef<ReadonlySet<string> | null>(null);
-  serverItemIdsRef.current = itemIds && itemCount === 0 ? new Set(itemIds) : null;
-
   // `defaultValue` is only checked against the first items to mount; later
   // galleries (a shared Root's next payload) legitimately don't contain it.
   const requestedValue = valueProp ?? defaultValue;
@@ -1748,7 +1745,6 @@ function LightboxRoot<Payload = unknown>(props: LightboxRootProps<Payload>) {
       registerKeyedTrigger,
       touchKeyedTrigger,
       keyedHost: host,
-      serverItemIdsRef,
       registerCaption,
       subscribeOpenComplete,
       openTransitionPendingRef,

@@ -12,14 +12,19 @@
  * - **Plain `data-*`**: transient UI state (`data-open`, `data-active`, …).
  *
  * Open/close state attrs follow Base UI Dialog conventions:
- * - Trigger uses `data-popup-open` when the lightbox is open.
+ * - Trigger uses `data-popup-open` while the lightbox it opened is open.
  * - Content/Backdrop use mutually exclusive `data-open` / `data-closed`.
  */
 
 export enum LightboxTriggerDataAttributes {
   /** Always present on the trigger element. */
   trigger = 'data-ramka-trigger',
-  /** Present when the corresponding lightbox is open. */
+  /**
+   * Present while the lightbox is open and this trigger opened it (by click,
+   * or as the trigger `handle.open(itemId)` morphed from). Other triggers of
+   * the gallery don't get it; use `data-active` for the one showing the
+   * current item.
+   */
   open = 'data-popup-open',
   /** Present when this trigger’s index is the active item. */
   active = 'data-active',

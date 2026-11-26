@@ -56,7 +56,7 @@ interface LightboxTriggerRenderState {
    * `data-morph-target` is set on this node (or on the trigger root when unset).
    */
   morphRef: (node: HTMLElement | null) => void;
-  /** Whether the lightbox is open. */
+  /** Whether the lightbox is open and this trigger opened it. */
   open: boolean;
   /** Whether this trigger's index is the active item. */
   active: boolean;
@@ -148,7 +148,6 @@ type LightboxTriggerProps<Payload = unknown> = unknown extends Payload
 const OPEN_BIT = 1;
 const ACTIVE_BIT = 2;
 const MORPH_TARGET_BIT = 4;
-const OPENED_BY_THIS_BIT = 8;
 
 const triggerStateAttributesMapping = {
   open: (value: unknown) => (value ? { [LightboxTriggerDataAttributes.open]: '' } : null),
@@ -207,10 +206,11 @@ const LightboxTriggerImpl = React.forwardRef<HTMLButtonElement, LightboxTriggerA
     // Triggers are an O(n) population (one per grid tile, or thousands in a
     // feed), so each reads one packed PRIMITIVE off the Root's host: a
     // notification (open, navigation, any trigger or item registering)
-    // re-renders only the triggers whose own state flipped. A trigger is
-    // "open" only while the viewer shows its gallery, so opening one message
-    // re-renders that message's tiles, not the feed. Elements (not indexes)
-    // decide morph target / opened-by-this-trigger, so duplicates stay apart.
+    // re-renders only the triggers whose own state flipped. As in Base UI,
+    // a trigger is "open" only while the viewer it opened is up, so an open or
+    // close re-renders that trigger plus the active / morph-target ones, never
+    // the gallery. Elements (not indexes) decide morph target and opener, so
+    // duplicates stay apart.
     const subscribeRoot = rootContext?.store.subscribe;
     const subscribe = React.useCallback(
       (onStoreChange: () => void) => {
@@ -227,32 +227,26 @@ const LightboxTriggerImpl = React.forwardRef<HTMLButtonElement, LightboxTriggerA
       if (resolved < 0) return 0;
       const el = internalRef.current;
       return (
-        OPEN_BIT |
         (host.getActiveIndex() === resolved ? ACTIVE_BIT : 0) |
         (el && host.getMorphTargetElement() === el ? MORPH_TARGET_BIT : 0) |
-        (el && host.getOpeningElement() === el ? OPENED_BY_THIS_BIT : 0)
+        (el && host.getOpeningElement() === el ? OPEN_BIT : 0)
       );
     };
     // Server render (and the hydration render that must match it): items
     // register in effects, which never run there, so read Root's render-time
-    // state — the active `itemId`, and the gallery's ids from Root's
-    // `itemIds`. The active trigger stamps itself hidden as the morph target
-    // (`origin` has no opening trigger on a fresh page, so nothing hides).
+    // state — the active `itemId`. The active trigger stamps itself hidden as
+    // the morph target (`origin` has no opening trigger on a fresh page, so
+    // nothing hides, and no trigger is the opener).
     const store = enclosingRootContext?.store ?? null;
-    const serverItemIdsRef = rootContext?.serverItemIdsRef;
     const readServerBits = () => {
       const state = store?.getState();
-      if (!rootContext || !state?.open) return 0;
-      const active = state.activeItemId === itemId;
-      const inGallery = active || !!serverItemIdsRef?.current?.has(itemId);
-      if (!inGallery) return 0;
-      return OPEN_BIT | (active ? ACTIVE_BIT | (state.morphTo === 'origin' ? 0 : MORPH_TARGET_BIT) : 0);
+      if (!rootContext || !state?.open || state.activeItemId !== itemId) return 0;
+      return ACTIVE_BIT | (state.morphTo === 'origin' ? 0 : MORPH_TARGET_BIT);
     };
     const bits = React.useSyncExternalStore(subscribe, readBits, readServerBits);
     const open = (bits & OPEN_BIT) !== 0;
     const active = (bits & ACTIVE_BIT) !== 0;
     const morphTarget = (bits & MORPH_TARGET_BIT) !== 0;
-    const openedByThisTrigger = (bits & OPENED_BY_THIS_BIT) !== 0;
 
     // The image node the consumer designated via `imageRef`, if any.
     const imageNodeRef = React.useRef<HTMLImageElement | null>(null);
@@ -411,7 +405,7 @@ const LightboxTriggerImpl = React.forwardRef<HTMLButtonElement, LightboxTriggerA
     //  - `aria-controls` — the dialog's id, on the opening trigger only while
     //    open (the referenced element is only in the DOM then) — a feed of
     //    thousands shouldn't all point at the viewer.
-    const contentId = openedByThisTrigger ? readHost()?.getContentId() : undefined;
+    const contentId = open ? readHost()?.getContentId() : undefined;
 
     // CSSOM delivery of the morph-target hide rule — the strict-CSP path,
     // mirroring Media's fill rules. The hoistable <style> rendered below covers
@@ -467,7 +461,7 @@ const LightboxTriggerImpl = React.forwardRef<HTMLButtonElement, LightboxTriggerA
         {
           type: 'button',
           'aria-haspopup': 'dialog',
-          'aria-expanded': openedByThisTrigger,
+          'aria-expanded': open,
           ...(contentId ? { 'aria-controls': contentId } : null),
           onClick: handleClick,
           onPointerEnter: warmEngines,
