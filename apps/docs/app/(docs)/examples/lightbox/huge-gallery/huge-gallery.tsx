@@ -43,6 +43,27 @@ const photoIds = photos.map((photo) => photo.id);
 
 const handle = Lightbox.createHandle();
 
+// Every tile re-renders when the lightbox opens or closes (its trigger flips
+// `data-popup-open`); memo keeps that from re-running next/image 5,000 times.
+const TileImage = React.memo(function TileImage({
+  photo,
+  imageRef,
+}: {
+  photo: Photo;
+  imageRef: React.Ref<HTMLImageElement>;
+}) {
+  return (
+    <Image
+      ref={imageRef}
+      src={photo.image}
+      alt={photo.alt}
+      sizes="(min-width: 1024px) 12.5vw, (min-width: 768px) 20vw, 33vw"
+      loading="lazy"
+      className="block size-full object-cover"
+    />
+  );
+});
+
 export function HugeGallery() {
   return (
     <div className="min-h-screen select-none">
@@ -80,16 +101,7 @@ export function HugeGallery() {
               itemId={photo.id}
               className={`relative block aspect-square cursor-pointer overflow-hidden bg-transparent p-0 [contain-intrinsic-size:auto_160px] [content-visibility:auto] md:scroll-mt-16 ${triggerFocusClass}`}
             >
-              {({ imageRef }) => (
-                <Image
-                  ref={imageRef}
-                  src={photo.image}
-                  alt={photo.alt}
-                  sizes="(min-width: 1024px) 12.5vw, (min-width: 768px) 20vw, 33vw"
-                  loading="lazy"
-                  className="block size-full object-cover"
-                />
-              )}
+              {({ imageRef }) => <TileImage photo={photo} imageRef={imageRef} />}
             </Lightbox.Trigger>
           ))}
         </div>
