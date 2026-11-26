@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import Image, { type StaticImageData } from 'next/image';
+import { useWindowVirtualizer, type Virtualizer } from '@tanstack/react-virtual';
 import * as Lightbox from '@ramka/react/lightbox';
 import { ChevronLeft, ChevronRight, LoaderCircle, X, ZoomIn, ZoomOut } from 'lucide-react';
 
@@ -24,13 +25,15 @@ import { feedImages } from './images.generated';
  *   `LOAD_AHEAD` slides of the end, via Root's `onValueChange` — which fires
  *   for swipes, arrow keys, and the Previous/Next buttons alike.
  *
- * No special lightbox API is involved: appending to the `photos` array renders
- * more `Lightbox.Slide`s at the end of the native CSS scroll-snap track.
- * Appending never moves existing snap offsets, so the slide the user is
- * looking at stays exactly where it is; the library re-measures geometry and
- * the Next button / arrow keys / counter pick up the new count on their own.
- * Slides' `preload` keeps the appended items from fetching media until the
- * user actually approaches them.
+ * Appending a page appends its ids to Root's `itemIds`. The native scroll-snap
+ * track grows at the end, so the slide being viewed never moves, and the Next
+ * button, arrow keys and counter pick up the new count on their own.
+ *
+ * The feed never stops growing, so nothing renders every loaded photo:
+ * `Lightbox.VirtualSlides` mounts only the slides around the active one, and
+ * the grid is virtualized by rows. When the photo being viewed has no mounted
+ * tile, `reveal` scrolls its row into view and Ramka waits for that Trigger
+ * before the close morph.
  *
  * The viewer is deliberately minimal — slides, Previous/Next, the zoom
  * capsule, and Close. No thumbnail strip: without one, each `Lightbox.Item`
@@ -56,6 +59,28 @@ const PAGE_SIZE = 12;
 const LOAD_AHEAD = 4;
 /** Simulated network latency. */
 const FETCH_DELAY_MS = 800;
+
+const GAP_PX = 2;
+
+// Same breakpoints as Tailwind's `md` and `lg`.
+const COLUMN_QUERIES = [
+  ['(min-width: 1024px)', 5],
+  ['(min-width: 768px)', 4],
+] as const;
+
+function getColumns() {
+  return COLUMN_QUERIES.find(([query]) => window.matchMedia(query).matches)?.[1] ?? 3;
+}
+
+function subscribeColumns(onChange: () => void) {
+  const lists = COLUMN_QUERIES.map(([query]) => window.matchMedia(query));
+  lists.forEach((list) => list.addEventListener('change', onChange));
+  return () => lists.forEach((list) => list.removeEventListener('change', onChange));
+}
+
+function useColumns() {
+  return React.useSyncExternalStore(subscribeColumns, getColumns, () => 3);
+}
 
 /**
  * Deterministic page contents: the demo cycles a fixed pool of local assets,
@@ -141,15 +166,34 @@ export function InfiniteScrollFeed() {
     [loadMore],
   );
 
+  const itemIds = React.useMemo(() => photos.map((photo) => photo.id), [photos]);
+  const photoIndexRef = React.useRef(new Map<string, number>());
+  React.useLayoutEffect(() => {
+    photoIndexRef.current = new Map(itemIds.map((id, index) => [id, index]));
+  }, [itemIds]);
+
+  const virtualizerRef = React.useRef<Virtualizer<Window, Element> | null>(null);
+  const columnsRef = React.useRef(3);
+
+  // The close morph needs its tile on screen. When the photo being viewed is
+  // in a row the virtualizer has unmounted, bring that row back.
+  const reveal = React.useCallback(({ itemId }: { itemId: string }) => {
+    const index = photoIndexRef.current.get(itemId);
+    if (index === undefined) return;
+    virtualizerRef.current?.scrollToIndex(Math.floor(index / columnsRef.current), { align: 'center' });
+  }, []);
+
   return (
     <div className="min-h-screen select-none">
       <Lightbox.Root
+        itemIds={itemIds}
         onValueChange={handleValueChange}
         // Keep the (possibly far-scrolled-to) trigger tile positioned for the
         // close morph; instant so the covered page never visibly scrolls.
         scrollTriggerIntoView={[
-          { type: 'onChange', behavior: 'instant' },
-          { type: 'onOpenComplete', behavior: 'instant' },
+          { type: 'onChange', behavior: 'instant', reveal },
+          { type: 'onOpenComplete', behavior: 'instant', reveal },
+          { type: 'onClose', behavior: 'instant', reveal },
         ]}
         // Trigger thumb and slide share one source image, so the thumb bridge
         // covers the open — no reason to hold the morph for the decode.
@@ -168,27 +212,7 @@ export function InfiniteScrollFeed() {
 
         {/* Every tile is a Trigger; new pages render new tiles AND new slides
             from the same array, so the viewer and the feed can never drift. */}
-        <div className="grid grid-cols-3 gap-0.5 md:grid-cols-4 lg:grid-cols-5">
-          {photos.map((photo) => (
-            <Lightbox.Trigger
-              key={photo.id}
-              itemId={photo.id}
-              className={`relative block aspect-square cursor-pointer overflow-hidden bg-transparent p-0 md:scroll-mt-16 ${triggerFocusClass}`}
-            >
-              {({ imageRef }) => (
-                <Image
-                  ref={imageRef}
-                  src={photo.image}
-                  alt={photo.alt}
-                  placeholder="blur"
-                  sizes="(min-width: 1024px) 20vw, (min-width: 768px) 25vw, 33vw"
-                  loading="lazy"
-                  className="block size-full object-cover"
-                />
-              )}
-            </Lightbox.Trigger>
-          ))}
-        </div>
+        <FeedGrid photos={photos} virtualizerRef={virtualizerRef} columnsRef={columnsRef} />
 
         {/* Load-more sentinel + spinner. Observed with an 800px margin, so
             pages usually land before this scrolls into view. */}
@@ -204,42 +228,45 @@ export function InfiniteScrollFeed() {
             aria-label="Feed photos"
             className="lightbox-demo-content lightbox-demo-content-solo fixed inset-0 flex flex-col overscroll-contain outline-none"
           >
-            <Lightbox.Slides
+            <Lightbox.VirtualSlides
               aria-roledescription="carousel"
               aria-label="Full-size photos"
               preload={2}
               className="lightbox-demo-slides flex-1 gap-5 [&::-webkit-scrollbar]:hidden md:gap-0"
             >
-              {photos.map((photo, i) => (
-                <Lightbox.Slide key={photo.id} className="lightbox-demo-slide-pad h-full">
-                  <Lightbox.Item
-                    index={i}
-                    itemId={photo.id}
-                    aria-roledescription="slide"
-                    aria-label={`${i + 1} of ${photos.length}`}
-                  >
-                    <Lightbox.Zoom maxZoom={6}>
-                      <Lightbox.Media
-                        width={photo.image.width}
-                        height={photo.image.height}
-                        className="overflow-hidden rounded-none md:rounded-lg"
-                      >
-                        {/* Destination image: no blur placeholder — every photo
+              {(index, itemId) => {
+                const photo = photos[index]!;
+                return (
+                  <Lightbox.Slide className="lightbox-demo-slide-pad h-full">
+                    <Lightbox.Item
+                      index={index}
+                      itemId={itemId}
+                      aria-roledescription="slide"
+                      aria-label={`${index + 1} of ${photos.length}`}
+                    >
+                      <Lightbox.Zoom maxZoom={6}>
+                        <Lightbox.Media
+                          width={photo.image.width}
+                          height={photo.image.height}
+                          className="overflow-hidden rounded-none md:rounded-lg"
+                        >
+                          {/* Destination image: no blur placeholder — every photo
                             has a trigger thumb, so Ramka bridges the open. */}
-                        <Image
-                          src={photo.image}
-                          alt={photo.alt}
-                          sizes="100vw"
-                          loading="eager"
-                          draggable={false}
-                          className="select-none"
-                        />
-                      </Lightbox.Media>
-                    </Lightbox.Zoom>
-                  </Lightbox.Item>
-                </Lightbox.Slide>
-              ))}
-            </Lightbox.Slides>
+                          <Image
+                            src={photo.image}
+                            alt={photo.alt}
+                            sizes="100vw"
+                            loading="eager"
+                            draggable={false}
+                            className="select-none"
+                          />
+                        </Lightbox.Media>
+                      </Lightbox.Zoom>
+                    </Lightbox.Item>
+                  </Lightbox.Slide>
+                );
+              }}
+            </Lightbox.VirtualSlides>
 
             {/* Previous / Next — desktop only; mobile swipes. Both auto-disable
                 at the loaded frontier and re-enable when the next page lands. */}
@@ -291,3 +318,94 @@ export function InfiniteScrollFeed() {
     </div>
   );
 }
+
+// Its own component so scrolling re-renders only the grid, not the Root.
+function FeedGrid({
+  photos,
+  virtualizerRef,
+  columnsRef,
+}: {
+  photos: FeedPhoto[];
+  virtualizerRef: React.RefObject<Virtualizer<Window, Element> | null>;
+  columnsRef: React.RefObject<number>;
+}) {
+  const columns = useColumns();
+  columnsRef.current = columns;
+
+  const listRef = React.useRef<HTMLDivElement>(null);
+  const [layout, setLayout] = React.useState({ width: 0, top: 0 });
+  React.useLayoutEffect(() => {
+    const list = listRef.current!;
+    // The list's height also changes with every page; keep the same state
+    // object then so that doesn't re-render the grid.
+    const update = () => {
+      const width = list.clientWidth;
+      const top = list.getBoundingClientRect().top + window.scrollY;
+      setLayout((prev) => (prev.width === width && prev.top === top ? prev : { width, top }));
+    };
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(list);
+    return () => observer.disconnect();
+  }, []);
+
+  const rowHeight = layout.width ? (layout.width - GAP_PX * (columns - 1)) / columns + GAP_PX : 160;
+  const virtualizer = useWindowVirtualizer({
+    count: Math.ceil(photos.length / columns),
+    estimateSize: () => rowHeight,
+    overscan: 3,
+    scrollMargin: layout.top,
+  });
+  virtualizerRef.current = virtualizer;
+
+  React.useLayoutEffect(() => {
+    virtualizer.measure();
+  }, [virtualizer, rowHeight]);
+
+  return (
+    <div ref={listRef} className="relative" style={{ height: virtualizer.getTotalSize() }}>
+      {virtualizer.getVirtualItems().map((row) => (
+        <div
+          key={row.key}
+          className="absolute inset-x-0 top-0"
+          style={{ transform: `translateY(${row.start - layout.top}px)` }}
+        >
+          <FeedRow photos={photos.slice(row.index * columns, (row.index + 1) * columns)} columns={columns} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// Memoized so a scroll frame doesn't re-render rows that were already mounted.
+const FeedRow = React.memo(
+  function FeedRow({ photos, columns }: { photos: FeedPhoto[]; columns: number }) {
+    return (
+      <div className="grid gap-0.5" style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}>
+        {photos.map((photo) => (
+          <Lightbox.Trigger
+            key={photo.id}
+            itemId={photo.id}
+            className={`relative block aspect-square cursor-pointer overflow-hidden bg-transparent p-0 md:scroll-mt-16 ${triggerFocusClass}`}
+          >
+            {({ imageRef }) => (
+              <Image
+                ref={imageRef}
+                src={photo.image}
+                alt={photo.alt}
+                placeholder="blur"
+                sizes="(min-width: 1024px) 20vw, (min-width: 768px) 25vw, 33vw"
+                loading="lazy"
+                className="block size-full object-cover"
+              />
+            )}
+          </Lightbox.Trigger>
+        ))}
+      </div>
+    );
+  },
+  (prev, next) =>
+    prev.columns === next.columns &&
+    prev.photos.length === next.photos.length &&
+    prev.photos.every((photo, i) => photo === next.photos[i]),
+);
