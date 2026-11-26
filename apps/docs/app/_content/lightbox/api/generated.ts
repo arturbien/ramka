@@ -11,12 +11,17 @@ export const generatedProps: Record<string, PropRow[]> = {
     {
       name: "children",
       type: "ReactNode",
-      description: "Lightbox parts and page content (triggers typically live as children of Root).",
+      description: "Lightbox parts and page content (triggers typically live as children of Root). A viewer serving many galleries reads the open's payload with `useLightboxPayload()`.",
     },
     {
       name: "handle",
-      type: "LightboxHandle",
+      type: "LightboxHandle<Payload>",
       description: "Imperative handle from `Lightbox.createHandle()`. Pass the same handle to detached `Lightbox.Trigger`s outside this Root.",
+    },
+    {
+      name: "defaultPayload",
+      type: "Payload",
+      description: "Payload for a Root that starts open (`defaultOpen` / controlled `open`) — a deep link rendered from the URL. Later opens set the payload from the opening Trigger or `handle.open(itemId, { payload })`. Pair with `defaultValue` (or `value`) for the item, e.g. `params.photo`.",
     },
     {
       name: "defaultOpen",
@@ -41,24 +46,24 @@ export const generatedProps: Record<string, PropRow[]> = {
     },
     {
       name: "defaultValue",
-      type: "number",
-      default: "0",
-      description: "Uncontrolled initial active index.",
+      type: "string",
+      default: "the first item",
+      description: "Uncontrolled initial active item: its `itemId`.",
     },
     {
       name: "value",
-      type: "number",
-      description: "Controlled active index.",
+      type: "string",
+      description: "Controlled active item: its `itemId`.",
     },
     {
       name: "onValueChange",
-      type: "(value: number, metadata: { source: NavigationSource }) => void",
-      description: "Callback when active index changes.",
+      type: "(value: string, details: { index: number; source: NavigationSource }) => void",
+      description: "Called when the active item changes, with its `itemId` — the stable key to write to a URL. `details.index` is its position in the viewer.",
     },
     {
-      name: "count",
-      type: "number",
-      description: "Total number of items, used until the mounted `Lightbox.Item`s have registered themselves. Registration happens in effects, which never run during server rendering — so a page that server-renders an open lightbox paints `Lightbox.Counter` as \"n / 0\" (and boundary-disables `Lightbox.Next` / `Lightbox.Previous` when `loop` is off) until hydration. Pass the item total to make that first paint correct. Once any item mounts the live registry takes over and this prop is ignored, so it can't drift from the real count.",
+      name: "itemIds",
+      type: "readonly string[]",
+      description: "The gallery's `itemId`s in viewer order, for a page that server-renders an open lightbox (a deep link). Items register in effects, which never run during server rendering, so without this the first paint can't know where `value` sits: `Lightbox.Counter`, `Lightbox.Caption`, the Previous/Next boundaries and the slide position stay wrong until hydration. Once items mount the live registry takes over and this prop is ignored, so it can't drift.",
     },
     {
       name: "loop",
@@ -80,15 +85,15 @@ export const generatedProps: Record<string, PropRow[]> = {
     },
     {
       name: "scrollTriggerIntoView",
-      type: "ScrollTriggerIntoView",
+      type: "ScrollTriggerIntoView<Payload>",
       default: "null",
-      description: "Scroll the active trigger element into the viewport so close animations land on-screen instead of animating off-viewport.\n\nAccepts a single option or an array of options, so you can combine the moments below. Per option:\n\n- `behavior` — `\"smooth\"` (default) or `\"instant\"`\n- `block` / `inline` — `scrollIntoView` alignment (`\"nearest\"` default). Use `inline: \"center\"` for horizontal snap strips with variable-width tiles.\n\n- `null` (default) — no automatic scrolling\n- `{ type: \"onChange\" }` — scroll to the trigger the close morph will land on whenever the active index changes while the lightbox is open (preemptive; respects `morphTo`, so `closest` scrolls the nearest registered trigger when the active index has none)\n- `{ type: \"onOpenComplete\" }` — scroll to that same trigger once the open transition finishes. The viewer covers the page and scroll is locked, so this reposition is invisible — it only pays off by ensuring the close morph lands on-screen without a jump when the trigger was partially off-screen at open time. `\"instant\"` recommended.\n- `{ type: \"onClose\" }` — scroll to that trigger just before the close morph runs (visible reposition at close start)",
+      description: "Scroll the active trigger element into the viewport so close animations land on-screen instead of animating off-viewport.\n\nAccepts a single option or an array of options, so you can combine the moments below. Per option:\n\n- `behavior` — `\"smooth\"` (default) or `\"instant\"`\n- `block` / `inline` — `scrollIntoView` alignment (`\"nearest\"` default). Use `inline: \"center\"` for horizontal snap strips with variable-width tiles.\n\n- `null` (default) — no automatic scrolling\n- `{ type: \"onChange\" }` — scroll to the trigger the close morph will land on whenever the active item changes while the lightbox is open (preemptive; respects `morphTo`, so `closest` scrolls the nearest trigger when the active item has none)\n- `{ type: \"onOpenComplete\" }` — scroll to that same trigger once the open transition finishes. The viewer covers the page and scroll is locked, so this reposition is invisible — it only pays off by ensuring the close morph lands on-screen without a jump when the trigger was partially off-screen at open time. `\"instant\"` recommended.\n- `{ type: \"onClose\" }` — scroll to that trigger just before the close morph runs (visible reposition at close start)\n\nFor triggers in a virtualized list, add `reveal` to bring an unmounted row back. At that option's moment, Root calls it instead of `scrollIntoView` when the trigger isn't mounted. On `onClose` it gives the morph somewhere to land: return a Promise to make the close wait for it, or `false` to skip the wait.",
     },
     {
       name: "morphTo",
       type: "'active' | 'origin' | 'closest'",
       default: "'active'",
-      description: "Controls which trigger receives the View Transition morph on close.\n\n- `'active'` (default) — morph to the trigger matching the current active index. No morph if no trigger exists for that index.\n- `'origin'` — always morph back to the trigger that originally opened the lightbox, regardless of which item is active.\n- `'closest'` — morph to the trigger at the active index if it exists, otherwise fall back to the nearest registered trigger.",
+      description: "Controls which trigger receives the View Transition morph on close.\n\n- `'active'` (default) — morph to the active item's trigger. No morph if it has none.\n- `'origin'` — always morph back to the trigger that originally opened the lightbox, regardless of which item is active.\n- `'closest'` — morph to the active item's trigger if it has one, otherwise to the trigger of the nearest item that does (a \"+N\" tile for the photos behind it).",
     },
     {
       name: "awaitImageDecode",
@@ -109,19 +114,24 @@ export const generatedProps: Record<string, PropRow[]> = {
   ],
   "api-trigger": [
     {
-      name: "index",
-      type: "number",
+      name: "itemId",
+      type: "string",
       required: true,
-      description: "Item index this trigger opens. Required.",
+      description: "The item this trigger opens: the `itemId` of a `Lightbox.Item`. Only triggers whose `itemId` is in the open gallery take part in the morph, placeholders and `morphTo`, so one Root can serve many galleries.",
     },
     {
-      name: "id",
-      type: "string",
-      description: "Stable id for this trigger. Required for `handle.open(index, { triggerId })` association and for detached Triggers. Also applied as the DOM `id`.",
+      name: "overflowItemIds",
+      type: "readonly string[]",
+      description: "Items this trigger stands in for without opening them, for grids whose visible tiles aren't simply the first photos (a curated \"Show all photos\" tile). While one of them is active the close morph lands on this trigger, crossfading since the tile shows a different photo; an item's own trigger always wins. A \"+N\" tile after the first photos doesn't need this: `morphTo=\"closest\"` already lands on it.",
+    },
+    {
+      name: "payload",
+      type: "Payload",
+      description: "Data for the gallery this trigger opens, read in the viewer with `useLightboxPayload()`. Pass whatever the viewer needs — the full image list, or just an id to look it up by. Required when the handle declares a payload type (`createHandle<Payload>()`), so a trigger can't silently reopen the previous gallery.",
     },
     {
       name: "handle",
-      type: "LightboxHandle",
+      type: "LightboxHandle<Payload>",
       description: "Handle from `Lightbox.createHandle()`. Pass the same handle as Root to use this Trigger outside the Root tree (Base UI Dialog-style detached triggers).",
     },
     {
@@ -203,7 +213,13 @@ export const generatedProps: Record<string, PropRow[]> = {
       name: "index",
       type: "number",
       required: true,
-      description: "The index of this item in the collection.",
+      description: "This item's position in the viewer.",
+    },
+    {
+      name: "itemId",
+      type: "string",
+      required: true,
+      description: "Stable key for this item: what Triggers open, `value` names and `onValueChange` reports. Must be unique within the gallery — the image's id or URL works.",
     },
     {
       name: "caption",
@@ -427,6 +443,13 @@ export const generatedProps: Record<string, PropRow[]> = {
     },
   ],
   "api-view-transition-document": [],
+  "api-use-payload": [
+    {
+      name: "(return)",
+      type: "Payload",
+      description: "Payload of the current open (the opening Trigger's `payload`, or `handle.open({ payload })`), for viewer parts rendered as plain Root children. Re-renders its caller only when the payload changes — call it in the viewer, not in every feed row.",
+    },
+  ],
   "api-use-trigger-context": [
     {
       name: "(return)",
@@ -458,8 +481,8 @@ export const generatedProps: Record<string, PropRow[]> = {
   "api-create-handle": [
     {
       name: "open",
-      type: "(index?: number, options?: LightboxHandleOpenOptions) => void",
-      description: "Open the lightbox. Optional `index` sets the active item. Pass `options.triggerId` to associate the open with a registered Trigger so view-transition morph / placeholders can use that element.\n\nCall only from an event handler or effect — not during render.",
+      type: "(itemId?: string, options?: LightboxHandleOpenOptions<Payload>) => void",
+      description: "Open the lightbox at the `Lightbox.Item` with this `itemId` (or at the current item when omitted). The item's position is resolved once the payload's items mount, and the open morphs from that item's mounted Trigger, if any.\n\nCall only from an event handler or effect — not during render.",
     },
     {
       name: "close",
@@ -468,8 +491,8 @@ export const generatedProps: Record<string, PropRow[]> = {
     },
     {
       name: "goTo",
-      type: "(index: number) => void",
-      description: "Navigate to an index (source: `imperative`). Does not open.",
+      type: "(itemId: string) => void",
+      description: "Navigate to the mounted `Lightbox.Item` with this `itemId` (source: `imperative`). Does not open.",
     },
     {
       name: "isOpen",
@@ -819,6 +842,7 @@ export const generatedAttributes: Record<string, AttrRow[]> = {
       description: "Present during a morph ONLY when the page declares foreign `view-transition-name`s that must be neutralized so they don't ride over the morph. Kept off otherwise: the rule's universal selector makes the attribute flip a full-document style invalidation, which on large DOMs is the dominant cost of starting (and finishing) a morph.",
     },
   ],
+  "api-use-payload": [],
   "api-use-trigger-context": [],
   "api-use-item-context": [],
   "api-use-media-context": [],
@@ -928,6 +952,7 @@ export const generatedCssVariables: Record<string, CssVarRow[]> = {
       description: "Easing for the root snapshot cross-fade (`::view-transition-old/new(root)`). Written by the library from the `viewTransition` preset, like `--lightbox-vt-duration` (during a morph on `documentElement`, always on the Portal host). A good default for skin backdrop/content fades.",
     },
   ],
+  "api-use-payload": [],
   "api-use-trigger-context": [],
   "api-use-item-context": [],
   "api-use-media-context": [],

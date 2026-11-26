@@ -74,13 +74,13 @@ describe.runIf(REACT_SUPPORTS_STYLE_HOISTING)('Lightbox.CSPProvider (client-inse
   it('stamps the nonce on every hoistable a full open gallery inserts (Trigger, Slides, Media)', () => {
     render(
       <LightboxCSPProvider nonce={NONCE}>
-        <LightboxRoot defaultOpen defaultValue={0}>
-          <LightboxTrigger index={0}>open</LightboxTrigger>
+        <LightboxRoot defaultOpen defaultValue="0">
+          <LightboxTrigger itemId="0">open</LightboxTrigger>
           <LightboxPortal>
             <LightboxContent aria-label="viewer">
               <LightboxSlides aria-label="Slides" ssrSlideShift>
                 <LightboxSlide>
-                  <LightboxItem index={0} aria-label="1 of 1">
+                  <LightboxItem index={0} itemId="0" aria-label="1 of 1">
                     <LightboxMedia width={800} height={533}>
                       <img src="/photo.jpg" alt="" width={800} height={533} />
                     </LightboxMedia>

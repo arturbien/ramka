@@ -5,15 +5,7 @@ import { flushSync } from 'react-dom';
 import Image, { type StaticImageData } from 'next/image';
 import * as Lightbox from '@ramka/react/lightbox';
 import { useLightboxContext, useLightboxTriggerContext } from '@ramka/react';
-import {
-  ChevronLeft,
-  ChevronRight,
-  GalleryHorizontal,
-  RectangleHorizontal,
-  X,
-  ZoomIn,
-  ZoomOut,
-} from 'lucide-react';
+import { ChevronLeft, ChevronRight, GalleryHorizontal, RectangleHorizontal, X, ZoomIn, ZoomOut } from 'lucide-react';
 
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
@@ -135,7 +127,8 @@ export function imgDims(url: string) {
 export type LightboxImageSource = string | StaticImageData;
 
 export type LightboxGalleryItem = {
-  id?: string | number;
+  /** The item's `itemId`: what its Trigger opens and Root's `value` names. */
+  id: string;
   src: LightboxImageSource;
   thumb: LightboxImageSource;
   alt: string;
@@ -207,18 +200,12 @@ function storeSlidesLayout(layout: 'bleed' | 'snug') {
 }
 
 /** Default docs strip: square thumbs + stationary floating square indicator. */
-function GalleryThumbnailStrip({
-  items,
-  className,
-}: {
-  items: LightboxGalleryItem[];
-  className: string;
-}) {
+function GalleryThumbnailStrip({ items, className }: { items: LightboxGalleryItem[]; className: string }) {
   return (
     <Lightbox.ThumbnailStrip className={className}>
       <Lightbox.ThumbnailStripTrack aria-label="Photo thumbnails">
         {items.map((item, i) => (
-          <Lightbox.Thumbnail key={item.id ?? i} index={i}>
+          <Lightbox.Thumbnail key={item.id} index={i}>
             {typeof item.thumb === 'object' ? (
               // Strip thumbs are regular images (Ramka bridges only the
               // destination media) — blur OK, same as triggers.
@@ -368,8 +355,7 @@ export function LightboxGallery({
     // Skipped under prefers-reduced-motion and where the API is missing.
     // The library's VT CSS is gated on `data-ramka-view-transition` (open/
     // close morphs only), so this transition keeps the browser default look.
-    const reduceMotion =
-      typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const reduceMotion = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (reduceMotion || typeof document.startViewTransition !== 'function') {
       flip();
       return;
@@ -527,14 +513,11 @@ export function LightboxGallery({
                       'lightbox-demo-slide-snug lightbox-demo-slide-pad z-0 h-full'
                     : 'lightbox-demo-slide-pad h-full'
                 }
-                style={
-                  snug
-                    ? ({ '--lightbox-snug-ratio': ratio } as React.CSSProperties)
-                    : undefined
-                }
+                style={snug ? ({ '--lightbox-snug-ratio': ratio } as React.CSSProperties) : undefined}
               >
                 <Lightbox.Item
                   index={i}
+                  itemId={item.id}
                   caption={item.caption ?? item.alt}
                   aria-roledescription="slide"
                   // Only the strip-less shape needs naming here: with a strip
@@ -636,7 +619,6 @@ export function LightboxGallery({
     </Lightbox.Portal>
   );
 }
-
 
 /** Hide chrome while pulling / committing pull-to-dismiss. See pull-progress.css. */
 const chromePullHide = 'lightbox-demo-chrome-hide';

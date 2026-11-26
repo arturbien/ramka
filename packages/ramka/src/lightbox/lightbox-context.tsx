@@ -10,12 +10,22 @@
 import * as React from 'react';
 
 import type { LightboxStore } from './lightbox-store';
+import type { LightboxHandleHost, LightboxHandleTriggerRegistration } from './lightbox-handle';
 import type { SlidesGeometry } from './lightbox-slides-geometry';
 import type { InitializedRef } from '../react-compat';
 import type { LightboxViewTransitionPreset } from './vt-timing';
 import type { TextDirection } from './lightbox-direction';
 
 type NavigationSource = 'trigger' | 'keyboard' | 'thumbnail' | 'button' | 'scroll' | 'imperative';
+
+/** The connected Trigger an item of the open gallery morphs to and from. */
+interface LightboxTriggerMatch {
+  element: HTMLElement;
+  /** The trigger's own `imageRef`; `null` for a stand-in, which shows another photo. */
+  image: HTMLImageElement | null;
+  /** A "+N" tile covering the item through `overflowItemIds`. */
+  standIn: boolean;
+}
 
 /** Options for a close (`setOpen(false, …)`) that tune return-focus behavior. */
 interface LightboxCloseOptions {
@@ -174,14 +184,6 @@ interface LightboxMorphSlice {
    */
   transitionPreset: boolean | LightboxViewTransitionPreset | undefined;
   morphTo: 'active' | 'origin' | 'closest';
-  triggerElementsRef: InitializedRef<Map<number, HTMLElement>>;
-  /**
-   * Registry mapping each trigger element → the descendant it should morph
-   * into, as designated by the trigger render-prop's `morphRef`. Keyed
-   * by the trigger *element* (not its index) so it stays correct when several
-   * triggers share an index. A trigger with no entry morphs itself.
-   */
-  triggerMorphElementsRef: InitializedRef<WeakMap<HTMLElement, HTMLElement>>;
   activeItemElementRef: React.MutableRefObject<HTMLElement | null>;
   /**
    * Registry mapping each item element → the descendant it should morph into.
@@ -200,44 +202,20 @@ interface LightboxMorphSlice {
   destinationMorphElementRef: React.MutableRefObject<HTMLElement | null>;
   openingTriggerIndexRef: React.MutableRefObject<number>;
   /**
-   * The exact trigger element that opened the lightbox (click or
-   * `handle.open(..., { triggerId })`). Cleared (null) on opens with no
-   * originating element. Unlike `triggerElementsRef` (keyed by index,
-   * last-registered wins), this disambiguates the origin when several
-   * triggers share one index.
+   * The exact trigger element that opened the lightbox (the clicked one, or
+   * the item's mounted trigger for `handle.open(itemId)`). Cleared (null) on opens with no
+   * originating element. Disambiguates the origin when several triggers
+   * show one item.
    */
   openingTriggerElementRef: React.MutableRefObject<HTMLElement | null>;
   /**
    * The `<img>` of the opening trigger, as designated via the trigger
    * render-prop's `imageRef`. Its live `currentSrc` is what `Lightbox.Item`
    * paints as the destination image's placeholder background. Cleared when
-   * there is no originating trigger; falls back to `triggerImageElementsRef`
-   * keyed by index.
+   * there is no originating trigger; items then fall back to their own
+   * trigger's image (`triggerAt`).
    */
   openingTriggerImageRef: React.MutableRefObject<HTMLImageElement | null>;
-  /**
-   * Per-index map of the `<img>` each trigger designated via `imageRef`.
-   * Last-registered wins (like `triggerElementsRef`); used as the placeholder
-   * source when a specific item opens without a clicked element (controlled /
-   * programmatic open) or for preloaded adjacent slides.
-   */
-  triggerImageElementsRef: InitializedRef<Map<number, HTMLImageElement>>;
-  /**
-   * Triggers that declared a stable `id` (for `handle.open` / Root `triggerId`
-   * association). Keyed by id; used when the Trigger is under Root without
-   * going through a detached handle registration.
-   */
-  triggerIdsRef: InitializedRef<
-    Map<
-      string,
-      {
-        id: string;
-        index: number;
-        element: HTMLElement | null;
-        image: HTMLImageElement | null;
-      }
-    >
-  >;
 }
 
 /** Slides viewport/geometry pub-sub + strip-aware `navigate`. */
@@ -268,9 +246,7 @@ interface LightboxSlidesBridgeSlice {
    * (WAAPI track scrub + index commit, no stage view transition). Written by
    * the strip; read by `navigate`. `null` when no strip is mounted.
    */
-  thumbnailStripSelectRef: React.MutableRefObject<
-    ((index: number, source: NavigationSource) => void) | null
-  >;
+  thumbnailStripSelectRef: React.MutableRefObject<((index: number, source: NavigationSource) => void) | null>;
   /**
    * Discrete navigation entry point for keyboard / Previous / Next. Routes
    * through the mounted ThumbnailStrip (so the strip scrubs with the stage)
@@ -320,23 +296,33 @@ interface LightboxStableContextValue {
   /** Ref-indirected `setActiveIndex` — stable identity, always-current behavior. */
   setActiveIndex: (index: number, source: NavigationSource) => void;
   registerItem: (index: number) => () => void;
+  /** Register an Item's `itemId` → index for the keyed-trigger join. */
+  registerItemId: (itemId: string, index: number) => () => void;
+  /** Triggers inside the Root tree without a `handle` register here. */
+  registerKeyedTrigger: (reg: LightboxHandleTriggerRegistration) => () => void;
+  /** Re-sync a registration whose element/image changed. */
+  touchKeyedTrigger: (reg: LightboxHandleTriggerRegistration) => void;
+  /** The Root's host (same object a bound handle exposes). */
+  keyedHost: LightboxHandleHost;
+  /**
+   * Root's `itemIds` as a set, written during Root's render: which items
+   * belong to the open gallery during a server render, before any item has
+   * registered.
+   */
+  serverItemIdsRef: React.MutableRefObject<ReadonlySet<string> | null>;
   registerCaption: (index: number, caption: React.ReactNode) => () => void;
   subscribeOpenComplete: (listener: () => void) => () => void;
   openTransitionPendingRef: React.MutableRefObject<boolean>;
   activeItemElementRef: React.MutableRefObject<HTMLElement | null>;
   itemMorphElementsRef: InitializedRef<WeakMap<HTMLElement, HTMLElement>>;
-  triggerElementsRef: InitializedRef<Map<number, HTMLElement>>;
-  triggerMorphElementsRef: InitializedRef<WeakMap<HTMLElement, HTMLElement>>;
-  triggerImageElementsRef: InitializedRef<Map<number, HTMLImageElement>>;
-  triggerIdsRef: LightboxMorphSlice['triggerIdsRef'];
+  /** The connected trigger of the open gallery's item at `index`, if any. */
+  triggerAt: (index: number) => LightboxTriggerMatch | null;
   openingTriggerIndexRef: React.MutableRefObject<number>;
   openingTriggerElementRef: React.MutableRefObject<HTMLElement | null>;
   openingTriggerImageRef: React.MutableRefObject<HTMLImageElement | null>;
 }
 
-const LightboxStableContext = React.createContext<LightboxStableContextValue | undefined>(
-  undefined,
-);
+const LightboxStableContext = React.createContext<LightboxStableContextValue | undefined>(undefined);
 
 function useLightboxStableContext(): LightboxStableContextValue {
   const context = React.useContext(LightboxStableContext);
@@ -351,9 +337,32 @@ function useLightboxStableContextOptional(): LightboxStableContextValue | undefi
   return React.useContext(LightboxStableContext);
 }
 
+/**
+ * The current open's payload, in its own context: it changes only when an open
+ * brings a new payload, never on navigation, zoom or close, so a Root can wrap
+ * page content without re-rendering it.
+ */
+const LightboxPayloadContext = React.createContext<{ payload: unknown } | undefined>(undefined);
+
+/**
+ * Payload of the current open (the opening Trigger's `payload`, or
+ * `handle.open({ payload })`), for viewer parts rendered as plain Root
+ * children. Re-renders its caller only when the payload changes — call it in
+ * the viewer, not in every feed row.
+ */
+function useLightboxPayload<Payload = unknown>(): Payload | undefined {
+  const context = React.useContext(LightboxPayloadContext);
+  if (context === undefined) {
+    throw new Error('useLightboxPayload must be used within a Lightbox.Root');
+  }
+  return context.payload as Payload | undefined;
+}
+
 export {
   LightboxContext,
   useLightboxContext,
+  LightboxPayloadContext,
+  useLightboxPayload,
   LightboxStableContext,
   useLightboxStableContext,
   useLightboxStableContextOptional,
@@ -366,4 +375,5 @@ export type {
   LightboxSlidesBridgeSlice,
   NavigationSource,
   LightboxCloseOptions,
+  LightboxTriggerMatch,
 };

@@ -5,18 +5,15 @@ import Image from 'next/image';
 import * as Lightbox from '@ramka/react/lightbox';
 
 import { Separator } from '@/components/ui/separator';
-import {
-  LightboxGallery,
-  triggerFocusClass,
-} from '../../../_components/lightbox-chrome';
+import { LightboxGallery, triggerFocusClass } from '../../../_components/lightbox-chrome';
 import { morph1, morph2, morph3, morph4, morph5 } from './images.generated';
 
 const morphImages = [
-  { src: morph1, thumb: morph1, alt: 'Alpine meadow', caption: 'Alpine meadow' },
-  { src: morph2, thumb: morph2, alt: 'Rocky coastline', caption: 'Rocky coastline' },
-  { src: morph3, thumb: morph3, alt: 'Autumn vineyard', caption: 'Autumn vineyard' },
-  { src: morph4, thumb: morph4, alt: 'Desert canyon', caption: 'Desert canyon' },
-  { src: morph5, thumb: morph5, alt: 'Northern lake', caption: 'Northern lake' },
+  { id: 'alpine-meadow', src: morph1, thumb: morph1, alt: 'Alpine meadow', caption: 'Alpine meadow' },
+  { id: 'rocky-coastline', src: morph2, thumb: morph2, alt: 'Rocky coastline', caption: 'Rocky coastline' },
+  { id: 'autumn-vineyard', src: morph3, thumb: morph3, alt: 'Autumn vineyard', caption: 'Autumn vineyard' },
+  { id: 'desert-canyon', src: morph4, thumb: morph4, alt: 'Desert canyon', caption: 'Desert canyon' },
+  { id: 'northern-lake', src: morph5, thumb: morph5, alt: 'Northern lake', caption: 'Northern lake' },
 ];
 
 function MorphDemo({
@@ -30,32 +27,23 @@ function MorphDemo({
   crossfadeTriggers?: 'all' | 'last';
   ariaLabel: string;
 }) {
-  const [activeIndex, setActiveIndex] = React.useState(0);
+  const [activeId, setActiveId] = React.useState(morphImages[0]!.id);
 
-  // Destination blur only for indexes with no trigger imageRef (Next.js Image guide).
+  // Destination blur only for items with no trigger imageRef (Next.js Image guide).
   const items = morphImages.map((img, i) => ({
     ...img,
     destinationBlur: i >= triggerCount,
   }));
 
   return (
-    <Lightbox.Root
-      morphTo={morphTo}
-      value={activeIndex}
-      onValueChange={setActiveIndex}
-      awaitImageDecode={false}
-    >
-      <div
-        className="grid gap-2"
-        style={{ gridTemplateColumns: `repeat(${triggerCount}, minmax(0, 1fr))` }}
-      >
+    <Lightbox.Root morphTo={morphTo} value={activeId} onValueChange={setActiveId} awaitImageDecode={false}>
+      <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${triggerCount}, minmax(0, 1fr))` }}>
         {morphImages.slice(0, triggerCount).map((img, i) => {
-          const isCrossfade =
-            crossfadeTriggers === 'all' || (crossfadeTriggers === 'last' && i === triggerCount - 1);
+          const isCrossfade = crossfadeTriggers === 'all' || (crossfadeTriggers === 'last' && i === triggerCount - 1);
           return (
             <Lightbox.Trigger
-              key={img.alt}
-              index={i}
+              key={img.id}
+              itemId={img.id}
               crossfade={isCrossfade ? 'both' : undefined}
               className={`block cursor-pointer rounded-lg border-none bg-transparent p-0 ${triggerFocusClass}`}
             >
@@ -89,7 +77,7 @@ export function LightboxMorphToDemos() {
           morphTo=&quot;active&quot;
         </h4>
         <p className="text-sm text-neutral-600 dark:text-neutral-400">
-          Default. Close morphs to the trigger matching the active index. All five images have triggers.
+          Default. Close morphs to the trigger matching the active item. All five images have triggers.
         </p>
         <MorphDemo morphTo="active" ariaLabel='morphTo="active" demo' />
       </section>
@@ -113,15 +101,10 @@ export function LightboxMorphToDemos() {
           morphTo=&quot;closest&quot;
         </h4>
         <p className="text-sm text-neutral-600 dark:text-neutral-400">
-          Active trigger if registered, otherwise the nearest one — useful for +N grids (only first 3 have
-          triggers below).
+          Active trigger if registered, otherwise the nearest one — useful for +N grids (only first 3 have triggers
+          below).
         </p>
-        <MorphDemo
-          morphTo="closest"
-          triggerCount={3}
-          crossfadeTriggers="last"
-          ariaLabel='morphTo="closest" demo'
-        />
+        <MorphDemo morphTo="closest" triggerCount={3} crossfadeTriggers="last" ariaLabel='morphTo="closest" demo' />
       </section>
     </div>
   );

@@ -6,10 +6,7 @@ import * as Lightbox from '@ramka/react/lightbox';
 import { Play } from 'lucide-react';
 
 import { Separator } from '@/components/ui/separator';
-import {
-  LightboxGallery,
-  triggerFocusClass,
-} from '../../../_components/lightbox-chrome';
+import { LightboxGallery, triggerFocusClass } from '../../../_components/lightbox-chrome';
 import {
   bbbPoster,
   xfadeA,
@@ -27,9 +24,9 @@ import {
 
 /** Matching 3∶2 sources — element boxes in the demos may still differ. */
 const photos = [
-  { src: xfadeA, thumb: xfadeA, alt: 'Coastal cliffs' },
-  { src: xfadeB, thumb: xfadeB, alt: 'Mountain lake' },
-  { src: xfadeC, thumb: xfadeC, alt: 'Desert road' },
+  { id: 'coastal-cliffs', src: xfadeA, thumb: xfadeA, alt: 'Coastal cliffs' },
+  { id: 'mountain-lake', src: xfadeB, thumb: xfadeB, alt: 'Mountain lake' },
+  { id: 'desert-road', src: xfadeC, thumb: xfadeC, alt: 'Desert road' },
 ];
 
 /**
@@ -39,10 +36,10 @@ const photos = [
  */
 const album = [
   ...photos,
-  { src: xfadeD, thumb: xfadeD, alt: 'Pine forest', destinationBlur: true },
-  { src: xfadeE, thumb: xfadeE, alt: 'City night', destinationBlur: true },
-  { src: xfadeF, thumb: xfadeF, alt: 'Snow peak', destinationBlur: true },
-  { src: xfadeG, thumb: xfadeG, alt: 'River bend', destinationBlur: true },
+  { id: 'pine-forest', src: xfadeD, thumb: xfadeD, alt: 'Pine forest', destinationBlur: true },
+  { id: 'city-night', src: xfadeE, thumb: xfadeE, alt: 'City night', destinationBlur: true },
+  { id: 'snow-peak', src: xfadeF, thumb: xfadeF, alt: 'Snow peak', destinationBlur: true },
+  { id: 'river-bend', src: xfadeG, thumb: xfadeG, alt: 'River bend', destinationBlur: true },
 ];
 
 const trailer = {
@@ -56,6 +53,7 @@ const trailer = {
 /** Initials chips → portraits (non-image morph source). */
 const team = [
   {
+    id: 'ava-chen',
     name: 'Ava Chen',
     initials: 'AC',
     color: '#2a7ab5',
@@ -67,6 +65,7 @@ const team = [
     destinationBlur: true,
   },
   {
+    id: 'jules-okonkwo',
     name: 'Jules Okonkwo',
     initials: 'JO',
     color: '#c93c20',
@@ -77,6 +76,7 @@ const team = [
     destinationBlur: true,
   },
   {
+    id: 'sam-rivera',
     name: 'Sam Rivera',
     initials: 'SR',
     color: '#7a9a6d',
@@ -87,6 +87,7 @@ const team = [
     destinationBlur: true,
   },
   {
+    id: 'mei-laurent',
     name: 'Mei Laurent',
     initials: 'ML',
     color: '#7b3f72',
@@ -105,10 +106,10 @@ function SameImageDemo() {
     <Lightbox.Root>
       {/* Square trigger boxes vs landscape gallery items — same 3∶2 sources. */}
       <div className="grid max-w-md grid-cols-3 gap-2">
-        {photos.map((img, i) => (
+        {photos.map((img) => (
           <Lightbox.Trigger
-            key={img.alt}
-            index={i}
+            key={img.id}
+            itemId={img.id}
             className={`block aspect-square overflow-hidden rounded-lg bg-transparent p-0 ${triggerFocusClass}`}
           >
             {({ imageRef }) => (
@@ -133,7 +134,7 @@ function BothDemo() {
   const visible = 2;
   const extras = album.length - visible;
   return (
-    // Indexes beyond the last trigger close to the nearest one.
+    // Items without a trigger close to the nearest one.
     <Lightbox.Root morphTo="closest">
       <div className="grid max-w-sm grid-cols-2 gap-0.5">
         {album.slice(0, visible).map((img, i) => {
@@ -143,8 +144,8 @@ function BothDemo() {
           const corner = i === 0 ? 'rounded-l-xl' : 'rounded-r-xl';
           return (
             <Lightbox.Trigger
-              key={img.alt}
-              index={i}
+              key={img.id}
+              itemId={img.id}
               crossfade={isOverlay ? 'both' : undefined}
               className={`block bg-transparent p-0 overflow-hidden ${triggerFocusClass} ${corner}`}
             >
@@ -178,10 +179,10 @@ function AnyElementDemo() {
   return (
     <Lightbox.Root>
       <ul className="flex flex-wrap gap-6">
-        {team.map((person, i) => (
-          <li key={person.name} className="flex w-20 flex-col items-center gap-2">
+        {team.map((person) => (
+          <li key={person.id} className="flex w-20 flex-col items-center gap-2">
             <Lightbox.Trigger
-              index={i}
+              itemId={person.id}
               crossfade="both"
               className={`rounded-full size-16 overflow-hidden bg-transparent p-0 ${triggerFocusClass}`}
             >
@@ -214,16 +215,13 @@ function CloseDemo() {
       onOpenChangeComplete={setReadyToPlay}
     >
       <Lightbox.Trigger
-        index={0}
+        itemId="trailer"
         crossfade="close"
         className={`group block w-40 bg-transparent p-0 ${triggerFocusClass}`}
       >
         {({ morphRef }) => (
           // morphRef on the rounded node (radius for VT; library hides it during morphs).
-          <div
-            ref={morphRef}
-            className={`relative overflow-hidden rounded-xl`}
-          >
+          <div ref={morphRef} className={`relative overflow-hidden rounded-xl`}>
             <Image
               src={trailer.poster}
               alt={trailer.title}
@@ -243,6 +241,7 @@ function CloseDemo() {
       <LightboxGallery
         items={[
           {
+            id: 'trailer',
             src: trailer.poster,
             thumb: trailer.poster,
             alt: trailer.title,
@@ -347,9 +346,7 @@ export function LightboxCrossfadeDemos() {
             </tr>
             <tr>
               <td className="px-3 py-2 font-mono text-xs">&quot;open&quot;</td>
-              <td className="px-3 py-2 text-neutral-600 dark:text-neutral-400">
-                Rare inverse of close
-              </td>
+              <td className="px-3 py-2 text-neutral-600 dark:text-neutral-400">Rare inverse of close</td>
             </tr>
           </tbody>
         </table>
@@ -361,8 +358,7 @@ export function LightboxCrossfadeDemos() {
         </h4>
         <p className="text-sm text-neutral-600 dark:text-neutral-400">
           Same picture and intrinsic aspect ratio; element boxes may differ. Both sides use{' '}
-          <code className={code}>object-fit: cover</code>. Below: square thumbs → landscape viewer from
-          3∶2 sources.
+          <code className={code}>object-fit: cover</code>. Below: square thumbs → landscape viewer from 3∶2 sources.
         </p>
         <SameImageDemo />
       </section>
@@ -387,8 +383,8 @@ export function LightboxCrossfadeDemos() {
           <code className={code}>crossfade=&quot;both&quot;</code> — any element
         </h4>
         <p className="text-sm text-neutral-600 dark:text-neutral-400">
-          Morph sources don&apos;t have to be images — dissolve initials chips into portraits so letters
-          don&apos;t stretch.
+          Morph sources don&apos;t have to be images — dissolve initials chips into portraits so letters don&apos;t
+          stretch.
         </p>
         <AnyElementDemo />
       </section>

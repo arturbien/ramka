@@ -22,7 +22,7 @@ export function RtlSetupExcerpt() {
           <Lightbox.Slides>
             {images.map((img, i) => (
               <Lightbox.Slide key={img.id}>
-                <Lightbox.Item index={i}>
+                <Lightbox.Item index={i} itemId={img.id}>
                   <Lightbox.Media>
                     <img src={img.src} alt={img.alt} />
                   </Lightbox.Media>

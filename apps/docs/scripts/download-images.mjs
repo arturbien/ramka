@@ -128,28 +128,68 @@ const photosApp = Array.from({ length: 48 }, (_, i) => {
 // demo cycles it to keep the feed endless.
 const infiniteScroll = photosApp;
 
-// examples/lightbox/url-synced-state — full size = source scaled to 800px wide
-// (matches the old fullUrl() logic: (400 / w) * 2).
-const URL_SYNCED_STATE_DEFS = [
+// mb-*.jpg — statically imported by examples/lightbox/intercepted-routes (no
+// generated module). Full size = source scaled to 800px wide.
+const INTERCEPTED_ROUTES_DEFS = [
   ['mb-01', 600, 900],
   ['mb-02', 900, 600],
-  ['mb-03', 800, 800],
   ['mb-04', 700, 1050],
   ['mb-05', 1200, 700],
-  ['mb-06', 640, 820],
   ['mb-07', 960, 640],
   ['mb-08', 800, 1200],
-  ['mb-09', 1000, 1000],
   ['mb-10', 1100, 620],
   ['mb-11', 620, 900],
-  ['mb-12', 900, 900],
 ];
-const urlSyncedState = URL_SYNCED_STATE_DEFS.map(([id, w, h]) =>
-  picsum(id, 800, Math.round((h * 800) / w)),
+for (const [id, w, h] of INTERCEPTED_ROUTES_DEFS) picsum(id, 800, Math.round((h * 800) / w));
+
+// examples/lightbox/shared-lightbox
+const textMessage = [1, 2, 3].map((i) => picsum(`msg${i}`, 1200, 1600));
+
+// examples/lightbox/curated-grid — a villa listing: Unsplash interiors and
+// exteriors (Unsplash License), in the order the photo tour shows them.
+const CURATED_GRID_PHOTOS = [
+  '1600596542815-ffad4c1539a9',
+  '1613490493576-7fde63acd811',
+  '1602343168117-bb8ffe3e2e9f',
+  '1512917774080-9991f1c4c750',
+  '1600585154084-4e5fe7c39198',
+  '1600566753086-00f18fb6b3ea',
+  '1560448204-e02f11c3d0e2',
+  '1600121848594-d8644e57abab',
+  '1598928506311-c55ded91a20c',
+  '1600210491892-03d54c0aaf87',
+  '1484154218962-a197022b5858',
+  '1617806118233-18e1de247200',
+  '1600607687939-ce8a6c25118c',
+  '1595526114035-0d45ed16cfbf',
+  '1616594039964-ae9021a400a0',
+  '1584622650111-993a426fbf0a',
+  '1600566752355-35792bedcfea',
+  '1552321554-5fefe8c9ef14',
+  '1586023492125-27b2c045efd7',
+  '1600573472550-8090b5e0745e',
+  '1631679706909-1844bbd07221',
+];
+const curatedGrid = CURATED_GRID_PHOTOS.map((id, i) =>
+  remote(
+    `listing-${String(i).padStart(2, '0')}.jpg`,
+    `https://images.unsplash.com/photo-${id}?w=1600&q=80&fm=jpg&fit=max`,
+  ),
 );
 
-// examples/lightbox/text-message
-const textMessage = [1, 2, 3].map((i) => picsum(`msg${i}`, 1200, 1600));
+// examples/lightbox/shareable-albums — albums drawn from the photos-app pool
+// (already downloaded, no extra bytes), in each album's viewing order.
+const SHAREABLE_ALBUMS = {
+  mountains: [5, 22, 25, 40, 47, 21, 29],
+  forest: [2, 3, 10, 31, 44, 23, 34],
+  oldtown: [4, 7, 8, 27, 33],
+  coast: [0, 15, 20, 26, 12, 9],
+  fog: [1, 17, 42, 45],
+  city: [18, 30, 35, 36, 46],
+};
+const shareableAlbums = Object.fromEntries(
+  Object.entries(SHAREABLE_ALBUMS).map(([album, picks]) => [`${album}Images`, picks.map((i) => photosApp[i])]),
+);
 
 // examples/lightbox/film-trailers — Wikimedia Commons posters (CC-BY,
 // Blender Foundation). BBB poster shared with the crossfade docs demo.
@@ -247,9 +287,7 @@ const MOODBOARD_SNUG_DEFS = [
   ['mb-s-07', 960, 640],
   ['mb-s-08', 800, 1200],
 ];
-const moodboardSnug = MOODBOARD_SNUG_DEFS.map(([id, w, h]) =>
-  picsum(id, 800, Math.round((h * 800) / w)),
-);
+const moodboardSnug = MOODBOARD_SNUG_DEFS.map(([id, w, h]) => picsum(id, 800, Math.round((h * 800) / w)));
 const glbAssetBase = 'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models';
 const moodboardSnugExtras = {
   inksPoster: remote('mixkit-inks-poster.jpg', 'https://assets.mixkit.co/videos/44793/44793-thumb-720-0.jpg'),
@@ -257,14 +295,8 @@ const moodboardSnugExtras = {
     'mixkit-plasticine-poster.jpg',
     'https://assets.mixkit.co/videos/47332/47332-thumb-720-0.jpg',
   ),
-  shoeScreenshot: remote(
-    'glb-shoe-screenshot.jpg',
-    `${glbAssetBase}/MaterialsVariantsShoe/screenshot/screenshot.jpg`,
-  ),
-  bottleScreenshot: remote(
-    'glb-bottle-screenshot.jpg',
-    `${glbAssetBase}/WaterBottle/screenshot/screenshot.jpg`,
-  ),
+  shoeScreenshot: remote('glb-shoe-screenshot.jpg', `${glbAssetBase}/MaterialsVariantsShoe/screenshot/screenshot.jpg`),
+  bottleScreenshot: remote('glb-bottle-screenshot.jpg', `${glbAssetBase}/WaterBottle/screenshot/screenshot.jpg`),
   chairScreenshot: remote(
     'glb-chair-screenshot.jpg',
     `${glbAssetBase}/ChairDamaskPurplegold/screenshot/screenshot.jpg`,
@@ -306,12 +338,17 @@ const modules = [
     arrays: { feedImages: infiniteScroll },
   },
   {
-    out: 'app/(docs)/examples/lightbox/url-synced-state/images.generated.ts',
-    arrays: { galleryImages: urlSyncedState },
+    out: 'app/(docs)/examples/lightbox/shared-lightbox/images.generated.ts',
+    arrays: { messageImageFiles: textMessage },
   },
   {
-    out: 'app/(docs)/examples/lightbox/text-message/images.generated.ts',
-    arrays: { messageImageFiles: textMessage },
+    out: 'app/(docs)/examples/lightbox/curated-grid/images.generated.ts',
+    named: { hostAvatar: realEstate.agentClaire },
+    arrays: { listingImages: curatedGrid },
+  },
+  {
+    out: 'app/(docs)/examples/lightbox/shareable-albums/images.generated.ts',
+    arrays: shareableAlbums,
   },
   {
     out: 'app/(docs)/examples/lightbox/film-trailers/images.generated.ts',
@@ -413,10 +450,7 @@ function identifierFor(fileName) {
 
 function writeModule({ out, named = {}, arrays = {} }) {
   const outPath = path.join(docsRoot, out);
-  const relToAssets = path
-    .relative(path.dirname(outPath), assetsDir)
-    .split(path.sep)
-    .join('/');
+  const relToAssets = path.relative(path.dirname(outPath), assetsDir).split(path.sep).join('/');
 
   const imports = new Map(); // fileName -> local identifier
   const used = new Set();
@@ -440,9 +474,7 @@ function writeModule({ out, named = {}, arrays = {} }) {
     return `export const ${exportName} = [\n${ids.map((id) => `  ${id},`).join('\n')}\n];`;
   });
 
-  const importLines = [...imports.entries()].map(
-    ([fileName, id]) => `import ${id} from '${relToAssets}/${fileName}';`,
-  );
+  const importLines = [...imports.entries()].map(([fileName, id]) => `import ${id} from '${relToAssets}/${fileName}';`);
 
   const content = `/**
  * AUTO-GENERATED by apps/docs/scripts/download-images.mjs — do not edit.

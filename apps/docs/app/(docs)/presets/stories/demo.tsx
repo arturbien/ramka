@@ -133,16 +133,11 @@ export function StoriesPresetDemo() {
           { type: 'onChange', behavior: 'instant', inline: 'nearest' },
         ]}
       >
-        <p className="px-1 text-[13px] font-semibold tracking-tight text-neutral-900 dark:text-neutral-50">
-          Stories
-        </p>
+        <p className="px-1 text-[13px] font-semibold tracking-tight text-neutral-900 dark:text-neutral-50">Stories</p>
         <ul className="mt-3 flex snap-x snap-proximity gap-4 overflow-x-auto px-1 pb-1 scrollbar-none">
-          {stories.map((story, i) => (
-            <li
-              key={story.id}
-              className="flex w-16 shrink-0 snap-center scroll-mx-4 flex-col items-center gap-1.5"
-            >
-              <Lightbox.Trigger index={i} aria-label={`${story.name}’s story`} crossfade="both">
+          {stories.map((story) => (
+            <li key={story.id} className="flex w-16 shrink-0 snap-center scroll-mx-4 flex-col items-center gap-1.5">
+              <Lightbox.Trigger itemId={story.id} aria-label={`${story.name}’s story`} crossfade="both">
                 {({ imageRef }) => (
                   <img
                     ref={imageRef}

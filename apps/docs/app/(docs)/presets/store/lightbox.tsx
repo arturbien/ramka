@@ -69,7 +69,8 @@ function IconZoomOut() {
 
 /** Item shape for `Lightbox.Gallery` — pass real intrinsic pixel size. */
 export type LightboxItem = {
-  id?: string | number;
+  /** Stable id for this photo — becomes the Item's `itemId`; Triggers open it by this id. */
+  id: string;
   src: string;
   thumb: string;
   alt: string;
@@ -168,11 +169,7 @@ function Counter({ className, ...props }: React.ComponentProps<typeof RamkaLight
 
 function Previous({ className, children, ...props }: React.ComponentProps<typeof RamkaLightbox.Previous>) {
   return (
-    <RamkaLightbox.Previous
-      className={cx('slb-control', 'slb-nav', className)}
-      aria-label="Previous"
-      {...props}
-    >
+    <RamkaLightbox.Previous className={cx('slb-control', 'slb-nav', className)} aria-label="Previous" {...props}>
       {children ?? <IconChevronLeft />}
     </RamkaLightbox.Previous>
   );
@@ -180,11 +177,7 @@ function Previous({ className, children, ...props }: React.ComponentProps<typeof
 
 function Next({ className, children, ...props }: React.ComponentProps<typeof RamkaLightbox.Next>) {
   return (
-    <RamkaLightbox.Next
-      className={cx('slb-control', 'slb-nav', className)}
-      aria-label="Next"
-      {...props}
-    >
+    <RamkaLightbox.Next className={cx('slb-control', 'slb-nav', className)} aria-label="Next" {...props}>
       {children ?? <IconChevronRight />}
     </RamkaLightbox.Next>
   );
@@ -253,9 +246,10 @@ function Gallery({
             preload={2}
           >
             {items.map((item, i) => (
-              <Slide key={item.id ?? i}>
+              <Slide key={item.id}>
                 <Item
                   index={i}
+                  itemId={item.id}
                   aria-roledescription="slide"
                   // With the rail the item is a `tabpanel` its thumbnail tab
                   // already names, so only the single-image shape needs a name.
@@ -283,7 +277,7 @@ function Gallery({
           {multiple ? (
             <ThumbnailGroup className={cx('slb-rail', 'slb-chrome-gesture-hide')} aria-label="Product images">
               {items.map((item, i) => (
-                <Thumbnail key={item.id ?? i} index={i} className="slb-rail-thumb">
+                <Thumbnail key={item.id} index={i} className="slb-rail-thumb">
                   <img src={item.thumb} alt={item.alt} draggable={false} />
                 </Thumbnail>
               ))}

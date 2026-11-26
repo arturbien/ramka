@@ -3,16 +3,13 @@
 import Image from 'next/image';
 import * as Lightbox from '@ramka/react/lightbox';
 
-import {
-  LightboxGallery,
-  triggerFocusClass,
-} from '../../../_components/lightbox-chrome';
+import { LightboxGallery, triggerFocusClass } from '../../../_components/lightbox-chrome';
 import { docsHeroA, docsHeroB, docsHeroC } from './images.generated';
 
 const images = [
-  { src: docsHeroA, thumb: docsHeroA, alt: 'Mountain ridge' },
-  { src: docsHeroB, thumb: docsHeroB, alt: 'Coastal path' },
-  { src: docsHeroC, thumb: docsHeroC, alt: 'Forest light' },
+  { id: 'mountain-ridge', src: docsHeroA, thumb: docsHeroA, alt: 'Mountain ridge' },
+  { id: 'coastal-path', src: docsHeroB, thumb: docsHeroB, alt: 'Coastal path' },
+  { id: 'forest-light', src: docsHeroC, thumb: docsHeroC, alt: 'Forest light' },
 ];
 
 /** Compact live demo for the Lightbox docs hero. */
@@ -20,10 +17,10 @@ export function LightboxHeroDemo() {
   return (
     <Lightbox.Root>
       <div className="grid max-w-md grid-cols-3 gap-2">
-        {images.map((img, i) => (
+        {images.map((img) => (
           <Lightbox.Trigger
-            key={img.alt}
-            index={i}
+            key={img.id}
+            itemId={img.id}
             className={`block aspect-square overflow-hidden rounded-lg bg-transparent p-0 ${triggerFocusClass}`}
           >
             {({ imageRef }) => (

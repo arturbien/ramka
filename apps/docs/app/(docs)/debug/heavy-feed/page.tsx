@@ -1,15 +1,6 @@
 'use client';
 
-import {
-  ChevronLeft,
-  ChevronRight,
-  Heart,
-  MessageCircle,
-  Minus,
-  Plus,
-  Repeat2,
-  X,
-} from 'lucide-react';
+import { ChevronLeft, ChevronRight, Heart, MessageCircle, Minus, Plus, Repeat2, X } from 'lucide-react';
 import Image, { type StaticImageData } from 'next/image';
 import { notFound } from 'next/navigation';
 import * as React from 'react';
@@ -155,10 +146,7 @@ function buildPosts(count: number): FeedPost[] {
       handle: `@${name.split(' ')[0]!.toLowerCase()}${(i % 97) + 1}`,
       minutesAgo: (i * 7) % 1440,
       text: TEXTS[(i * 5 + Math.floor(i / TEXTS.length)) % TEXTS.length]!,
-      photos: Array.from(
-        { length: imageCount },
-        (_, j) => lightboxImageFiles[(i + j) % lightboxImageFiles.length]!,
-      ),
+      photos: Array.from({ length: imageCount }, (_, j) => lightboxImageFiles[(i + j) % lightboxImageFiles.length]!),
       likes: (i * 37) % 900,
       replies: (i * 13) % 120,
       reposts: (i * 29) % 300,
@@ -291,7 +279,7 @@ function PostImageGrid({ post }: { post: FeedPost }) {
     const only = photos[0]!;
     return (
       <Lightbox.Trigger
-        index={0}
+        itemId="0"
         aria-label={`Open photo by ${post.name}`}
         className="mt-2 block w-full cursor-pointer rounded-xl border border-neutral-200 p-0 outline-offset-2 focus-visible:outline-2 focus-visible:outline-sky-500 dark:border-neutral-800"
       >
@@ -319,7 +307,7 @@ function PostImageGrid({ post }: { post: FeedPost }) {
         {photos.map((photo, i) => (
           <Lightbox.Trigger
             key={i}
-            index={i}
+            itemId={String(i)}
             aria-label={`Open photo ${i + 1} of ${count} by ${post.name}`}
             className={`block cursor-pointer p-0 outline-offset-2 focus-visible:outline-2 focus-visible:outline-sky-500 ${
               count === 3 && i === 0 ? 'row-span-2' : ''
@@ -350,7 +338,7 @@ function PostImageGrid({ post }: { post: FeedPost }) {
         return (
           <Lightbox.Trigger
             key={i}
-            index={i}
+            itemId={String(i)}
             crossfade={showOverlay ? 'both' : undefined}
             aria-label={
               showOverlay
@@ -400,11 +388,7 @@ const FeedPostCard = React.memo(function FeedPostCard({
   return (
     <article
       className="flex gap-3 py-4"
-      style={
-        contentVisibility
-          ? { contentVisibility: 'auto', containIntrinsicSize: 'auto 480px' }
-          : undefined
-      }
+      style={contentVisibility ? { contentVisibility: 'auto', containIntrinsicSize: 'auto 480px' } : undefined}
     >
       <div
         aria-hidden
@@ -418,17 +402,13 @@ const FeedPostCard = React.memo(function FeedPostCard({
       </div>
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline gap-1.5 text-sm">
-          <span className="truncate font-semibold text-neutral-900 dark:text-neutral-100">
-            {post.name}
-          </span>
+          <span className="truncate font-semibold text-neutral-900 dark:text-neutral-100">{post.name}</span>
           <span className="truncate text-neutral-500 dark:text-neutral-400">{post.handle}</span>
           <time className="ml-auto shrink-0 text-xs text-neutral-400 dark:text-neutral-500">
             {timestamp(post.minutesAgo)}
           </time>
         </div>
-        <p className="mt-1 text-sm leading-relaxed text-neutral-700 dark:text-neutral-300">
-          {post.text}
-        </p>
+        <p className="mt-1 text-sm leading-relaxed text-neutral-700 dark:text-neutral-300">{post.text}</p>
 
         {post.photos.length > 0 ? (
           // Every post owns an independent lightbox, like a real feed.
@@ -452,15 +432,10 @@ const FeedPostCard = React.memo(function FeedPostCard({
                       key={i}
                       className="h-full min-w-full flex-[0_0_100%] px-4 pb-24 pt-16 sm:px-20 sm:pt-20"
                     >
-                      <Lightbox.Item index={i}>
+                      <Lightbox.Item index={i} itemId={String(i)}>
                         <Lightbox.Zoom>
                           <Lightbox.Media width={photo.width} height={photo.height}>
-                            <Image
-                              src={photo}
-                              alt={`Photo ${i + 1} by ${post.name}`}
-                              sizes="100vw"
-                              draggable={false}
-                            />
+                            <Image src={photo} alt={`Photo ${i + 1} by ${post.name}`} sizes="100vw" draggable={false} />
                           </Lightbox.Media>
                         </Lightbox.Zoom>
                       </Lightbox.Item>
@@ -469,10 +444,7 @@ const FeedPostCard = React.memo(function FeedPostCard({
                 </Lightbox.Slides>
 
                 <Lightbox.Counter className="absolute left-4 top-4 z-10 rounded-full bg-white/10 px-3 py-1.5 text-sm tabular-nums text-white" />
-                <Lightbox.Close
-                  aria-label="Close"
-                  className={`${VIEWER_BUTTON} absolute right-4 top-4 z-10`}
-                >
+                <Lightbox.Close aria-label="Close" className={`${VIEWER_BUTTON} absolute right-4 top-4 z-10`}>
                   <X className="size-5" aria-hidden />
                 </Lightbox.Close>
                 {post.photos.length > 1 ? (
@@ -562,17 +534,12 @@ export default function HeavyFeedDebugPage() {
 
   const postCount = Math.max(1, Math.round(config.elements / ELEMENTS_PER_POST));
   const posts = React.useMemo(() => (ready ? buildPosts(postCount) : []), [ready, postCount]);
-  const totalImages = React.useMemo(
-    () => posts.reduce((sum, p) => sum + p.photos.length, 0),
-    [posts],
-  );
+  const totalImages = React.useMemo(() => posts.reduce((sum, p) => sum + p.photos.length, 0), [posts]);
 
   // Measure the real element count once the feed is in the DOM.
   React.useEffect(() => {
     if (!ready) return;
-    const frame = requestAnimationFrame(() =>
-      setMeasured(document.getElementsByTagName('*').length),
-    );
+    const frame = requestAnimationFrame(() => setMeasured(document.getElementsByTagName('*').length));
     return () => cancelAnimationFrame(frame);
   }, [ready, posts]);
 
@@ -586,24 +553,19 @@ export default function HeavyFeedDebugPage() {
         <p className="text-[11px] font-semibold uppercase tracking-widest text-amber-700 dark:text-amber-400">
           Debug · development only
         </p>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight text-neutral-900 dark:text-neutral-50">
-          Heavy feed
-        </h1>
+        <h1 className="mt-1 text-2xl font-semibold tracking-tight text-neutral-900 dark:text-neutral-50">Heavy feed</h1>
         <p className="mt-2 text-sm leading-relaxed text-neutral-600 dark:text-neutral-400">
-          A feed-shaped stress page for the open/close morph: every post owns an independent
-          lightbox with 1–10 images (Facebook-style grid, +N overlay). Pick a DOM size, add
-          synthetic main-thread load, and keep a live widget committing during the transition.
-          Settings persist in the URL. For true slow-device runs, stack DevTools CPU throttling on
-          top.
+          A feed-shaped stress page for the open/close morph: every post owns an independent lightbox with 1–10 images
+          (Facebook-style grid, +N overlay). Pick a DOM size, add synthetic main-thread load, and keep a live widget
+          committing during the transition. Settings persist in the URL. For true slow-device runs, stack DevTools CPU
+          throttling on top.
         </p>
       </header>
 
       <div className="sticky top-0 z-30 -mx-4 mb-6 border-b border-neutral-200 bg-white px-4 py-3 dark:border-neutral-800 dark:bg-neutral-950">
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
           <div className="flex items-center gap-1.5" role="group" aria-label="Target DOM size">
-            <span className="text-xs font-medium text-neutral-500 dark:text-neutral-400">
-              Elements
-            </span>
+            <span className="text-xs font-medium text-neutral-500 dark:text-neutral-400">Elements</span>
             {TARGET_SIZES.map((size) => (
               <button
                 key={size}

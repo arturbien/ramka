@@ -13,7 +13,7 @@ declare const photo: StaticImageData;
 export function NextjsImageDontExcerpt() {
   return (
     <Lightbox.Root>
-      <Lightbox.Trigger index={0}>
+      <Lightbox.Trigger itemId="photo">
         {({ imageRef }) => (
           <Image ref={imageRef} src={photo} alt="Photo" className="aspect-square size-full object-cover" />
         )}
@@ -24,7 +24,7 @@ export function NextjsImageDontExcerpt() {
         <Lightbox.Content>
           <Lightbox.Slides>
             <Lightbox.Slide>
-              <Lightbox.Item index={0}>
+              <Lightbox.Item index={0} itemId="photo">
                 <Lightbox.Zoom>
                   <Lightbox.Media width={photo.width} height={photo.height}>
                     <Image

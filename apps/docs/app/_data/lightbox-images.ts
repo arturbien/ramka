@@ -3,7 +3,7 @@ import type { StaticImageData } from 'next/image';
 import { lightboxImageFiles } from './images.generated';
 
 export interface LightboxImage {
-  id: number;
+  id: string;
   /** Single local asset per photo — next/image derives thumb sizes via srcset. */
   src: StaticImageData;
   thumb: StaticImageData;
@@ -39,7 +39,7 @@ const meta = [
 ];
 
 export const lightboxImages: LightboxImage[] = meta.map((m, i) => ({
-  id: i + 1,
+  id: `photo-${i + 1}`,
   src: lightboxImageFiles[i]!,
   thumb: lightboxImageFiles[i]!,
   ...m,

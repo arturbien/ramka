@@ -29,8 +29,8 @@ npm install @ramka/react
 import * as Lightbox from '@ramka/react/lightbox';
 
 <Lightbox.Root>
-  {items.map((item, i) => (
-    <Lightbox.Trigger key={item.id} index={i}>
+  {items.map((item) => (
+    <Lightbox.Trigger key={item.id} itemId={item.id}>
       {({ imageRef }) => <img ref={imageRef} src={item.thumb} alt={item.alt} />}
     </Lightbox.Trigger>
   ))}
@@ -41,7 +41,7 @@ import * as Lightbox from '@ramka/react/lightbox';
       <Lightbox.Slides aria-label="Photos">
         {items.map((item, i) => (
           <Lightbox.Slide key={item.id}>
-            <Lightbox.Item index={i} caption={item.caption}>
+            <Lightbox.Item index={i} itemId={item.id} caption={item.caption}>
               <Lightbox.Zoom>
                 <Lightbox.Media>
                   <img src={item.src} alt={item.alt} />

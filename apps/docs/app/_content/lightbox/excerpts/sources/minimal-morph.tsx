@@ -12,14 +12,14 @@ declare const src: string;
 export function MinimalMorphExcerpt() {
   return (
     <Lightbox.Root morphTo="active">
-      <Lightbox.Trigger index={0}>{({ imageRef }) => <img ref={imageRef} src={thumb} alt="" />}</Lightbox.Trigger>
+      <Lightbox.Trigger itemId="photo">{({ imageRef }) => <img ref={imageRef} src={thumb} alt="" />}</Lightbox.Trigger>
 
       <Lightbox.Portal>
         <Lightbox.Backdrop />
         <Lightbox.Content>
           <Lightbox.Slides>
             <Lightbox.Slide>
-              <Lightbox.Item index={0}>
+              <Lightbox.Item index={0} itemId="photo">
                 <Lightbox.Zoom>
                   <Lightbox.Media>
                     <img src={src} alt="" />

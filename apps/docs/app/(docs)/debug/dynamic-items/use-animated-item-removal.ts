@@ -9,47 +9,34 @@ import './dynamic-items.css';
 /** Matches `--dynamic-item-remove-duration` in dynamic-items.css */
 export const DYNAMIC_ITEM_REMOVE_MS = 380;
 
-function itemKey(item: LightboxGalleryItem): string {
-  return String(item.id ?? item.src);
-}
-
-function reconcileActiveIndex(
-  activeIndex: number,
-  removedIndex: number,
-  nextLength: number,
-  autoRecover: boolean,
-): number {
-  if (nextLength === 0) return 0;
-  if (autoRecover && removedIndex === activeIndex) {
-    return Math.min(activeIndex, nextLength - 1);
-  }
-  if (removedIndex < activeIndex) return activeIndex - 1;
-  if (activeIndex >= nextLength) return nextLength - 1;
-  return activeIndex;
-}
-
+/**
+ * Removing an item never shifts the active id — identity survives reindexing.
+ * Only removing the ACTIVE item needs a decision: with auto-recover the app
+ * steps to the neighbour now at the removed position; without it, `value`
+ * keeps pointing at the removed id and the library's fallback shows.
+ */
 export function useAnimatedItemRemoval({
   items,
   setItems,
-  activeIndex,
-  setActiveIndex,
+  activeId,
+  setActiveId,
   autoRecover,
 }: {
   items: LightboxGalleryItem[];
   setItems: React.Dispatch<React.SetStateAction<LightboxGalleryItem[]>>;
-  activeIndex: number;
-  setActiveIndex: React.Dispatch<React.SetStateAction<number>>;
+  activeId: string;
+  setActiveId: React.Dispatch<React.SetStateAction<string>>;
   autoRecover: boolean;
 }) {
   const [removingIds, setRemovingIds] = React.useState<ReadonlySet<string>>(() => new Set());
   const timersRef = React.useRef<Map<string, number>>(new Map());
   const itemsRef = React.useRef(items);
-  const activeIndexRef = React.useRef(activeIndex);
+  const activeIdRef = React.useRef(activeId);
   const autoRecoverRef = React.useRef(autoRecover);
 
   React.useLayoutEffect(() => {
     itemsRef.current = items;
-    activeIndexRef.current = activeIndex;
+    activeIdRef.current = activeId;
     autoRecoverRef.current = autoRecover;
   });
 
@@ -61,39 +48,29 @@ export function useAnimatedItemRemoval({
 
   React.useEffect(() => clearPending, [clearPending]);
 
-  const isRemoving = React.useCallback(
-    (item: LightboxGalleryItem) => removingIds.has(itemKey(item)),
-    [removingIds],
-  );
+  const isRemoving = React.useCallback((item: LightboxGalleryItem) => removingIds.has(item.id), [removingIds]);
 
   const removeAt = React.useCallback(
     (index: number) => {
-      const snapshot = itemsRef.current;
-      const item = snapshot[index];
+      const item = itemsRef.current[index];
       if (!item) return;
 
-      const key = itemKey(item);
+      const key = item.id;
       if (timersRef.current.has(key)) return;
 
-      const ai = activeIndexRef.current;
-      const isActive = index === ai;
-      const wasActive = isActive;
+      const wasActive = key === activeIdRef.current;
 
       setRemovingIds((prev) => new Set(prev).add(key));
 
       const timer = window.setTimeout(() => {
         timersRef.current.delete(key);
         setItems((prev) => {
-          const removeIndex = prev.findIndex((entry) => itemKey(entry) === key);
+          const removeIndex = prev.findIndex((entry) => entry.id === key);
           if (removeIndex === -1) return prev;
-          const next = prev.filter((entry) => itemKey(entry) !== key);
-          setActiveIndex((current) => {
-            if (next.length === 0) return 0;
-            if (autoRecoverRef.current && wasActive) {
-              return Math.min(removeIndex, next.length - 1);
-            }
-            return reconcileActiveIndex(current, removeIndex, next.length, autoRecoverRef.current);
-          });
+          const next = prev.filter((entry) => entry.id !== key);
+          if (autoRecoverRef.current && wasActive && next.length > 0) {
+            setActiveId(next[Math.min(removeIndex, next.length - 1)]!.id);
+          }
           return next;
         });
         setRemovingIds((prev) => {
@@ -106,7 +83,7 @@ export function useAnimatedItemRemoval({
 
       timersRef.current.set(key, timer);
     },
-    [setActiveIndex, setItems],
+    [setActiveId, setItems],
   );
 
   return { removingIds, isRemoving, removeAt, clearPending };

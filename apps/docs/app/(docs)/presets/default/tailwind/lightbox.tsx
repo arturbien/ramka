@@ -26,13 +26,7 @@
  */
 
 import * as React from 'react';
-import {
-  GalleryHorizontalIcon,
-  RectangleHorizontalIcon,
-  XIcon,
-  ZoomInIcon,
-  ZoomOutIcon,
-} from 'lucide-react';
+import { GalleryHorizontalIcon, RectangleHorizontalIcon, XIcon, ZoomInIcon, ZoomOutIcon } from 'lucide-react';
 import { useLightboxContext } from '@ramka/react';
 import * as RamkaLightbox from '@ramka/react/lightbox';
 
@@ -40,7 +34,8 @@ import { cn } from '@/lib/utils';
 
 /** Item shape for `Lightbox.Gallery` — pass real intrinsic pixel size. */
 export type LightboxItem = {
-  id?: string | number;
+  /** Stable id for this photo — becomes the Item's `itemId`; Triggers open it by this id. */
+  id: string;
   src: string;
   thumb: string;
   alt: string;
@@ -266,10 +261,7 @@ function Slides({ className, ...props }: React.ComponentProps<typeof RamkaLightb
   return (
     <RamkaLightbox.Slides
       data-slot="lightbox-slides"
-      className={cn(
-        'flex-1 gap-5 md:gap-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
-        className,
-      )}
+      className={cn('flex-1 gap-5 md:gap-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden', className)}
       {...props}
     />
   );
@@ -390,10 +382,7 @@ function ThumbnailStrip({ className, ...props }: React.ComponentProps<typeof Ram
   );
 }
 
-function ThumbnailStripTrack({
-  className,
-  ...props
-}: React.ComponentProps<typeof RamkaLightbox.ThumbnailStripTrack>) {
+function ThumbnailStripTrack({ className, ...props }: React.ComponentProps<typeof RamkaLightbox.ThumbnailStripTrack>) {
   return (
     <RamkaLightbox.ThumbnailStripTrack
       data-slot="lightbox-thumbnail-strip-track"
@@ -518,7 +507,7 @@ function GalleryThumbnailStrip({ items }: { items: LightboxItem[] }) {
     <ThumbnailStrip className="max-md:hidden">
       <ThumbnailStripTrack aria-label="Photo thumbnails">
         {items.map((item, i) => (
-          <Thumbnail key={item.id ?? i} index={i}>
+          <Thumbnail key={item.id} index={i}>
             <img src={item.thumb} alt={item.alt} draggable={false} />
           </Thumbnail>
         ))}
@@ -654,11 +643,7 @@ function Gallery({
             aria-label={snug ? 'Switch to theater layout' : 'Switch to peek layout'}
             onClick={toggleSlidesLayout}
           >
-            {snug ? (
-              <GalleryHorizontalIcon strokeWidth={2.25} />
-            ) : (
-              <RectangleHorizontalIcon strokeWidth={2.25} />
-            )}
+            {snug ? <GalleryHorizontalIcon strokeWidth={2.25} /> : <RectangleHorizontalIcon strokeWidth={2.25} />}
           </button>
           {/* Zoom −/+ share one capsule with a hairline divider. */}
           <div className={cn(controlGroupClass, 'max-md:hidden')}>
@@ -689,12 +674,13 @@ function Gallery({
             const ratio = itemAspectRatio(item);
             return (
               <Slide
-                key={item.id ?? i}
+                key={item.id}
                 className={snug ? snugSlideClass : undefined}
                 style={snug ? ({ '--lb-snug-ratio': ratio } as React.CSSProperties) : undefined}
               >
                 <Item
                   index={i}
+                  itemId={item.id}
                   caption={item.caption ?? item.alt}
                   className={snug ? snugItemClass : undefined}
                   aria-roledescription="slide"

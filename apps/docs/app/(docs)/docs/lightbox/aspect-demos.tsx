@@ -31,19 +31,13 @@ function DestinationImage({ photo, alt }: { photo: StaticImageData; alt: string 
   );
 }
 
-function AspectDemo({
-  kind,
-  triggerSrc,
-}: {
-  kind: 'do' | 'dont';
-  triggerSrc: StaticImageData;
-}) {
+function AspectDemo({ kind, triggerSrc }: { kind: 'do' | 'dont'; triggerSrc: StaticImageData }) {
   const alt = kind === 'do' ? 'Do — same source aspect' : 'Don’t — baked square crop';
 
   return (
     <Lightbox.Root awaitImageDecode={false}>
       <Lightbox.Trigger
-        index={0}
+        itemId={kind}
         className={`block aspect-square w-40 cursor-pointer overflow-hidden rounded-xl bg-transparent p-0 ${triggerFocusClass}`}
       >
         {({ imageRef }) => (

@@ -30,7 +30,7 @@ function DynamicItemsThumbnailStrip({
       <Lightbox.ThumbnailStripTrack aria-label="Photo thumbnails">
         {items.map((item, i) => (
           <Lightbox.Thumbnail
-            key={item.id ?? i}
+            key={item.id}
             index={i}
             className={isRemoving(item) ? 'dynamic-items-thumb-removing' : undefined}
           >
@@ -78,41 +78,38 @@ export function DynamicItemsGallery({
           {items.map((item, i) => {
             const removing = isRemoving(item);
             return (
-            <Lightbox.Slide
-              key={item.id ?? i}
-              className="lightbox-demo-slide-pad h-full"
-            >
-              <Lightbox.Item index={i} caption={item.caption ?? item.alt}>
-                <div className="dynamic-items-exit-layer" data-removing={removing || undefined}>
-                  <Lightbox.Zoom maxZoom={maxZoom}>
-                    <Lightbox.Media
-                      {...(galleryItemDims(item) ?? {})}
-                      className="overflow-hidden rounded-none md:rounded-lg"
-                    >
-                      {typeof item.src === 'object' ? (
-                        <Image
-                          src={item.src}
-                          alt={item.alt}
-                          sizes="100vw"
-                          loading="eager"
-                          draggable={false}
-                          className="select-none"
-                        />
-                      ) : (
-                        <img
-                          {...(galleryItemDims(item) ?? {})}
-                          src={item.src}
-                          alt={item.alt}
-                          loading="eager"
-                          draggable={false}
-                          className="select-none"
-                        />
-                      )}
-                    </Lightbox.Media>
-                  </Lightbox.Zoom>
-                </div>
-              </Lightbox.Item>
-            </Lightbox.Slide>
+              <Lightbox.Slide key={item.id} className="lightbox-demo-slide-pad h-full">
+                <Lightbox.Item index={i} itemId={item.id} caption={item.caption ?? item.alt}>
+                  <div className="dynamic-items-exit-layer" data-removing={removing || undefined}>
+                    <Lightbox.Zoom maxZoom={maxZoom}>
+                      <Lightbox.Media
+                        {...(galleryItemDims(item) ?? {})}
+                        className="overflow-hidden rounded-none md:rounded-lg"
+                      >
+                        {typeof item.src === 'object' ? (
+                          <Image
+                            src={item.src}
+                            alt={item.alt}
+                            sizes="100vw"
+                            loading="eager"
+                            draggable={false}
+                            className="select-none"
+                          />
+                        ) : (
+                          <img
+                            {...(galleryItemDims(item) ?? {})}
+                            src={item.src}
+                            alt={item.alt}
+                            loading="eager"
+                            draggable={false}
+                            className="select-none"
+                          />
+                        )}
+                      </Lightbox.Media>
+                    </Lightbox.Zoom>
+                  </div>
+                </Lightbox.Item>
+              </Lightbox.Slide>
             );
           })}
         </Lightbox.Slides>

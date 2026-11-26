@@ -24,6 +24,7 @@ type StyledLightbox = (typeof lightboxVariants)[PresetVariant];
 /** Demo seed data — dims are explicit (package Gallery requires them). */
 const trip: LightboxItem[] = [
   {
+    id: 'trip-a',
     src: '/photos/preset-trip-a.jpg',
     thumb: '/photos/preset-trip-a-thumb.jpg',
     alt: 'Maya on the ridge',
@@ -32,6 +33,7 @@ const trip: LightboxItem[] = [
     height: 1200,
   },
   {
+    id: 'trip-b',
     src: '/photos/preset-trip-b.jpg',
     thumb: '/photos/preset-trip-b-thumb.jpg',
     alt: 'Cliffside road at sunset',
@@ -40,6 +42,7 @@ const trip: LightboxItem[] = [
     height: 1000,
   },
   {
+    id: 'trip-c',
     src: '/photos/preset-trip-c.jpg',
     thumb: '/photos/preset-trip-c-thumb.jpg',
     alt: 'Turquoise cove',
@@ -48,6 +51,7 @@ const trip: LightboxItem[] = [
     height: 1000,
   },
   {
+    id: 'trip-d',
     src: '/photos/preset-trip-d.jpg',
     thumb: '/photos/preset-trip-d-thumb.jpg',
     alt: 'Trail through pines',
@@ -56,6 +60,7 @@ const trip: LightboxItem[] = [
     height: 1500,
   },
   {
+    id: 'trip-e',
     src: '/photos/preset-trip-e.jpg',
     thumb: '/photos/preset-trip-e-thumb.jpg',
     alt: 'Camp under the stars',
@@ -64,6 +69,7 @@ const trip: LightboxItem[] = [
     height: 1000,
   },
   {
+    id: 'trip-f',
     src: '/photos/preset-trip-f.jpg',
     thumb: '/photos/preset-trip-f-thumb.jpg',
     alt: 'Morning coffee on the rocks',
@@ -72,6 +78,7 @@ const trip: LightboxItem[] = [
     height: 1200,
   },
   {
+    id: 'trip-g',
     src: '/photos/preset-trip-g.jpg',
     thumb: '/photos/preset-trip-g-thumb.jpg',
     alt: 'Waterfall in the canyon',
@@ -80,6 +87,7 @@ const trip: LightboxItem[] = [
     height: 1000,
   },
   {
+    id: 'trip-h',
     src: '/photos/preset-trip-h.jpg',
     thumb: '/photos/preset-trip-h-thumb.jpg',
     alt: 'Wildflowers on the hillside',
@@ -88,6 +96,7 @@ const trip: LightboxItem[] = [
     height: 1500,
   },
   {
+    id: 'trip-i',
     src: '/photos/preset-trip-i.jpg',
     thumb: '/photos/preset-trip-i-thumb.jpg',
     alt: 'Kayaks on calm water',
@@ -96,6 +105,7 @@ const trip: LightboxItem[] = [
     height: 1000,
   },
   {
+    id: 'trip-j',
     src: '/photos/preset-trip-j.jpg',
     thumb: '/photos/preset-trip-j-thumb.jpg',
     alt: 'Sunset over the lake',
@@ -104,6 +114,7 @@ const trip: LightboxItem[] = [
     height: 1200,
   },
   {
+    id: 'trip-k',
     src: '/photos/preset-trip-k.jpg',
     thumb: '/photos/preset-trip-k-thumb.jpg',
     alt: 'Boardwalk through the marsh',
@@ -112,6 +123,7 @@ const trip: LightboxItem[] = [
     height: 1000,
   },
   {
+    id: 'trip-l',
     src: '/photos/preset-trip-l.jpg',
     thumb: '/photos/preset-trip-l-thumb.jpg',
     alt: 'Fire lookout tower',
@@ -150,11 +162,9 @@ function UserCardMorph({ Lightbox }: { Lightbox: StyledLightbox }) {
     // lower res (same file + aspect), so the placeholder bridge is seamless
     // and the morph can start immediately instead of waiting on decode.
     <Lightbox.Root awaitImageDecode={false}>
-      <p className="mb-2 text-xs font-medium tracking-wide text-neutral-500 uppercase">
-        Whole trigger morph
-      </p>
+      <p className="mb-2 text-xs font-medium tracking-wide text-neutral-500 uppercase">Whole trigger morph</p>
       <Lightbox.Trigger
-        index={0}
+        itemId={portrait.id}
         crossfade="both"
         className="flex w-44 flex-col items-center gap-3 rounded-2xl border border-neutral-300 bg-white p-4 text-center shadow-[0_1px_2px_rgb(0_0_0/0.06),0_4px_12px_rgb(0_0_0/0.06)] dark:border-neutral-600 dark:bg-neutral-800 dark:shadow-[0_1px_2px_rgb(0_0_0/0.4),0_4px_16px_rgb(0_0_0/0.35)]"
       >
@@ -169,13 +179,9 @@ function UserCardMorph({ Lightbox }: { Lightbox: StyledLightbox }) {
               className="size-16 rounded-full object-cover"
             />
             <span className="min-w-0">
-              <span className="block text-sm font-semibold text-neutral-900 dark:text-neutral-50">
-                Maya Chen
-              </span>
+              <span className="block text-sm font-semibold text-neutral-900 dark:text-neutral-50">Maya Chen</span>
               <span className="block text-xs text-neutral-500">@mayachen</span>
-              <span className="mt-1 block text-xs text-neutral-600 dark:text-neutral-400">
-                Photographer
-              </span>
+              <span className="mt-1 block text-xs text-neutral-600 dark:text-neutral-400">Photographer</span>
             </span>
           </>
         )}
@@ -194,11 +200,9 @@ function ListingCardMorph({ Lightbox }: { Lightbox: StyledLightbox }) {
 
   return (
     <Lightbox.Root awaitImageDecode={false}>
-      <p className="mb-2 text-xs font-medium tracking-wide text-neutral-500 uppercase">
-        Child morph via morphRef
-      </p>
+      <p className="mb-2 text-xs font-medium tracking-wide text-neutral-500 uppercase">Child morph via morphRef</p>
       <Lightbox.Trigger
-        index={0}
+        itemId={listing.id}
         className="w-full overflow-hidden rounded-2xl border border-neutral-300 bg-white text-start shadow-[0_1px_2px_rgb(0_0_0/0.06),0_4px_12px_rgb(0_0_0/0.06)] dark:border-neutral-600 dark:bg-neutral-800 dark:shadow-[0_1px_2px_rgb(0_0_0/0.4),0_4px_16px_rgb(0_0_0/0.35)]"
       >
         {({ imageRef, morphRef }) => (
@@ -259,16 +263,14 @@ function AlbumPlusNMorph({ Lightbox }: { Lightbox: StyledLightbox }) {
 
   return (
     <Lightbox.Root morphTo="closest" awaitImageDecode={false}>
-      <p className="mb-2 text-xs font-medium tracking-wide text-neutral-500 uppercase">
-        +N overlay with crossfade
-      </p>
+      <p className="mb-2 text-xs font-medium tracking-wide text-neutral-500 uppercase">+N overlay with crossfade</p>
       <div className="grid aspect-[3/2] w-full grid-cols-2 grid-rows-2 gap-0.5 overflow-hidden rounded-xl">
         {trip.slice(0, 4).map((img, i) => {
           const showOverlay = i === 3 && extra > 0;
           return (
             <Lightbox.Trigger
-              key={img.src}
-              index={i}
+              key={img.id}
+              itemId={img.id}
               crossfade={showOverlay ? 'both' : undefined}
               className={`relative block min-h-0 min-w-0 overflow-hidden border-0 bg-transparent p-0 ${tileCornerClass(i)}`}
             >
@@ -328,13 +330,7 @@ function AlbumPlusNMorph({ Lightbox }: { Lightbox: StyledLightbox }) {
  */
 
 import * as React from 'react';
-import {
-  GalleryHorizontalIcon,
-  RectangleHorizontalIcon,
-  XIcon,
-  ZoomInIcon,
-  ZoomOutIcon,
-} from 'lucide-react';
+import { GalleryHorizontalIcon, RectangleHorizontalIcon, XIcon, ZoomInIcon, ZoomOutIcon } from 'lucide-react';
 import { useLightboxContext } from '@ramka/react';
 import * as RamkaLightbox from '@ramka/react/lightbox';
 
@@ -342,7 +338,8 @@ import { cn } from '@/lib/utils';
 
 /** Item shape for `Lightbox.Gallery` — pass real intrinsic pixel size. */
 export type LightboxItem = {
-  id?: string | number;
+  /** Stable id for this photo — becomes the Item's `itemId`; Triggers open it by this id. */
+  id: string;
   src: string;
   thumb: string;
   alt: string;
@@ -568,10 +565,7 @@ function Slides({ className, ...props }: React.ComponentProps<typeof RamkaLightb
   return (
     <RamkaLightbox.Slides
       data-slot="lightbox-slides"
-      className={cn(
-        'flex-1 gap-5 md:gap-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
-        className,
-      )}
+      className={cn('flex-1 gap-5 md:gap-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden', className)}
       {...props}
     />
   );
@@ -692,10 +686,7 @@ function ThumbnailStrip({ className, ...props }: React.ComponentProps<typeof Ram
   );
 }
 
-function ThumbnailStripTrack({
-  className,
-  ...props
-}: React.ComponentProps<typeof RamkaLightbox.ThumbnailStripTrack>) {
+function ThumbnailStripTrack({ className, ...props }: React.ComponentProps<typeof RamkaLightbox.ThumbnailStripTrack>) {
   return (
     <RamkaLightbox.ThumbnailStripTrack
       data-slot="lightbox-thumbnail-strip-track"
@@ -820,7 +811,7 @@ function GalleryThumbnailStrip({ items }: { items: LightboxItem[] }) {
     <ThumbnailStrip className="max-md:hidden">
       <ThumbnailStripTrack aria-label="Photo thumbnails">
         {items.map((item, i) => (
-          <Thumbnail key={item.id ?? i} index={i}>
+          <Thumbnail key={item.id} index={i}>
             <img src={item.thumb} alt={item.alt} draggable={false} />
           </Thumbnail>
         ))}
@@ -956,11 +947,7 @@ function Gallery({
             aria-label={snug ? 'Switch to theater layout' : 'Switch to peek layout'}
             onClick={toggleSlidesLayout}
           >
-            {snug ? (
-              <GalleryHorizontalIcon strokeWidth={2.25} />
-            ) : (
-              <RectangleHorizontalIcon strokeWidth={2.25} />
-            )}
+            {snug ? <GalleryHorizontalIcon strokeWidth={2.25} /> : <RectangleHorizontalIcon strokeWidth={2.25} />}
           </button>
           {/* Zoom −/+ share one capsule with a hairline divider. */}
           <div className={cn(controlGroupClass, 'max-md:hidden')}>
@@ -991,12 +978,13 @@ function Gallery({
             const ratio = itemAspectRatio(item);
             return (
               <Slide
-                key={item.id ?? i}
+                key={item.id}
                 className={snug ? snugSlideClass : undefined}
                 style={snug ? ({ '--lb-snug-ratio': ratio } as React.CSSProperties) : undefined}
               >
                 <Item
                   index={i}
+                  itemId={item.id}
                   caption={item.caption ?? item.alt}
                   className={snug ? snugItemClass : undefined}
                   aria-roledescription="slide"
@@ -1151,7 +1139,8 @@ function IconLayoutBleed() {
 
 /** Item shape for `Lightbox.Gallery` — pass real intrinsic pixel size. */
 export type LightboxItem = {
-  id?: string | number;
+  /** Stable id for this photo — becomes the Item's `itemId`; Triggers open it by this id. */
+  id: string;
   src: string;
   thumb: string;
   alt: string;
@@ -1299,7 +1288,7 @@ function GalleryThumbnailStrip({ items }: { items: LightboxItem[] }) {
     <ThumbnailStrip className="lb-thumbnail-strip-desktop">
       <ThumbnailStripTrack aria-label="Photo thumbnails">
         {items.map((item, i) => (
-          <Thumbnail key={item.id ?? i} index={i}>
+          <Thumbnail key={item.id} index={i}>
             <img src={item.thumb} alt={item.alt} draggable={false} />
           </Thumbnail>
         ))}
@@ -1428,12 +1417,13 @@ function Gallery({
             const ratio = itemAspectRatio(item);
             return (
               <Slide
-                key={item.id ?? i}
+                key={item.id}
                 className={snug ? 'lb-slide-snug' : undefined}
                 style={snug ? ({ '--lb-snug-ratio': ratio } as React.CSSProperties) : undefined}
               >
                 <Item
                   index={i}
+                  itemId={item.id}
                   caption={item.caption ?? item.alt}
                   aria-roledescription="slide"
                   // With the strip the item is a `tabpanel` its thumbnail tab

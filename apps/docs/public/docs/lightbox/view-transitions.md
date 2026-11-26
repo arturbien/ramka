@@ -15,14 +15,14 @@ Nested wrappers can use [useLightboxTriggerContext](docs/lightbox/api.md#api-use
 import * as Lightbox from '@ramka/react/lightbox';
 
 <Lightbox.Root morphTo="active">
-  <Lightbox.Trigger index={0}>{({ imageRef }) => <img ref={imageRef} src={thumb} alt="" />}</Lightbox.Trigger>
+  <Lightbox.Trigger itemId="photo">{({ imageRef }) => <img ref={imageRef} src={thumb} alt="" />}</Lightbox.Trigger>
 
   <Lightbox.Portal>
     <Lightbox.Backdrop />
     <Lightbox.Content>
       <Lightbox.Slides>
         <Lightbox.Slide>
-          <Lightbox.Item index={0}>
+          <Lightbox.Item index={0} itemId="photo">
             <Lightbox.Zoom>
               <Lightbox.Media>
                 <img src={src} alt="" />
@@ -38,7 +38,7 @@ import * as Lightbox from '@ramka/react/lightbox';
 
 ## Source aspect
 
-The morph snapshots whatever pixels are on the trigger `<img>` and interpolates them into the destination Media box. That only looks like one photo when both sides share the *same intrinsic aspect ratio* — the same file, or srcset candidates of that file. A square tile is fine; crop it with CSS ( `object-fit: cover`), not by baking `w=h&fit=crop` into a different image.
+The morph snapshots whatever pixels are on the trigger `<img>` and interpolates them into the destination Media box. That only looks like one photo when both sides share the *same intrinsic aspect ratio* — the same file, or srcset candidates of that file. A square tile is fine; crop it with CSS (`object-fit: cover`), not by baking `w=h&fit=crop` into a different image.
 
 A CDN-cropped 1∶1 thumb against a 3∶2 lightbox image will reframe mid-animation: Ramka paints the square thumb into the landscape box, then the full file lands with a different crop. Element boxes may differ. Intrinsic aspect must not.
 
@@ -48,7 +48,7 @@ These demos delay the lightbox image by ~500ms so the handoff is visible on ever
 import * as Lightbox from '@ramka/react/lightbox';
 
 <Lightbox.Root>
-  <Lightbox.Trigger index={0}>
+  <Lightbox.Trigger itemId="photo">
     {({ imageRef }) => (
       <Image
         ref={imageRef}
@@ -65,7 +65,7 @@ import * as Lightbox from '@ramka/react/lightbox';
     <Lightbox.Content>
       <Lightbox.Slides>
         <Lightbox.Slide>
-          <Lightbox.Item index={0}>
+          <Lightbox.Item index={0} itemId="photo">
             <Lightbox.Zoom>
               <Lightbox.Media width={photo.width} height={photo.height}>
                 <Image src={photo} alt="Photo" sizes="100vw" priority />
@@ -83,7 +83,7 @@ import * as Lightbox from '@ramka/react/lightbox';
 import * as Lightbox from '@ramka/react/lightbox';
 
 <Lightbox.Root>
-  <Lightbox.Trigger index={0}>
+  <Lightbox.Trigger itemId="photo">
     {({ imageRef }) => (
       // ❌ 1∶1 file. Media below is the full 3∶2 photo.
       <Image ref={imageRef} src={squareThumb} alt="Photo" className="size-full object-cover" />
@@ -95,7 +95,7 @@ import * as Lightbox from '@ramka/react/lightbox';
     <Lightbox.Content>
       <Lightbox.Slides>
         <Lightbox.Slide>
-          <Lightbox.Item index={0}>
+          <Lightbox.Item index={0} itemId="photo">
             <Lightbox.Zoom>
               <Lightbox.Media width={photo.width} height={photo.height}>
                 <Image src={photo} alt="Photo" sizes="100vw" priority />
@@ -123,7 +123,7 @@ Keep trigger and item images on `object-fit: cover` (or the same fit) so crops s
 import * as Lightbox from '@ramka/react/lightbox';
 
 <Lightbox.Root morphTo="closest">
-  <Lightbox.Trigger index={0} crossfade="both">
+  <Lightbox.Trigger itemId="photo-1" crossfade="both">
     {({ imageRef }) => (
       <div className="relative">
         <Image ref={imageRef} src={photo} alt="" placeholder="blur" />
@@ -136,7 +136,7 @@ import * as Lightbox from '@ramka/react/lightbox';
     <Lightbox.Content>
       <Lightbox.Slides>
         <Lightbox.Slide>
-          <Lightbox.Item index={0}>
+          <Lightbox.Item index={0} itemId="photo-1">
             {({ imageRef }) => <Image ref={imageRef} src={photo} alt="" sizes="100vw" priority />}
           </Lightbox.Item>
         </Lightbox.Slide>
@@ -150,29 +150,29 @@ import * as Lightbox from '@ramka/react/lightbox';
 
 Picks which trigger receives the *close* morph:
 
-- `active` (default) — trigger for the current active index. No morph if that index has no trigger.
+- `active` (default) — the trigger for the active item. No morph if that item has no trigger.
 - `origin` — always the trigger that opened the lightbox (one tile opens many items).
-- `closest` — active index if registered, otherwise the nearest registered trigger.
+- `closest` — the active item's trigger if registered, otherwise the nearest registered trigger.
 
 ```tsx morphTo="closest"
 import * as Lightbox from '@ramka/react/lightbox';
 
 <Lightbox.Root morphTo="closest">
-  <Lightbox.Trigger index={0}>{/* first thumb */}</Lightbox.Trigger>
-  <Lightbox.Trigger index={1}>{/* +N tile */}</Lightbox.Trigger>
-  {/* items 2…n close to the nearest trigger */}
+  <Lightbox.Trigger itemId="photo-1">{/* first thumb */}</Lightbox.Trigger>
+  <Lightbox.Trigger itemId="photo-2">{/* +N tile */}</Lightbox.Trigger>
+  {/* photo-3…n close to the nearest trigger */}
   <Lightbox.Portal>
     <Lightbox.Backdrop />
     <Lightbox.Content>
       <Lightbox.Slides>
         <Lightbox.Slide>
-          <Lightbox.Item index={0} />
+          <Lightbox.Item index={0} itemId="photo-1" />
         </Lightbox.Slide>
         <Lightbox.Slide>
-          <Lightbox.Item index={1} />
+          <Lightbox.Item index={1} itemId="photo-2" />
         </Lightbox.Slide>
         <Lightbox.Slide>
-          <Lightbox.Item index={2} />
+          <Lightbox.Item index={2} itemId="photo-3" />
         </Lightbox.Slide>
       </Lightbox.Slides>
     </Lightbox.Content>
@@ -180,11 +180,30 @@ import * as Lightbox from '@ramka/react/lightbox';
 </Lightbox.Root>
 ```
 
+### Curated grids: `overflowItemIds`
+
+A +N tile placed after the first photos needs nothing beyond `morphTo="closest"`: the hidden photos come next in viewer order, so the nearest trigger is the tile. Curated grids are different — an Airbnb-style "Show all photos" layout shows hand-picked photos, not the first N, so `closest` would land on the wrong tile. List the `itemId` s the +N tile stands in for on its [Trigger](docs/lightbox/api.md#api-trigger). While one of them is active, the close morph lands on that tile; an item's own trigger always wins.
+
+```tsx +N tile in a curated grid
+const shown = ['kitchen', 'pool', 'bedroom'];
+const hidden = photos.filter((photo) => !shown.includes(photo.id));
+
+<Lightbox.Trigger itemId="kitchen">…</Lightbox.Trigger>
+<Lightbox.Trigger itemId="pool">…</Lightbox.Trigger>
+<Lightbox.Trigger
+  itemId="bedroom"
+  overflowItemIds={hidden.map((photo) => photo.id)}
+  crossfade="both"
+>
+  … +{hidden.length}
+</Lightbox.Trigger>
+```
+
 ## Root scrollTriggerIntoView
 
 When the page scrolls while the lightbox is open, the close morph can land off-screen. Use `scrollTriggerIntoView` to keep the target trigger in view:
 
-- `onChange` — scroll to the active trigger as the index changes (preemptive).
+- `onChange` — scroll to the active trigger as the active item changes (preemptive).
 - `onOpenComplete` — reposition once open settles (invisible under the overlay; `instant` recommended).
 - `onClose` — scroll just before the close morph (visible jump at close start).
 
@@ -205,7 +224,7 @@ import * as Lightbox from '@ramka/react/lightbox';
 
 ## Programmatic open
 
-Prefer [createHandle()](docs/lightbox/api.md#api-create-handle): `open(index, { triggerId })` associates a Trigger that declared that `id` so the open morph can use that element. Without a registered trigger (or `triggerId`), the open falls back to the fade path. Trigger clicks still morph. Demo: [State & lifecycle → Imperative API](docs/lightbox/state-lifecycle.md#imperative).
+Prefer [createHandle()](docs/lightbox/api.md#api-create-handle): `open(itemId)` morphs from that item's mounted Trigger, if it has one. Without one, the open falls back to the fade path. Trigger clicks still morph. Demo: [State & lifecycle → Imperative API](docs/lightbox/state-lifecycle.md#imperative).
 
 ## Styling
 

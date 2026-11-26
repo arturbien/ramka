@@ -7,3 +7,4 @@
 export { createViewTransitionMorph } from './use-view-transition-morph';
 export type { ViewTransitionMorph, ViewTransitionMorphConfig } from './use-view-transition-morph';
 export { ensureVtStructuralStyles } from './vt-structural-styles';
+export { waitForStableTrigger } from './reveal-wait';

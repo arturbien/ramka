@@ -4,10 +4,7 @@ import Image, { type StaticImageData } from 'next/image';
 import * as React from 'react';
 import * as Lightbox from '@ramka/react/lightbox';
 
-import {
-  LightboxGallery,
-  triggerFocusClass,
-} from '../../../_components/lightbox-chrome';
+import { LightboxGallery, triggerFocusClass } from '../../../_components/lightbox-chrome';
 /** Unsplash — 1200×800. */
 import photoA from './_assets/nextjs-image-do.jpg';
 import photoB from './_assets/nextjs-image-dont.jpg';
@@ -26,7 +23,7 @@ function slowSrc(photo: StaticImageData, nonce: string) {
   return `/api/slow-image?ms=${LOAD_DELAY_MS}&url=${encodeURIComponent(photo.src)}&n=${encodeURIComponent(nonce)}`;
 }
 
-/** Destination Image. `destinationBlur` only when that index has no trigger image. */
+/** Destination Image. `destinationBlur` only when that item has no trigger image. */
 function DestinationImage({
   photo,
   alt,
@@ -53,9 +50,7 @@ function DestinationImage({
       unoptimized
       draggable={false}
       className="select-none"
-      {...(destinationBlur
-        ? { placeholder: 'blur' as const, blurDataURL: photo.blurDataURL }
-        : null)}
+      {...(destinationBlur ? { placeholder: 'blur' as const, blurDataURL: photo.blurDataURL } : null)}
     />
   );
 }
@@ -67,7 +62,7 @@ function NextImageDemo({ kind }: { kind: DemoKind }) {
   return (
     <Lightbox.Root awaitImageDecode={false}>
       <Lightbox.Trigger
-        index={0}
+        itemId={kind}
         className={`block aspect-square w-40 cursor-pointer overflow-hidden rounded-xl bg-transparent p-0 ${triggerFocusClass}`}
       >
         {({ imageRef }) => (
@@ -94,12 +89,7 @@ function NextImageDemo({ kind }: { kind: DemoKind }) {
               height={photo.height}
               className="overflow-hidden rounded-none md:rounded-lg"
             >
-              <DestinationImage
-                photo={photo}
-                alt={item.alt}
-                destinationBlur={kind === 'dont'}
-                priority
-              />
+              <DestinationImage photo={photo} alt={item.alt} destinationBlur={kind === 'dont'} priority />
             </Lightbox.Media>
           </Lightbox.Zoom>
         )}
@@ -109,13 +99,13 @@ function NextImageDemo({ kind }: { kind: DemoKind }) {
 }
 
 const plusNAlbum: { photo: StaticImageData; alt: string; id: string }[] = [
-  { id: 'a', photo: photoA, alt: 'Mountain ridge' },
-  { id: 'b', photo: photoB, alt: 'Sunlit valley' },
-  { id: 'c', photo: photoC, alt: 'Green hills' },
-  { id: 'd', photo: photoD, alt: 'Forest path' },
+  { id: 'mountain-ridge', photo: photoA, alt: 'Mountain ridge' },
+  { id: 'sunlit-valley', photo: photoB, alt: 'Sunlit valley' },
+  { id: 'green-hills', photo: photoC, alt: 'Green hills' },
+  { id: 'forest-path', photo: photoD, alt: 'Forest path' },
 ];
 
-/** +N grid: indexes 0–1 have trigger images (no destination blur); 2+ use LQIP. */
+/** +N grid: the first two photos have trigger images (no destination blur); the rest use LQIP. */
 export function NextjsImagePlusNDemo() {
   const visible = 2;
   const extras = plusNAlbum.length - visible;
@@ -133,7 +123,7 @@ export function NextjsImagePlusNDemo() {
             return (
               <Lightbox.Trigger
                 key={item.id}
-                index={i}
+                itemId={item.id}
                 crossfade={isOverlay ? 'both' : undefined}
                 className={`block cursor-pointer overflow-hidden bg-transparent p-0 ${triggerFocusClass} ${corner}`}
               >
@@ -170,7 +160,7 @@ export function NextjsImagePlusNDemo() {
           zoomControls={false}
           renderItem={(item, index) => {
             const photo = plusNAlbum[index]!.photo;
-            // Only overflow indexes lack a trigger imageRef.
+            // Only overflow items lack a trigger imageRef.
             const destinationBlur = index >= visible;
             return (
               <Lightbox.Zoom>
@@ -179,13 +169,13 @@ export function NextjsImagePlusNDemo() {
                   height={photo.height}
                   className="overflow-hidden rounded-none md:rounded-lg"
                 >
-              <DestinationImage
-                photo={photo}
-                alt={item.alt}
-                destinationBlur={destinationBlur}
-                // Eager only for overflow slides (the ones that show LQIP).
-                priority={destinationBlur}
-              />
+                  <DestinationImage
+                    photo={photo}
+                    alt={item.alt}
+                    destinationBlur={destinationBlur}
+                    // Eager only for overflow slides (the ones that show LQIP).
+                    priority={destinationBlur}
+                  />
                 </Lightbox.Media>
               </Lightbox.Zoom>
             );
@@ -197,8 +187,8 @@ export function NextjsImagePlusNDemo() {
 }
 
 const team = [
-  { name: 'Ava Chen', initials: 'AC', color: '#2a7ab5', photo: photoA },
-  { name: 'Jules Okonkwo', initials: 'JO', color: '#c93c20', photo: photoB },
+  { id: 'ava-chen', name: 'Ava Chen', initials: 'AC', color: '#2a7ab5', photo: photoA },
+  { id: 'jules-okonkwo', name: 'Jules Okonkwo', initials: 'JO', color: '#c93c20', photo: photoB },
 ] as const;
 
 /** Non-image triggers: no Ramka thumb bridge — destination blur is the placeholder. */
@@ -210,10 +200,10 @@ export function NextjsImageNonImageTriggerDemo() {
       </div>
       <Lightbox.Root>
         <ul className="flex flex-wrap gap-6">
-          {team.map((person, i) => (
-            <li key={person.name} className="flex w-20 flex-col items-center gap-2">
+          {team.map((person) => (
+            <li key={person.id} className="flex w-20 flex-col items-center gap-2">
               <Lightbox.Trigger
-                index={i}
+                itemId={person.id}
                 crossfade="both"
                 className={`size-16 cursor-pointer overflow-hidden rounded-full bg-transparent p-0 ${triggerFocusClass}`}
               >
@@ -232,8 +222,8 @@ export function NextjsImageNonImageTriggerDemo() {
         </ul>
 
         <LightboxGallery
-          items={team.map((person, i) => ({
-            id: String(i),
+          items={team.map((person) => ({
+            id: person.id,
             src: person.photo.src,
             thumb: person.photo.src,
             alt: `Portrait of ${person.name}`,
@@ -250,11 +240,7 @@ export function NextjsImageNonImageTriggerDemo() {
                   height={photo.height}
                   className="overflow-hidden rounded-none md:rounded-lg"
                 >
-                  <DestinationImage
-                    photo={photo}
-                    alt={item.alt}
-                    destinationBlur
-                  />
+                  <DestinationImage photo={photo} alt={item.alt} destinationBlur />
                 </Lightbox.Media>
               </Lightbox.Zoom>
             );

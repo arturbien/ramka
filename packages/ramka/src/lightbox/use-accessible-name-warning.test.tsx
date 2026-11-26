@@ -152,7 +152,7 @@ describe('development nudge for a nameless slide', () => {
   it('warns when the slide has no name at all', async () => {
     render(
       <Gallery>
-        <LightboxItem index={0} />
+        <LightboxItem index={0} itemId="0" />
       </Gallery>,
     );
     await settleNameCheck();
@@ -163,7 +163,9 @@ describe('development nudge for a nameless slide', () => {
   it('still warns when the slide only has content, which does not name a group', async () => {
     render(
       <Gallery>
-        <LightboxItem index={0}>Zachód słońca nad morzem</LightboxItem>
+        <LightboxItem index={0} itemId="0">
+          Zachód słońca nad morzem
+        </LightboxItem>
       </Gallery>,
     );
     await settleNameCheck();
@@ -174,7 +176,7 @@ describe('development nudge for a nameless slide', () => {
   it('stays quiet once the consumer names the slide', async () => {
     render(
       <Gallery>
-        <LightboxItem index={0} aria-roledescription="slajd" aria-label="1 z 1" />
+        <LightboxItem index={0} itemId="0" aria-roledescription="slajd" aria-label="1 z 1" />
       </Gallery>,
     );
     await settleNameCheck();
@@ -187,9 +189,9 @@ describe('development nudge for a nameless slide', () => {
   it('nudges only for the slide that is not aria-hidden', async () => {
     render(
       <Gallery>
-        <LightboxItem index={0} aria-label="1 z 3" />
-        <LightboxItem index={1} />
-        <LightboxItem index={2} />
+        <LightboxItem index={0} itemId="0" aria-label="1 z 3" />
+        <LightboxItem index={1} itemId="1" />
+        <LightboxItem index={2} itemId="2" />
       </Gallery>,
     );
     await settleNameCheck();
@@ -205,8 +207,8 @@ describe('development nudge for a nameless slide', () => {
   it('stays quiet for an unnamed item when a thumbnail tablist names it', async () => {
     render(
       <Gallery>
-        <LightboxItem index={0} data-testid="item-0" />
-        <LightboxItem index={1} />
+        <LightboxItem index={0} itemId="0" data-testid="item-0" />
+        <LightboxItem index={1} itemId="1" />
         <LightboxThumbnailGroup aria-label="miniatury">
           <LightboxThumbnail index={0}>1</LightboxThumbnail>
           <LightboxThumbnail index={1}>2</LightboxThumbnail>

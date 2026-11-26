@@ -16,7 +16,7 @@ const btnClass =
 
 export function ControlledStateDemo() {
   const [open, setOpen] = React.useState(false);
-  const [value, setValue] = React.useState(0);
+  const [value, setValue] = React.useState(lightboxImages[0]!.id);
 
   return (
     <div className="space-y-4">
@@ -25,17 +25,18 @@ export function ControlledStateDemo() {
           Open lightbox
         </button>
         <label className="flex items-center gap-2 text-sm text-neutral-600 dark:text-neutral-400">
-          Active index
-          <input
-            type="number"
-            min={0}
-            max={lightboxImages.length - 1}
+          Active item
+          <select
             value={value}
-            onChange={(e) =>
-              setValue(Math.max(0, Math.min(lightboxImages.length - 1, Number(e.target.value))))
-            }
-            className="w-16 rounded-md border border-neutral-300 bg-white px-2 py-1 text-sm dark:border-neutral-700 dark:bg-neutral-900"
-          />
+            onChange={(e) => setValue(e.target.value)}
+            className="rounded-md border border-neutral-300 bg-white px-2 py-1 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+          >
+            {lightboxImages.map((img) => (
+              <option key={img.id} value={img.id}>
+                {img.id}
+              </option>
+            ))}
+          </select>
         </label>
         <span className="text-xs text-neutral-500">open = {String(open)}</span>
       </div>
@@ -54,22 +55,17 @@ export function CreateHandleDemo() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-neutral-600 dark:text-neutral-400">Product photos</p>
-        <button
-          type="button"
-          onClick={() => lightbox.open(0, { triggerId: 'photo-0' })}
-          className={btnClass}
-        >
+        <button type="button" onClick={() => lightbox.open(lightboxImages[0]!.id)} className={btnClass}>
           View gallery
         </button>
       </div>
 
       <LightboxTriggerGrid>
-        {lightboxImages.map((img, i) => (
+        {lightboxImages.map((img) => (
           <Lightbox.Trigger
             key={img.id}
             handle={lightbox}
-            id={`photo-${i}`}
-            index={i}
+            itemId={img.id}
             className={`block overflow-hidden rounded-2xl ${triggerFocusClass}`}
           >
             <LightboxTriggerImage src={img.src} alt={img.alt} />
@@ -115,13 +111,15 @@ export function LifecycleCallbacksDemo() {
       <Lightbox.Root
         onOpenChange={(open) => push('onOpenChange', String(open))}
         onOpenChangeComplete={(open) => push('onOpenChangeComplete', String(open))}
-        onValueChange={(value, { source }) => push('onValueChange', `index=${value} source=${source}`)}
+        onValueChange={(itemId, { index, source }) =>
+          push('onValueChange', `itemId=${itemId} index=${index} source=${source}`)
+        }
       >
         <LightboxTriggerGrid>
-          {lightboxImages.map((img, i) => (
+          {lightboxImages.map((img) => (
             <Lightbox.Trigger
               key={img.id}
-              index={i}
+              itemId={img.id}
               className={`block overflow-hidden rounded-2xl ${triggerFocusClass}`}
             >
               <LightboxTriggerImage src={img.src} alt={img.alt} />

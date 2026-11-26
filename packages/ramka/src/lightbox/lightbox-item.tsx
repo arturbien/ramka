@@ -85,8 +85,14 @@ interface LightboxItemRenderState {
 }
 
 interface LightboxItemProps extends Omit<useRender.ComponentProps<'div', LightboxItemState>, 'children'> {
-  /** The index of this item in the collection. */
+  /** This item's position in the viewer. */
   index: number;
+  /**
+   * Stable key for this item: what Triggers open, `value` names and
+   * `onValueChange` reports. Must be unique within the gallery — the image's
+   * id or URL works.
+   */
+  itemId: string;
   /** Optional caption for this item, displayed by Lightbox.Caption. */
   caption?: React.ReactNode;
   /**
@@ -121,441 +127,443 @@ const itemStateAttributesMapping = {
  * that haven't started fetching may miss this window and appear blank
  * during the opening animation.
  */
-const LightboxItem = React.forwardRef<HTMLDivElement, LightboxItemProps>(
-  function LightboxItem(props, forwardedRef) {
-    const { render, index, caption, children, style, ...elementProps } = props;
+const LightboxItem = React.forwardRef<HTMLDivElement, LightboxItemProps>(function LightboxItem(props, forwardedRef) {
+  const { render, index, itemId, caption, children, style, ...elementProps } = props;
 
-    // Items are the O(n) population, so they read the identity-stable context
-    // and subscribe to derived PRIMITIVES from the hot store — a navigation
-    // commit re-renders only the items whose `active`/`visible` actually
-    // flipped (O(preload)), not the whole gallery. See lightbox-store.ts.
-    const {
-      store,
-      registerCaption,
-      registerItem,
-      activeItemElementRef,
-      itemMorphElementsRef,
-      openingTriggerIndexRef,
-      openingTriggerElementRef,
-      openingTriggerImageRef,
-      triggerImageElementsRef,
-      triggerElementsRef,
-      openTransitionPendingRef,
-      subscribeOpenComplete,
-      baseId,
-    } = useLightboxStableContext();
-    const preload = useSlidesPreload();
+  // Items are the O(n) population, so they read the identity-stable context
+  // and subscribe to derived PRIMITIVES from the hot store — a navigation
+  // commit re-renders only the items whose `active`/`visible` actually
+  // flipped (O(preload)), not the whole gallery. See lightbox-store.ts.
+  const {
+    store,
+    registerCaption,
+    registerItem,
+    registerItemId,
+    activeItemElementRef,
+    itemMorphElementsRef,
+    openingTriggerIndexRef,
+    openingTriggerElementRef,
+    openingTriggerImageRef,
+    triggerAt,
+    openTransitionPendingRef,
+    subscribeOpenComplete,
+    baseId,
+  } = useLightboxStableContext();
+  const preload = useSlidesPreload();
 
-    const isActive = useLightboxStoreValue(store, (state) => index === state.activeIndex);
-    const isServerPaint = useIsServerPaint();
-    const isVisible = useLightboxStoreValue(store, (state) => {
-      const linearDist = Math.abs(index - state.activeIndex);
-      const distance =
-        state.loop && state.itemCount > 0
-          ? Math.min(linearDist, state.itemCount - linearDist)
-          : linearDist;
-      return distance <= preload;
-    });
-    const hasTablist = useLightboxStoreValue(store, (state) => state.hasTablist);
+  const isActive = useLightboxStoreValue(store, (state) => !state.resolvingOpen && index === state.activeIndex);
+  const isServerPaint = useIsServerPaint();
+  const isVisible = useLightboxStoreValue(store, (state) => {
+    if (state.resolvingOpen) return false;
+    const linearDist = Math.abs(index - state.activeIndex);
+    const distance =
+      state.loop && state.itemCount > 0 ? Math.min(linearDist, state.itemCount - linearDist) : linearDist;
+    return distance <= preload;
+  });
+  const hasTablist = useLightboxStoreValue(store, (state) => state.hasTablist);
 
-    const internalRef = React.useRef<HTMLDivElement | null>(null);
-    // The destination image the consumer designated via `imageRef`, if any.
-    const imageNodeRef = React.useRef<HTMLImageElement | null>(null);
-    // The morph node the consumer designated via `morphRef`, if any.
-    const morphNodeRef = React.useRef<HTMLElement | null>(null);
-    // Sized media host from `Lightbox.Media` (preferred morph + placeholder host).
-    const mediaNodeRef = React.useRef<HTMLElement | null>(null);
-    const warnedRef = React.useRef(false);
+  const internalRef = React.useRef<HTMLDivElement | null>(null);
+  // The destination image the consumer designated via `imageRef`, if any.
+  const imageNodeRef = React.useRef<HTMLImageElement | null>(null);
+  // The morph node the consumer designated via `morphRef`, if any.
+  const morphNodeRef = React.useRef<HTMLElement | null>(null);
+  // Sized media host from `Lightbox.Media` (preferred morph + placeholder host).
+  const mediaNodeRef = React.useRef<HTMLElement | null>(null);
+  const warnedRef = React.useRef(false);
 
-    // Register (or clear) this item's morph target: explicit `morphRef` →
-    // `Lightbox.Media` → `imageRef`. Keyed by the item element. Prefer Media so
-    // the open morph targets the sized media box (not Zoom's transform wrapper).
-    const registerMorphElement = React.useCallback(() => {
-      const container = internalRef.current;
-      const registry = itemMorphElementsRef.current;
-      if (!container || !registry) return;
-      const node = morphNodeRef.current ?? mediaNodeRef.current ?? imageNodeRef.current;
+  // Register (or clear) this item's morph target: explicit `morphRef` →
+  // `Lightbox.Media` → `imageRef`. Keyed by the item element. Prefer Media so
+  // the open morph targets the sized media box (not Zoom's transform wrapper).
+  const registerMorphElement = React.useCallback(() => {
+    const container = internalRef.current;
+    const registry = itemMorphElementsRef.current;
+    if (!container || !registry) return;
+    const node = morphNodeRef.current ?? mediaNodeRef.current ?? imageNodeRef.current;
+    if (node) {
+      registry.set(container, node);
+    } else {
+      registry.delete(container);
+    }
+  }, [itemMorphElementsRef]);
+
+  const mergedRefCallback = React.useCallback(
+    (node: HTMLDivElement | null) => {
+      const prev = internalRef.current;
+      internalRef.current = node;
       if (node) {
-        registry.set(container, node);
-      } else {
-        registry.delete(container);
+        registerMorphElement();
+      } else if (prev) {
+        itemMorphElementsRef.current?.delete(prev);
       }
-    }, [itemMorphElementsRef]);
+      if (typeof forwardedRef === 'function') {
+        forwardedRef(node);
+      } else if (forwardedRef) {
+        forwardedRef.current = node;
+      }
+    },
+    [forwardedRef, itemMorphElementsRef, registerMorphElement],
+  );
 
-    const mergedRefCallback = React.useCallback(
-      (node: HTMLDivElement | null) => {
-        const prev = internalRef.current;
-        internalRef.current = node;
-        if (node) {
-          registerMorphElement();
-        } else if (prev) {
-          itemMorphElementsRef.current?.delete(prev);
+  // Only the standalone-carousel shape can be nameless: a `tabpanel` is named
+  // by its tab. Inactive items are `aria-hidden`, which the hook skips, so a
+  // gallery nudges once for the slide on screen rather than once per slide.
+  const nameCheckedRef = useAccessibleNameWarning<HTMLDivElement>('Lightbox.Item', mergedRefCallback, {
+    namedByContent: false,
+    hint:
+      'A slide is a `group`, so its caption does not name it — pass `aria-label` ' +
+      'carrying the position (the APG carousel pattern puts it in the name, e.g. ' +
+      '`${i + 1} of ${photos.length}` in your own wording).',
+  });
+
+  const imageRef = React.useCallback(
+    (node: HTMLImageElement | null) => {
+      imageNodeRef.current = node;
+      registerMorphElement();
+    },
+    [registerMorphElement],
+  );
+
+  const morphRef = React.useCallback(
+    (node: HTMLElement | null) => {
+      morphNodeRef.current = node;
+      registerMorphElement();
+    },
+    [registerMorphElement],
+  );
+
+  const registerMedia = React.useCallback(
+    (node: HTMLElement | null) => {
+      mediaNodeRef.current = node;
+      registerMorphElement();
+    },
+    [registerMorphElement],
+  );
+
+  // Before the placeholder effect below: registering joins this item's
+  // trigger to its index, where that effect reads its thumbnail from.
+  React.useLayoutEffect(() => {
+    if (process.env.NODE_ENV !== 'production' && typeof itemId !== 'string') {
+      console.error(`[ramka] Lightbox.Item index=${index} needs an \`itemId\`.`);
+      return;
+    }
+    return registerItemId(itemId, index);
+  }, [itemId, index, registerItemId]);
+
+  const setMediaPlaceholderRef = React.useRef<((on: boolean) => void) | null>(null);
+  const registerPlaceholder = React.useCallback((setPlaceholder: ((on: boolean) => void) | null) => {
+    setMediaPlaceholderRef.current = setPlaceholder;
+  }, []);
+
+  // Bridge the blank frame until the destination image loads: paint this
+  // index's already-decoded trigger thumbnail into a `<canvas>` behind the
+  // image (falling back to a CSS background when a canvas is unavailable),
+  // then remove it on load.
+  //
+  // Must re-run when `isVisible` flips true. Items outside the preload
+  // window stay mounted but render `null`, so a `[]` effect would fire once
+  // with no destination `<img>` and never paint — that's the blank frame
+  // when the thumbnail strip jumps past the preload window. On open, this
+  // still runs inside `commitPrepare`'s flushSync (visible item, image
+  // already in the tree) so the placeholder is in the morph "new" snapshot.
+  // Only touches the image when the consumer opted in via `imageRef` (or
+  // Media auto-wired it).
+  React.useLayoutEffect(() => {
+    if (!isVisible) return;
+    const img = imageNodeRef.current;
+    if (!img) return;
+    if (img.complete && img.naturalWidth > 0) return; // already decoded
+
+    const clicked = openingTriggerIndexRef.current === index ? openingTriggerImageRef.current : null;
+    const trigger = triggerAt(index);
+    const source = clicked ?? trigger?.image ?? null;
+    const src = source?.currentSrc ?? '';
+
+    if (!src) {
+      if (process.env.NODE_ENV !== 'production' && !warnedRef.current) {
+        const hasTriggerImage = !!trigger?.image;
+        // Only nag when the trigger genuinely *has* an image that wasn't wired
+        // up (a real mistake) — never for intentionally non-image triggers
+        // (e.g. a colour swatch). This DOM check is dev-only and off the
+        // runtime placeholder path.
+        const triggerRoot =
+          (openingTriggerIndexRef.current === index ? openingTriggerElementRef.current : null) ??
+          trigger?.element ??
+          null;
+        // A "+N" tile standing in for this item shows a different photo — by
+        // design it lends no placeholder, so there's nothing to wire up.
+        const standIn = trigger?.standIn ?? false;
+        const triggerHasImage = !standIn && !!triggerRoot?.querySelector('img');
+        if (triggerHasImage && !hasTriggerImage) {
+          warnedRef.current = true;
+          // eslint-disable-next-line no-console
+          console.warn(
+            `[ramka] Lightbox.Item index=${index}: image not yet loaded and no placeholder ` +
+              `source found, so the open transition may flash a blank frame. Attach ` +
+              `\`imageRef\` on Lightbox.Trigger's <img> (via its render ` +
+              `function) to bridge it, or pass an already-loaded image.`,
+          );
         }
-        if (typeof forwardedRef === 'function') {
-          forwardedRef(node);
-        } else if (forwardedRef) {
-          forwardedRef.current = node;
-        }
-      },
-      [forwardedRef, itemMorphElementsRef, registerMorphElement],
-    );
+      }
+      return;
+    }
 
-    // Only the standalone-carousel shape can be nameless: a `tabpanel` is named
-    // by its tab. Inactive items are `aria-hidden`, which the hook skips, so a
-    // gallery nudges once for the slide on screen rather than once per slide.
-    const nameCheckedRef = useAccessibleNameWarning<HTMLDivElement>('Lightbox.Item', mergedRefCallback, {
-      namedByContent: false,
-      hint:
-        'A slide is a `group`, so its caption does not name it — pass `aria-label` ' +
-        'carrying the position (the APG carousel pattern puts it in the name, e.g. ' +
-        '`${i + 1} of ${photos.length}` in your own wording).',
-    });
+    const cs = getComputedStyle(img);
+    const fit = cs.objectFit === 'contain' ? 'contain' : 'cover';
 
-    const imageRef = React.useCallback(
-      (node: HTMLImageElement | null) => {
-        imageNodeRef.current = node;
-        registerMorphElement();
-      },
-      [registerMorphElement],
-    );
-
-    const morphRef = React.useCallback(
-      (node: HTMLElement | null) => {
-        morphNodeRef.current = node;
-        registerMorphElement();
-      },
-      [registerMorphElement],
-    );
-
-    const registerMedia = React.useCallback(
-      (node: HTMLElement | null) => {
-        mediaNodeRef.current = node;
-        registerMorphElement();
-      },
-      [registerMorphElement],
-    );
-
-    const setMediaPlaceholderRef = React.useRef<((on: boolean) => void) | null>(null);
-    const registerPlaceholder = React.useCallback((setPlaceholder: ((on: boolean) => void) | null) => {
-      setMediaPlaceholderRef.current = setPlaceholder;
-    }, []);
-
-    // Bridge the blank frame until the destination image loads: paint this
-    // index's already-decoded trigger thumbnail into a `<canvas>` behind the
-    // image (falling back to a CSS background when a canvas is unavailable),
-    // then remove it on load.
+    // Prefer a <canvas> underlay over a CSS background. WHY: during the open
+    // morph WebKit routinely captures the destination's "new" view-transition
+    // snapshot before an async image decode lands, so a `background-image`
+    // (decoded async, per-draw-size, and especially unreliable behind a
+    // *replaced* <img>) is blank for the first frame(s) and at the VT→live
+    // handoff — which is what makes the placeholder "disappear", the trigger's
+    // baked border-radius balloon (we fall back to the opaque old/trigger
+    // snapshot), and the letterboxing arrive late. A canvas is a pre-
+    // rasterized bitmap: `drawImage` of the already-decoded trigger thumbnail
+    // is synchronous, so its backing store is ready before the snapshot and
+    // survives the handoff with no re-decode. We size the letterbox rect
+    // ourselves from the trigger's intrinsic dimensions (`source.natural*`).
     //
-    // Must re-run when `isVisible` flips true. Items outside the preload
-    // window stay mounted but render `null`, so a `[]` effect would fire once
-    // with no destination `<img>` and never paint — that's the blank frame
-    // when the thumbnail strip jumps past the preload window. On open, this
-    // still runs inside `commitPrepare`'s flushSync (visible item, image
-    // already in the tree) so the placeholder is in the morph "new" snapshot.
-    // Only touches the image when the consumer opted in via `imageRef` (or
-    // Media auto-wired it).
-    React.useLayoutEffect(() => {
-      if (!isVisible) return;
-      const img = imageNodeRef.current;
-      if (!img) return;
-      if (img.complete && img.naturalWidth > 0) return; // already decoded
+    // Canvas host must be `Lightbox.Media` or an explicit non-img `morphRef`.
+    // We do not insert into `img.parentElement` / retarget the morph — that
+    // silently used Zoom's full-size transform wrapper. Without a host, fall
+    // back to the CSS background on the destination image.
+    const canvasHost = morphNodeRef.current ?? mediaNodeRef.current;
+    const canvasRestore =
+      canvasHost && canvasHost !== img
+        ? tryPaintCanvasPlaceholder({
+            img,
+            source,
+            fit,
+            objectPosition: cs.objectPosition,
+            host: canvasHost,
+          })
+        : null;
 
-      const clicked =
-        openingTriggerIndexRef.current === index ? openingTriggerImageRef.current : null;
-      const source = clicked ?? triggerImageElementsRef.current?.get(index) ?? null;
-      const src = source?.currentSrc ?? '';
-
-      if (!src) {
-        if (process.env.NODE_ENV !== 'production' && !warnedRef.current) {
-          const hasTriggerImage = triggerImageElementsRef.current?.has(index) ?? false;
-          // Only nag when the trigger genuinely *has* an image that wasn't wired
-          // up (a real mistake) — never for intentionally non-image triggers
-          // (e.g. a colour swatch). This DOM check is dev-only and off the
-          // runtime placeholder path.
-          const triggerRoot =
-            (openingTriggerIndexRef.current === index ? openingTriggerElementRef.current : null) ??
-            triggerElementsRef.current?.get(index) ??
-            null;
-          const triggerHasImage = !!triggerRoot?.querySelector('img');
-          if (triggerHasImage && !hasTriggerImage) {
-            warnedRef.current = true;
-            // eslint-disable-next-line no-console
-            console.warn(
-              `[ramka] Lightbox.Item index=${index}: image not yet loaded and no placeholder ` +
-                `source found, so the open transition may flash a blank frame. Attach ` +
-                `\`imageRef\` on Lightbox.Trigger's <img> (via its render ` +
-                `function) to bridge it, or pass an already-loaded image.`,
-            );
-          }
-        }
-        return;
-      }
-
-      const cs = getComputedStyle(img);
-      const fit = cs.objectFit === 'contain' ? 'contain' : 'cover';
-
-      // Prefer a <canvas> underlay over a CSS background. WHY: during the open
-      // morph WebKit routinely captures the destination's "new" view-transition
-      // snapshot before an async image decode lands, so a `background-image`
-      // (decoded async, per-draw-size, and especially unreliable behind a
-      // *replaced* <img>) is blank for the first frame(s) and at the VT→live
-      // handoff — which is what makes the placeholder "disappear", the trigger's
-      // baked border-radius balloon (we fall back to the opaque old/trigger
-      // snapshot), and the letterboxing arrive late. A canvas is a pre-
-      // rasterized bitmap: `drawImage` of the already-decoded trigger thumbnail
-      // is synchronous, so its backing store is ready before the snapshot and
-      // survives the handoff with no re-decode. We size the letterbox rect
-      // ourselves from the trigger's intrinsic dimensions (`source.natural*`).
-      //
-      // Canvas host must be `Lightbox.Media` or an explicit non-img `morphRef`.
-      // We do not insert into `img.parentElement` / retarget the morph — that
-      // silently used Zoom's full-size transform wrapper. Without a host, fall
-      // back to the CSS background on the destination image.
-      const canvasHost = morphNodeRef.current ?? mediaNodeRef.current;
-      const canvasRestore =
-        canvasHost && canvasHost !== img
-          ? tryPaintCanvasPlaceholder({
-              img,
-              source,
-              fit,
-              objectPosition: cs.objectPosition,
-              host: canvasHost,
-            })
-          : null;
-
-      let restore: () => void;
-      if (canvasRestore) {
-        const notifyMedia = canvasHost === mediaNodeRef.current;
-        if (notifyMedia) setMediaPlaceholderRef.current?.(true);
-        restore = () => {
-          canvasRestore();
-          if (notifyMedia) setMediaPlaceholderRef.current?.(false);
-        };
+    let restore: () => void;
+    if (canvasRestore) {
+      const notifyMedia = canvasHost === mediaNodeRef.current;
+      if (notifyMedia) setMediaPlaceholderRef.current?.(true);
+      restore = () => {
+        canvasRestore();
+        if (notifyMedia) setMediaPlaceholderRef.current?.(false);
+      };
+    } else {
+      // Fallback: paint the thumbnail as the <img>'s own CSS background. Size
+      // it OURSELVES in px (not the `cover|contain` keyword, which resolves
+      // against the background's async-reported intrinsic ratio and briefly
+      // degenerates to filling the box) using the trigger's intrinsic size.
+      const saved = {
+        image: img.style.backgroundImage,
+        size: img.style.backgroundSize,
+        position: img.style.backgroundPosition,
+        repeat: img.style.backgroundRepeat,
+      };
+      restore = () => {
+        img.style.backgroundImage = saved.image;
+        img.style.backgroundSize = saved.size;
+        img.style.backgroundPosition = saved.position;
+        img.style.backgroundRepeat = saved.repeat;
+      };
+      img.style.backgroundImage = `url("${src}")`;
+      const boxW = img.clientWidth;
+      const boxH = img.clientHeight;
+      const natW = source?.naturalWidth ?? 0;
+      const natH = source?.naturalHeight ?? 0;
+      if (boxW > 0 && boxH > 0 && natW > 0 && natH > 0) {
+        const scale = fit === 'contain' ? Math.min(boxW / natW, boxH / natH) : Math.max(boxW / natW, boxH / natH);
+        img.style.backgroundSize = `${natW * scale}px ${natH * scale}px`;
       } else {
-        // Fallback: paint the thumbnail as the <img>'s own CSS background. Size
-        // it OURSELVES in px (not the `cover|contain` keyword, which resolves
-        // against the background's async-reported intrinsic ratio and briefly
-        // degenerates to filling the box) using the trigger's intrinsic size.
-        const saved = {
-          image: img.style.backgroundImage,
-          size: img.style.backgroundSize,
-          position: img.style.backgroundPosition,
-          repeat: img.style.backgroundRepeat,
-        };
-        restore = () => {
-          img.style.backgroundImage = saved.image;
-          img.style.backgroundSize = saved.size;
-          img.style.backgroundPosition = saved.position;
-          img.style.backgroundRepeat = saved.repeat;
-        };
-        img.style.backgroundImage = `url("${src}")`;
-        const boxW = img.clientWidth;
-        const boxH = img.clientHeight;
-        const natW = source?.naturalWidth ?? 0;
-        const natH = source?.naturalHeight ?? 0;
-        if (boxW > 0 && boxH > 0 && natW > 0 && natH > 0) {
-          const scale =
-            fit === 'contain'
-              ? Math.min(boxW / natW, boxH / natH)
-              : Math.max(boxW / natW, boxH / natH);
-          img.style.backgroundSize = `${natW * scale}px ${natH * scale}px`;
-        } else {
-          img.style.backgroundSize = fit;
-        }
-        img.style.backgroundPosition = cs.objectPosition || 'center';
-        img.style.backgroundRepeat = 'no-repeat';
+        img.style.backgroundSize = fit;
       }
+      img.style.backgroundPosition = cs.objectPosition || 'center';
+      img.style.backgroundRepeat = 'no-repeat';
+    }
 
-      let cleared = false;
-      let rafA = 0;
-      let rafB = 0;
-      let imagePainted = false;
+    let cleared = false;
+    let rafA = 0;
+    let rafB = 0;
+    let imagePainted = false;
 
-      // Only gate on the open transition when one is actually in flight as this
-      // item mounts — i.e. the morphing slide. Items navigated to *after* the
-      // open (adjacent slides) see no pending transition and clear on load as
-      // usual; otherwise they'd wait forever for an open-complete that already
-      // fired.
-      let openSettled = !openTransitionPendingRef.current;
+    // Only gate on the open transition when one is actually in flight as this
+    // item mounts — i.e. the morphing slide. Items navigated to *after* the
+    // open (adjacent slides) see no pending transition and clear on load as
+    // usual; otherwise they'd wait forever for an open-complete that already
+    // fired.
+    let openSettled = !openTransitionPendingRef.current;
 
-      // ⚠️ IMPORTANT — the placeholder is the bridge for the open morph, so two
-      // independent conditions must BOTH hold before we pull it out from under
-      // the destination <img>. Whichever lands last performs the single restore.
-      //
-      //   (a) the full-res image is actually painted. `load` only means the
-      //       bytes arrived; the <img>'s replaced content isn't composited until
-      //       a later frame (notably mobile Safari). So decode() (pixels ready)
-      //       then wait two animation frames (content composited) before marking
-      //       it painted. Clearing any earlier flashes a blank frame.
-      //
-      //   (b) the open transition has finished. Clearing the placeholder while
-      //       the morph is still running swaps the element's paint out mid-
-      //       transition and flashes on mobile Safari, so we defer to
-      //       `subscribeOpenComplete` (fires on open finish, and on close so an
-      //       interrupted open still releases the gate).
-      const tryRestore = () => {
-        if (cleared || !imagePainted || !openSettled) return;
-        cleared = true;
-        restore();
-      };
+    // ⚠️ IMPORTANT — the placeholder is the bridge for the open morph, so two
+    // independent conditions must BOTH hold before we pull it out from under
+    // the destination <img>. Whichever lands last performs the single restore.
+    //
+    //   (a) the full-res image is actually painted. `load` only means the
+    //       bytes arrived; the <img>'s replaced content isn't composited until
+    //       a later frame (notably mobile Safari). So decode() (pixels ready)
+    //       then wait two animation frames (content composited) before marking
+    //       it painted. Clearing any earlier flashes a blank frame.
+    //
+    //   (b) the open transition has finished. Clearing the placeholder while
+    //       the morph is still running swaps the element's paint out mid-
+    //       transition and flashes on mobile Safari, so we defer to
+    //       `subscribeOpenComplete` (fires on open finish, and on close so an
+    //       interrupted open still releases the gate).
+    const tryRestore = () => {
+      if (cleared || !imagePainted || !openSettled) return;
+      cleared = true;
+      restore();
+    };
 
-      const markPainted = () => {
-        imagePainted = true;
-        tryRestore();
-      };
-      const scheduleRestore = () => {
-        if (cleared) return;
-        rafA = requestAnimationFrame(() => {
-          rafB = requestAnimationFrame(markPainted);
+    const markPainted = () => {
+      imagePainted = true;
+      tryRestore();
+    };
+    const scheduleRestore = () => {
+      if (cleared) return;
+      rafA = requestAnimationFrame(() => {
+        rafB = requestAnimationFrame(markPainted);
+      });
+    };
+    const onLoad = () => {
+      if (cleared) return;
+      if (typeof img.decode === 'function') {
+        img.decode().then(scheduleRestore, scheduleRestore);
+      } else {
+        scheduleRestore();
+      }
+    };
+    img.addEventListener('load', onLoad);
+
+    const unsubscribeOpenComplete = openSettled
+      ? null
+      : subscribeOpenComplete(() => {
+          openSettled = true;
+          tryRestore();
         });
-      };
-      const onLoad = () => {
-        if (cleared) return;
-        if (typeof img.decode === 'function') {
-          img.decode().then(scheduleRestore, scheduleRestore);
-        } else {
-          scheduleRestore();
-        }
-      };
-      img.addEventListener('load', onLoad);
 
-      const unsubscribeOpenComplete = openSettled
-        ? null
-        : subscribeOpenComplete(() => {
-            openSettled = true;
-            tryRestore();
-          });
+    return () => {
+      img.removeEventListener('load', onLoad);
+      unsubscribeOpenComplete?.();
+      if (rafA) cancelAnimationFrame(rafA);
+      if (rafB) cancelAnimationFrame(rafB);
+      if (!cleared) restore();
+    };
+    // `isVisible` is the only render input — trigger/destination nodes are
+    // refs, read fresh each time the item enters the preload window.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isVisible]);
 
-      return () => {
-        img.removeEventListener('load', onLoad);
-        unsubscribeOpenComplete?.();
-        if (rafA) cancelAnimationFrame(rafA);
-        if (rafB) cancelAnimationFrame(rafB);
-        if (!cleared) restore();
-      };
-      // `isVisible` is the only render input — trigger/destination nodes are
-      // refs, read fresh each time the item enters the preload window.
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isVisible]);
+  // Register active item element for view transitions.
+  // useLayoutEffect ensures the ref is set synchronously after
+  // commit, which is critical for flushSync in the view transition flow.
+  React.useLayoutEffect(() => {
+    if (isActive && internalRef.current) {
+      activeItemElementRef.current = internalRef.current;
+    }
+  }, [isActive, activeItemElementRef]);
 
-    // Register active item element for view transitions.
-    // useLayoutEffect ensures the ref is set synchronously after
-    // commit, which is critical for flushSync in the view transition flow.
-    React.useLayoutEffect(() => {
-      if (isActive && internalRef.current) {
-        activeItemElementRef.current = internalRef.current;
-      }
-    }, [isActive, activeItemElementRef]);
+  React.useEffect(() => {
+    return registerItem(index);
+  }, [index, registerItem]);
 
-    React.useEffect(() => {
-      return registerItem(index);
-    }, [index, registerItem]);
+  React.useEffect(() => {
+    if (caption !== undefined) {
+      return registerCaption(index, caption);
+    }
+  }, [index, caption, registerCaption]);
 
-    React.useEffect(() => {
-      if (caption !== undefined) {
-        return registerCaption(index, caption);
-      }
-    }, [index, caption, registerCaption]);
-
-    const resolvedChildren = React.useMemo(() => {
-      if (!isVisible) return null;
-      return typeof children === 'function'
-        ? children({ active: isActive, visible: isVisible, index, imageRef, morphRef })
-        : children;
-    }, [isVisible, isActive, index, children, imageRef, morphRef]);
-
-    const state = React.useMemo<LightboxItemState>(() => ({ active: isActive, index }), [isActive, index]);
-
-    // ARIA semantics (WAI-ARIA APG). Two valid shapes depending on whether a
-    // thumbnail `tablist` is present to own the panels:
-    //
-    //  - Tabbed carousel (thumbnails present): each item is a `tabpanel`
-    //    labelled by its controlling `tab` (`aria-labelledby`). The matching
-    //    `tab` sets `aria-controls` back to this panel's id.
-    //  - Standalone carousel (no thumbnails): a `tabpanel` with no owning `tab`
-    //    is invalid ARIA, so the item becomes a carousel slide instead —
-    //    `role="group"`, which the APG carousel pattern expects to carry both
-    //    `aria-roledescription="slide"` and a position in its name (a `group`
-    //    can't use aria-posinset/setsize, so the position folds into the label).
-    //
-    // Both of those are human-language copy — "slide" and the "of" in "3 of 12"
-    // — so they are the consumer's to pass, translated. The position itself is
-    // yours already: you render the items, so you have the index and the count.
-    const panelId = `${baseId}-panel-${index}`;
-    const tabId = `${baseId}-tab-${index}`;
-    const semanticProps: Record<string, string> = hasTablist
-      ? { role: 'tabpanel', 'aria-labelledby': tabId }
-      : { role: 'group' };
-
-    const itemContextValue = React.useMemo<LightboxItemContextValue>(
-      () => ({ index, active: isActive, imageRef, morphRef, registerMedia, registerPlaceholder }),
-      [index, isActive, imageRef, morphRef, registerMedia, registerPlaceholder],
-    );
-
-    // useRender is a hook — must always be called regardless of visibility
-    const rendered = useRender({
-      render,
-      ref: nameCheckedRef,
-      state,
-      stateAttributesMapping: itemStateAttributesMapping,
-      props: mergeProps<'div'>(
-        {
-          // `data-ramka-item` is the stable selector that internal hooks
-          // (e.g. pull-to-dismiss) use to walk up from a pointer's target to
-          // the owning item. It replaces what was a branded class name in
-          // upstream so the primitives stay free of ship-as-is styles.
-          [LightboxItemDataAttributes.item]: '',
-          // SERVER PAINT ONLY: mark the active item so the SSR initial-slide
-          // CSS (delivered by Slides — see ssr-initial-slide.ts) can point
-          // `scroll-initial-target` at it, letting supporting engines scroll a
-          // server-rendered open lightbox to the right slide before first
-          // paint, whatever the slide widths. Gated on `useIsServerPaint` —
-          // NOT `typeof window` — so the hydration render also includes the
-          // prop (matching the server byte-for-byte; React 19 warns on
-          // attributes the server rendered but hydration didn't) and React
-          // itself removes the attribute on the post-hydration flip. By then
-          // it has done its job: `scroll-initial-target` applies during the
-          // scroller's initial layout only, and a lingering copy would go
-          // stale (it marks the SSR-time active item). Client mounts never
-          // render it.
-          ...(isActive && isServerPaint ? { [LightboxItemDataAttributes.ssrActive]: '' } : null),
-          id: panelId,
-          ...semanticProps,
-          // Inactive slides/panels are kept out of the a11y tree (and out of
-          // the tab order) so a screen reader never reads an off-screen slide,
-          // and the active one is exposed. `inert` also blocks pointer/focus.
-          'aria-hidden': !isActive,
-          ...inertWhen(!isActive),
-          style: {
-            // Fill the Slide so Zoom’s 100% has a definite box.
-            width: '100%',
-            height: '100%',
-            // Pull-to-dismiss writes per-frame 2D transforms on the active
-            // item, and 2D transforms alone don't force compositor promotion —
-            // without a persistent layer the promote/demote at gesture start/
-            // end leaves rasterization seams next to the image. Active-scoped
-            // so only one slide pays the layer cost.
-            willChange: isActive ? 'transform' : undefined,
-            ...style,
-          },
-        } as React.ComponentPropsWithRef<'div'>,
-        elementProps as React.ComponentPropsWithRef<'div'>,
-        { children: resolvedChildren } as React.ComponentPropsWithRef<'div'>,
-      ),
-      defaultTagName: 'div',
-    });
-
+  const resolvedChildren = React.useMemo(() => {
     if (!isVisible) return null;
+    return typeof children === 'function'
+      ? children({ active: isActive, visible: isVisible, index, imageRef, morphRef })
+      : children;
+  }, [isVisible, isActive, index, children, imageRef, morphRef]);
 
-    return <LightboxItemContext.Provider value={itemContextValue}>{rendered}</LightboxItemContext.Provider>;
-  },
-);
+  const state = React.useMemo<LightboxItemState>(() => ({ active: isActive, index }), [isActive, index]);
+
+  // ARIA semantics (WAI-ARIA APG). Two valid shapes depending on whether a
+  // thumbnail `tablist` is present to own the panels:
+  //
+  //  - Tabbed carousel (thumbnails present): each item is a `tabpanel`
+  //    labelled by its controlling `tab` (`aria-labelledby`). The matching
+  //    `tab` sets `aria-controls` back to this panel's id.
+  //  - Standalone carousel (no thumbnails): a `tabpanel` with no owning `tab`
+  //    is invalid ARIA, so the item becomes a carousel slide instead —
+  //    `role="group"`, which the APG carousel pattern expects to carry both
+  //    `aria-roledescription="slide"` and a position in its name (a `group`
+  //    can't use aria-posinset/setsize, so the position folds into the label).
+  //
+  // Both of those are human-language copy — "slide" and the "of" in "3 of 12"
+  // — so they are the consumer's to pass, translated. The position itself is
+  // yours already: you render the items, so you have the index and the count.
+  const panelId = `${baseId}-panel-${index}`;
+  const tabId = `${baseId}-tab-${index}`;
+  const semanticProps: Record<string, string> = hasTablist
+    ? { role: 'tabpanel', 'aria-labelledby': tabId }
+    : { role: 'group' };
+
+  const itemContextValue = React.useMemo<LightboxItemContextValue>(
+    () => ({ index, active: isActive, imageRef, morphRef, registerMedia, registerPlaceholder }),
+    [index, isActive, imageRef, morphRef, registerMedia, registerPlaceholder],
+  );
+
+  // useRender is a hook — must always be called regardless of visibility
+  const rendered = useRender({
+    render,
+    ref: nameCheckedRef,
+    state,
+    stateAttributesMapping: itemStateAttributesMapping,
+    props: mergeProps<'div'>(
+      {
+        // `data-ramka-item` is the stable selector that internal hooks
+        // (e.g. pull-to-dismiss) use to walk up from a pointer's target to
+        // the owning item. It replaces what was a branded class name in
+        // upstream so the primitives stay free of ship-as-is styles.
+        [LightboxItemDataAttributes.item]: '',
+        // SERVER PAINT ONLY: mark the active item so the SSR initial-slide
+        // CSS (delivered by Slides — see ssr-initial-slide.ts) can point
+        // `scroll-initial-target` at it, letting supporting engines scroll a
+        // server-rendered open lightbox to the right slide before first
+        // paint, whatever the slide widths. Gated on `useIsServerPaint` —
+        // NOT `typeof window` — so the hydration render also includes the
+        // prop (matching the server byte-for-byte; React 19 warns on
+        // attributes the server rendered but hydration didn't) and React
+        // itself removes the attribute on the post-hydration flip. By then
+        // it has done its job: `scroll-initial-target` applies during the
+        // scroller's initial layout only, and a lingering copy would go
+        // stale (it marks the SSR-time active item). Client mounts never
+        // render it.
+        ...(isActive && isServerPaint ? { [LightboxItemDataAttributes.ssrActive]: '' } : null),
+        id: panelId,
+        ...semanticProps,
+        // Inactive slides/panels are kept out of the a11y tree (and out of
+        // the tab order) so a screen reader never reads an off-screen slide,
+        // and the active one is exposed. `inert` also blocks pointer/focus.
+        'aria-hidden': !isActive,
+        ...inertWhen(!isActive),
+        style: {
+          // Fill the Slide so Zoom’s 100% has a definite box.
+          width: '100%',
+          height: '100%',
+          // Pull-to-dismiss writes per-frame 2D transforms on the active
+          // item, and 2D transforms alone don't force compositor promotion —
+          // without a persistent layer the promote/demote at gesture start/
+          // end leaves rasterization seams next to the image. Active-scoped
+          // so only one slide pays the layer cost.
+          willChange: isActive ? 'transform' : undefined,
+          ...style,
+        },
+      } as React.ComponentPropsWithRef<'div'>,
+      elementProps as React.ComponentPropsWithRef<'div'>,
+      { children: resolvedChildren } as React.ComponentPropsWithRef<'div'>,
+    ),
+    defaultTagName: 'div',
+  });
+
+  if (!isVisible) return null;
+
+  return <LightboxItemContext.Provider value={itemContextValue}>{rendered}</LightboxItemContext.Provider>;
+});
 
 LightboxItem.displayName = 'LightboxItem';
 
 export { LightboxItem, LightboxItemContext, useOptionalLightboxItemContext };
-export type {
-  LightboxItemProps,
-  LightboxItemState,
-  LightboxItemContextValue,
-  LightboxItemRenderState,
-};
+export type { LightboxItemProps, LightboxItemState, LightboxItemContextValue, LightboxItemRenderState };

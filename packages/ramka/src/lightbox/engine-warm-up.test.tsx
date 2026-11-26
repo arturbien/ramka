@@ -74,7 +74,7 @@ function removeIdleCallback() {
 function TestLightbox({ viewTransition = true }: { viewTransition?: boolean } = {}) {
   return (
     <LightboxRoot viewTransition={viewTransition}>
-      <LightboxTrigger index={0} data-testid="trigger">
+      <LightboxTrigger itemId="0" data-testid="trigger">
         Open
       </LightboxTrigger>
       <LightboxPortal>

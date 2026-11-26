@@ -8,8 +8,8 @@ import type { LightboxHandle, LightboxTriggerRenderState } from '@ramka/react';
 import { triggerFocusClass, type LightboxImageSource } from '../../../_components/lightbox-chrome';
 
 type Photo = {
-  /** Matches demo `LightboxGalleryItem.id` (optional string | number). */
-  id?: string | number;
+  /** Matches demo `LightboxGalleryItem.id` — the Item's `itemId`. */
+  id: string;
   thumb: LightboxImageSource;
   alt: string;
 };
@@ -17,29 +17,22 @@ type Photo = {
 /**
  * Accessible double-click-to-open tile:
  *
- * - Preview: double-click opens via `handle.open` (pointer convenience).
+ * - Preview: double-click opens via `handle.open(photo.id)` (pointer convenience).
  * - `Lightbox.Trigger`: explicit single-pointer control (WCAG 2.5.1) with
  *   native button semantics, keyboard (Enter/Space), and focus return.
+ *   `handle.open(itemId)` resolves this Trigger as the item's opener, so the
+ *   morph and focus return work for the double-click path too.
  * - `morphRef` targets the preview; the library-injected `data-morph-target`
  *   hide covers it during morphs; `imageRef` keeps placeholder bridging.
  */
-export function AccessibleDoubleClickTile({
-  handle,
-  photo,
-  index,
-}: {
-  handle: LightboxHandle;
-  photo: Photo;
-  index: number;
-}) {
+export function AccessibleDoubleClickTile({ handle, photo }: { handle: LightboxHandle; photo: Photo }) {
   const previewRef = React.useRef<HTMLDivElement | null>(null);
-  const triggerId = String(photo.id ?? `dbl-${index}`);
   const open = React.useCallback(() => {
-    handle.open(index, { triggerId });
-  }, [handle, index, triggerId]);
+    handle.open(photo.id);
+  }, [handle, photo.id]);
 
-  const previewId = `${triggerId}-preview`;
-  const hintId = `${triggerId}-hint`;
+  const previewId = `${photo.id}-preview`;
+  const hintId = `${photo.id}-hint`;
 
   return (
     <figure className="flex flex-col gap-2">
@@ -71,17 +64,11 @@ export function AccessibleDoubleClickTile({
 
       <Lightbox.Trigger
         handle={handle}
-        id={triggerId}
-        index={index}
+        itemId={photo.id}
         className={`self-start rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-sm font-medium text-neutral-900 shadow-sm transition-colors hover:bg-neutral-50 focus:outline-none dark:border-neutral-600 dark:bg-neutral-900 dark:text-neutral-100 dark:hover:bg-neutral-800 ${triggerFocusClass}`}
       >
         {(state) => (
-          <TriggerRegistration
-            previewRef={previewRef}
-            thumb={photo.thumb}
-            label={`Open ${photo.alt}`}
-            {...state}
-          />
+          <TriggerRegistration previewRef={previewRef} thumb={photo.thumb} label={`Open ${photo.alt}`} {...state} />
         )}
       </Lightbox.Trigger>
     </figure>
@@ -109,14 +96,7 @@ function TriggerRegistration({
 
   return (
     <>
-      <Image
-        ref={imageRef}
-        src={thumb as StaticImageData}
-        alt=""
-        aria-hidden
-        sizes="170px"
-        className="sr-only"
-      />
+      <Image ref={imageRef} src={thumb as StaticImageData} alt="" aria-hidden sizes="170px" className="sr-only" />
       {label}
     </>
   );

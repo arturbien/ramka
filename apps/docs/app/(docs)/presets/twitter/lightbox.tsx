@@ -65,7 +65,11 @@ function IconReply() {
 function IconRepost() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} aria-hidden>
-      <path d="M4.5 9.5 9 5l4.5 4.5M9 5v11.5M19.5 14.5 15 19l-4.5-4.5M15 19V7.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path
+        d="M4.5 9.5 9 5l4.5 4.5M9 5v11.5M19.5 14.5 15 19l-4.5-4.5M15 19V7.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
@@ -105,7 +109,8 @@ function IconShare() {
 /* ── Public types ────────────────────────────────────────────────────────── */
 
 export type LightboxItem = {
-  id?: string | number;
+  /** Stable id for this photo — becomes the Item's `itemId`; Triggers open it by this id. */
+  id: string;
   src: string;
   thumb: string;
   alt: string;
@@ -173,11 +178,7 @@ function Stage({ className, ...props }: React.ComponentProps<typeof RamkaLightbo
   return <RamkaLightbox.Stage className={cx('xlb-media-pane', className)} {...props} />;
 }
 
-function Close({
-  className,
-  children,
-  ...props
-}: React.ComponentProps<typeof RamkaLightbox.Close>) {
+function Close({ className, children, ...props }: React.ComponentProps<typeof RamkaLightbox.Close>) {
   return (
     <RamkaLightbox.Close className={cx('xlb-control', 'xlb-close', className)} aria-label="Close" {...props}>
       {children ?? <IconX />}
@@ -205,11 +206,7 @@ function Zoom(props: React.ComponentProps<typeof RamkaLightbox.Zoom>) {
   return <RamkaLightbox.Zoom {...props} />;
 }
 
-function Previous({
-  className,
-  children,
-  ...props
-}: React.ComponentProps<typeof RamkaLightbox.Previous>) {
+function Previous({ className, children, ...props }: React.ComponentProps<typeof RamkaLightbox.Previous>) {
   return (
     <RamkaLightbox.Previous
       className={cx('xlb-control', 'xlb-nav', 'xlb-nav-prev', className)}
@@ -234,20 +231,12 @@ function Next({ className, children, ...props }: React.ComponentProps<typeof Ram
 }
 
 function Counter({ className, ...props }: React.ComponentProps<typeof RamkaLightbox.Counter>) {
-  return (
-    <RamkaLightbox.Counter className={cx('xlb-counter', 'xlb-chrome-pull-hide', className)} {...props} />
-  );
+  return <RamkaLightbox.Counter className={cx('xlb-counter', 'xlb-chrome-pull-hide', className)} {...props} />;
 }
 
 /* ── Mobile engagement bar ───────────────────────────────────────────────── */
 
-function MobileActionBar({
-  stats,
-  onOpenThread,
-}: {
-  stats: ThreadPost['stats'];
-  onOpenThread: () => void;
-}) {
+function MobileActionBar({ stats, onOpenThread }: { stats: ThreadPost['stats']; onOpenThread: () => void }) {
   return (
     <div className="xlb-mobile-bar xlb-chrome-pull-hide" aria-label="Post actions">
       <button type="button" className="xlb-mobile-action" aria-label="View comments" onClick={onOpenThread}>
@@ -328,25 +317,14 @@ function ThreadPanel({
       onKeyDown={handleKeyDown}
     >
       <div className="xlb-thread-header">
-        <button
-          type="button"
-          className="xlb-thread-back"
-          aria-label="Close thread"
-          onClick={onClose}
-        >
+        <button type="button" className="xlb-thread-back" aria-label="Close thread" onClick={onClose}>
           <IconX />
         </button>
         <h2 className="xlb-thread-title">Post</h2>
         <span className="xlb-thread-header-spacer" aria-hidden />
       </div>
 
-      <div
-        ref={scrollRef}
-        className="xlb-thread-scroll"
-        tabIndex={0}
-        role="region"
-        aria-label="Thread"
-      >
+      <div ref={scrollRef} className="xlb-thread-scroll" tabIndex={0} role="region" aria-label="Thread">
         <div className="xlb-thread-body">
           <div className="xlb-author">
             <img src={thread.author.avatar} alt="" className="xlb-avatar" draggable={false} />
@@ -378,8 +356,7 @@ function ThreadPanel({
 
           {stats ? (
             <p className="xlb-post-meta">
-              <strong>{formatCount(stats.reposts)}</strong> Reposts ·{' '}
-              <strong>{formatCount(stats.likes)}</strong> Likes
+              <strong>{formatCount(stats.reposts)}</strong> Reposts · <strong>{formatCount(stats.likes)}</strong> Likes
             </p>
           ) : null}
 
@@ -404,12 +381,7 @@ function ThreadPanel({
 
         <div className="xlb-reply-box">
           <img src={thread.author.avatar} alt="" className="xlb-avatar xlb-reply-avatar" draggable={false} />
-          <input
-            type="text"
-            className="xlb-reply-input"
-            placeholder="Post your reply"
-            aria-label="Post your reply"
-          />
+          <input type="text" className="xlb-reply-input" placeholder="Post your reply" aria-label="Post your reply" />
         </div>
 
         <ul className="xlb-replies" aria-label="Replies">
@@ -435,15 +407,7 @@ function ThreadPanel({
 /**
  * Twitter-style split viewer — dark media pane + thread (sidebar / mobile sheet).
  */
-function Gallery({
-  items,
-  thread,
-  ariaLabel,
-}: {
-  items: LightboxItem[];
-  thread: ThreadPost;
-  ariaLabel: string;
-}) {
+function Gallery({ items, thread, ariaLabel }: { items: LightboxItem[]; thread: ThreadPost; ariaLabel: string }) {
   const showNav = items.length > 1;
   const [threadOpen, setThreadOpen] = React.useState(false);
 
@@ -453,10 +417,7 @@ function Gallery({
   return (
     <Portal>
       <Backdrop />
-      <Content
-        aria-label={ariaLabel}
-        className={threadOpen ? 'xlb-content-thread-open' : undefined}
-      >
+      <Content aria-label={ariaLabel} className={threadOpen ? 'xlb-content-thread-open' : undefined}>
         <Stage>
           <Close className="xlb-chrome-pull-hide" />
 
@@ -468,9 +429,10 @@ function Gallery({
             preload={1}
           >
             {items.map((item, i) => (
-              <Slide key={item.id ?? i}>
+              <Slide key={item.id}>
                 <Item
                   index={i}
+                  itemId={item.id}
                   aria-roledescription="slide"
                   aria-label={`${i + 1} of ${items.length}`}
                 >

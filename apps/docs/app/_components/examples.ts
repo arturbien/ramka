@@ -27,7 +27,8 @@ export const lightboxExamples: ExampleLink[] = [
   {
     slug: 'photos-app',
     title: 'Photos app',
-    description: 'macOS Photos–style square grid under a sticky, blurred toolbar with a fade gradient and "Library" title.',
+    description:
+      'macOS Photos–style square grid under a sticky, blurred toolbar with a fade gradient and "Library" title.',
   },
   {
     slug: 'photos-app-rtl',
@@ -42,14 +43,37 @@ export const lightboxExamples: ExampleLink[] = [
       'An endless feed where the lightbox paginates too — one photo array drives grid tiles and slides; the grid loads pages via an IntersectionObserver sentinel, and onValueChange fetches ahead inside the open viewer, appending slides to the native scroll-snap track with a minimal Previous/Next chrome (no thumbnails).',
   },
   {
-    slug: 'url-synced-state',
-    title: 'URL-synced state',
+    slug: 'intercepted-routes',
+    title: 'Intercepted routes',
     description:
-      'Masonry wall wired to Next.js dynamic routes ([[...id]]) — every photo is a shareable URL: deep links open the viewer on that slide, swiping rewrites the URL in place, and browser Back closes the viewer.',
-    pagePath: 'url-synced-state/[[...id]]/page.tsx',
+      'The nextgram pattern with a morph: tiles are Triggers rendered as Links, so a click morphs the viewer open and soft-navigates to the intercepted (.)photos/[id] route in a @modal slot — Back and Forward close and reopen it, hard loads get a standalone photo page (one URL, two presentations).',
     extraSources: [
-      '(docs)/examples/lightbox/url-synced-state/url-synced-state-demo.tsx',
-      '(docs)/examples/lightbox/url-synced-state/photos.ts',
+      '(docs)/examples/lightbox/intercepted-routes/layout.tsx',
+      '(docs)/examples/lightbox/intercepted-routes/photo-viewer.tsx',
+      '(docs)/examples/lightbox/intercepted-routes/photos.ts',
+      '(docs)/examples/lightbox/intercepted-routes/@modal/default.tsx',
+      '(docs)/examples/lightbox/intercepted-routes/@modal/(.)photos/[id]/page.tsx',
+      '(docs)/examples/lightbox/intercepted-routes/photos/[id]/page.tsx',
+    ],
+  },
+  {
+    slug: 'shared-lightbox',
+    title: 'Shared lightbox',
+    description:
+      'One lightbox, many galleries: a 1,000-message chat with a single Root, where each trigger carries its message as a payload. The feed is virtualized, so triggers mount and unmount as you scroll; a reveal callback on scrollTriggerIntoView brings a row back for the close morph, and "+N" grids close onto their tile.',
+    extraSources: [
+      '(docs)/examples/lightbox/shared-lightbox/chat-feed.tsx',
+      '(docs)/examples/lightbox/shared-lightbox/chat-data.ts',
+    ],
+  },
+  {
+    slug: 'shareable-albums',
+    title: 'Shareable albums',
+    description:
+      'A photo journal where every photo in every album has its own link, and all albums share one Root. A link renders the viewer already open from the server, with defaultPayload naming the album no Trigger was tapped for; Back and Forward reopen albums with handle.open.',
+    extraSources: [
+      '(docs)/examples/lightbox/shareable-albums/albums-demo.tsx',
+      '(docs)/examples/lightbox/shareable-albums/albums.ts',
       // The SSR deep-link pattern is inert without these: the no-transitions
       // rule and the strip's data-positioned reveal. A copy made from the .md
       // alone would fade itself in on load and snap the strip — with no error
@@ -61,23 +85,11 @@ export const lightboxExamples: ExampleLink[] = [
     ],
   },
   {
-    slug: 'intercepted-routes',
-    title: 'Intercepted routes',
+    slug: 'curated-grid',
+    title: 'Curated grid',
     description:
-      'The nextgram pattern: grid of plain Links, a @modal parallel-route slot, and an (.)photos/[id] intercepting route mounting an already-open controlled lightbox — Back closes it, hard loads get a standalone photo page (one URL, two presentations).',
-    extraSources: [
-      '(docs)/examples/lightbox/intercepted-routes/layout.tsx',
-      '(docs)/examples/lightbox/intercepted-routes/photo-modal.tsx',
-      '(docs)/examples/lightbox/intercepted-routes/photos.ts',
-      '(docs)/examples/lightbox/intercepted-routes/@modal/default.tsx',
-      '(docs)/examples/lightbox/intercepted-routes/@modal/(.)photos/[id]/page.tsx',
-      '(docs)/examples/lightbox/intercepted-routes/photos/[id]/page.tsx',
-    ],
-  },
-  {
-    slug: 'text-message',
-    title: 'Text message',
-    description: 'iMessage-style chat with a single morphTo="origin" trigger over a stack of attachments.',
+      "A vacation-rental cover grid showing the host's five picks from a 21-photo tour. Photos without a tile close onto the last tile through overflowItemIds, crossfading, while the five picks morph back to their own tiles.",
+    extraSources: ['(docs)/examples/lightbox/curated-grid/listing-data.ts'],
   },
   {
     slug: 'film-trailers',

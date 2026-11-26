@@ -6,10 +6,7 @@ import Image, { type StaticImageData } from 'next/image';
 import * as Lightbox from '@ramka/react/lightbox';
 import { Heart, Minus, Plus } from 'lucide-react';
 
-import {
-  LightboxGallery,
-  triggerFocusClass,
-} from '../../../../_components/lightbox-chrome';
+import { LightboxGallery, triggerFocusClass } from '../../../../_components/lightbox-chrome';
 import { photoImages } from './images.generated';
 
 /**
@@ -179,10 +176,10 @@ export function PhotosAppView({ dir = 'ltr' }: { dir?: 'ltr' | 'rtl' }) {
               viewTransitionName: 'photos-grid',
             }}
           >
-            {photos.map((photo, i) => (
+            {photos.map((photo) => (
               <Lightbox.Trigger
                 key={photo.id}
-                index={i}
+                itemId={photo.id}
                 // scroll-margin clears the sticky toolbar so scrollTriggerIntoView
                 // doesn't leave a tile tucked under it. On mobile the docs
                 // MobileNav overlaps the toolbar and is handled by the document's
@@ -232,7 +229,7 @@ export function PhotosAppView({ dir = 'ltr' }: { dir?: 'ltr' | 'rtl' }) {
                   height={photo.image.height}
                   className="overflow-hidden rounded-none md:rounded-lg"
                 >
-                  {/* Destination Image: no placeholder — every index has a
+                  {/* Destination Image: no placeholder — every photo has a
                       trigger thumb, so Ramka owns the open bridge. */}
                   <Image
                     src={photo.image}

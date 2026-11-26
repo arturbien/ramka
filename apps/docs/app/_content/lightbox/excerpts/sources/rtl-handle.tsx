@@ -1,11 +1,9 @@
 import * as Lightbox from '@ramka/react/lightbox';
 
-declare const images: { id: string; src: string; alt: string }[];
-
 /**
- * The imperative API is index-based, and indices do not mirror: `goTo(0)` is
- * always the first item, which RTL renders at the right-hand edge. Only the
- * direction you travel to reach it changes.
+ * The imperative API names items by `itemId`, and nothing about it mirrors:
+ * `open('photo-1')` opens the first item, which RTL renders at the
+ * right-hand edge. Only the direction you travel to reach it changes.
  *
  * @docsExcerpt rtl-handle
  * @docsExcerptTitle Imperative API under RTL
@@ -16,12 +14,12 @@ export function RtlHandleExcerpt() {
   return (
     <>
       {/* Opens the first item, at the inline-start (right) edge of the track. */}
-      <button type="button" onClick={() => lightbox.open(0)}>
+      <button type="button" onClick={() => lightbox.open('photo-1')}>
         פתיחת הגלריה
       </button>
 
       {/* Jumps to the 4th item regardless of reading direction. */}
-      <button type="button" onClick={() => lightbox.goTo(3)}>
+      <button type="button" onClick={() => lightbox.goTo('photo-4')}>
         מעבר לתמונה 4
       </button>
 

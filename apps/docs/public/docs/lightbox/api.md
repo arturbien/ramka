@@ -16,42 +16,44 @@ Each part accepts native element props for its default host (via Base UI `render
 
 ### Root
 
-Groups all parts of the lightbox and owns open state, active index, view-transition morph, scroll locking, and the active-zoom bridge. Pass handle from Lightbox.createHandle() for imperative control and detached Triggers. Prefer onOpenChangeComplete for post-motion work; use scrollTriggerIntoView so close morphs land on-screen when the page scrolled while open.
+Groups all parts of the lightbox and owns open state, the active item (value, by itemId), view-transition morph, scroll locking, and the active-zoom bridge. Pass handle from Lightbox.createHandle() for imperative control and detached Triggers. Prefer onOpenChangeComplete for post-motion work; use scrollTriggerIntoView so close morphs land on-screen when the page scrolled while open.
 
 #### Props
 
 | Name | Type | Default | Description |
 | --- | --- | --- | --- |
-| children | `ReactNode` |  | Lightbox parts and page content (triggers typically live as children of Root). |
-| handle | `LightboxHandle` |  | Imperative handle from `Lightbox.createHandle()`. Pass the same handle to detached `Lightbox.Trigger`s outside this Root. |
+| children | `ReactNode` |  | Lightbox parts and page content (triggers typically live as children of Root). A viewer serving many galleries reads the open's payload with `useLightboxPayload()`. |
+| handle | `LightboxHandle<Payload>` |  | Imperative handle from `Lightbox.createHandle()`. Pass the same handle to detached `Lightbox.Trigger`s outside this Root. |
+| defaultPayload | `Payload` |  | Payload for a Root that starts open (`defaultOpen` / controlled `open`) — a deep link rendered from the URL. Later opens set the payload from the opening Trigger or `handle.open(itemId, { payload })`. Pair with `defaultValue` (or `value`) for the item, e.g. `params.photo`. |
 | defaultOpen | `boolean` | `false` | Uncontrolled initial open state. |
 | open | `boolean` |  | Controlled open state. |
 | onOpenChange | `(open: boolean) => void` |  | Called when open state changes (immediately, before enter/exit animations finish). Prefer this for syncing URL state or stores. |
 | onOpenChangeComplete | `(open: boolean) => void` |  | Called when the open/close transition settles. Receives `true` after open completes, `false` after close completes. Prefer this for cleanup and focus management. |
-| defaultValue | `number` | `0` | Uncontrolled initial active index. |
-| value | `number` |  | Controlled active index. |
-| onValueChange | `(value: number, metadata: { source: NavigationSource }) => void` |  | Callback when active index changes. |
-| count | `number` |  | Total number of items, used until the mounted `Lightbox.Item`s have registered themselves. Registration happens in effects, which never run during server rendering — so a page that server-renders an open lightbox paints `Lightbox.Counter` as "n / 0" (and boundary-disables `Lightbox.Next` / `Lightbox.Previous` when `loop` is off) until hydration. Pass the item total to make that first paint correct. Once any item mounts the live registry takes over and this prop is ignored, so it can't drift from the real count. |
+| defaultValue | `string` | `the first item` | Uncontrolled initial active item: its `itemId`. |
+| value | `string` |  | Controlled active item: its `itemId`. |
+| onValueChange | `(value: string, details: { index: number; source: NavigationSource }) => void` |  | Called when the active item changes, with its `itemId` — the stable key to write to a URL. `details.index` is its position in the viewer. |
+| itemIds | `readonly string[]` |  | The gallery's `itemId`s in viewer order, for a page that server-renders an open lightbox (a deep link). Items register in effects, which never run during server rendering, so without this the first paint can't know where `value` sits: `Lightbox.Counter`, `Lightbox.Caption`, the Previous/Next boundaries and the slide position stay wrong until hydration. Once items mount the live registry takes over and this prop is ignored, so it can't drift. |
 | loop | `boolean` | `false` | Wrap navigation at boundaries. |
 | dir | `TextDirection` | `'ltr' (behavior); no `dir` attribute is written when omitted` | Reading direction. `'rtl'` mirrors slide navigation, thumbnail-strip travel, and the horizontal arrow keys (so `ArrowLeft` advances). Setting this is enough on its own: the direction is written to the `Lightbox.Portal` host as a `dir` attribute, so CSS follows it across the portal boundary even though the host mounts on `document.body`. That also makes it the way to run one RTL lightbox inside an otherwise-LTR page. Pass it whenever the surrounding UI is RTL, including in an app that is already RTL end to end (`dir="rtl"` on `<html>`) — behavior falls back to `'ltr'` without it, and navigation would run against the layout. Omitting it writes no attribute at all, so such an app still *lays out* RTL by inheritance; in development that disagreement logs a warning. |
 | viewTransition | `boolean \| LightboxViewTransitionPreset` | `true` | Morph between trigger and lightbox item via the View Transitions API. On by default: clicking a trigger morphs into the fullscreen item, and close morphs back. The morph engine is loaded on first use — pass `false` to skip that download. Falls back to a plain fade when unsupported, when prefers-reduced-motion is set, or on low-end devices. Pass a preset name to pick the morph's motion (duration + easing): - `"default"` — 360ms, sheet curve with a tamed launch (same as `true`) - `"snappy"` — 340ms, hotter launch; reads quicker - `"relaxed"` — 400ms, softer launch and longer settle - `"spring"` — 450ms, critically damped spring; Photos-style settle Timing is preset-based (not free-form CSS) on purpose: each preset is vetted on-device to stay smooth and skip-safe on iOS Safari (including Low Power Mode) and Android, where arbitrary curves stutter or teleport. The chosen timing drives the morph, the crossfade and the root fade together so they always stay in sync. |
-| scrollTriggerIntoView | `ScrollTriggerIntoView` | `null` | Scroll the active trigger element into the viewport so close animations land on-screen instead of animating off-viewport. Accepts a single option or an array of options, so you can combine the moments below. Per option: - `behavior` — `"smooth"` (default) or `"instant"` - `block` / `inline` — `scrollIntoView` alignment (`"nearest"` default). Use `inline: "center"` for horizontal snap strips with variable-width tiles. - `null` (default) — no automatic scrolling - `{ type: "onChange" }` — scroll to the trigger the close morph will land on whenever the active index changes while the lightbox is open (preemptive; respects `morphTo`, so `closest` scrolls the nearest registered trigger when the active index has none) - `{ type: "onOpenComplete" }` — scroll to that same trigger once the open transition finishes. The viewer covers the page and scroll is locked, so this reposition is invisible — it only pays off by ensuring the close morph lands on-screen without a jump when the trigger was partially off-screen at open time. `"instant"` recommended. - `{ type: "onClose" }` — scroll to that trigger just before the close morph runs (visible reposition at close start) |
-| morphTo | `'active' \| 'origin' \| 'closest'` | `'active'` | Controls which trigger receives the View Transition morph on close. - `'active'` (default) — morph to the trigger matching the current active index. No morph if no trigger exists for that index. - `'origin'` — always morph back to the trigger that originally opened the lightbox, regardless of which item is active. - `'closest'` — morph to the trigger at the active index if it exists, otherwise fall back to the nearest registered trigger. |
+| scrollTriggerIntoView | `ScrollTriggerIntoView<Payload>` | `null` | Scroll the active trigger element into the viewport so close animations land on-screen instead of animating off-viewport. Accepts a single option or an array of options, so you can combine the moments below. Per option: - `behavior` — `"smooth"` (default) or `"instant"` - `block` / `inline` — `scrollIntoView` alignment (`"nearest"` default). Use `inline: "center"` for horizontal snap strips with variable-width tiles. - `null` (default) — no automatic scrolling - `{ type: "onChange" }` — scroll to the trigger the close morph will land on whenever the active item changes while the lightbox is open (preemptive; respects `morphTo`, so `closest` scrolls the nearest trigger when the active item has none) - `{ type: "onOpenComplete" }` — scroll to that same trigger once the open transition finishes. The viewer covers the page and scroll is locked, so this reposition is invisible — it only pays off by ensuring the close morph lands on-screen without a jump when the trigger was partially off-screen at open time. `"instant"` recommended. - `{ type: "onClose" }` — scroll to that trigger just before the close morph runs (visible reposition at close start) For triggers in a virtualized list, add `reveal` to bring an unmounted row back. At that option's moment, Root calls it instead of `scrollIntoView` when the trigger isn't mounted. On `onClose` it gives the morph somewhere to land: return a Promise to make the close wait for it, or `false` to skip the wait. |
+| morphTo | `'active' \| 'origin' \| 'closest'` | `'active'` | Controls which trigger receives the View Transition morph on close. - `'active'` (default) — morph to the active item's trigger. No morph if it has none. - `'origin'` — always morph back to the trigger that originally opened the lightbox, regardless of which item is active. - `'closest'` — morph to the active item's trigger if it has one, otherwise to the trigger of the nearest item that does (a "+N" tile for the photos behind it). |
 | awaitImageDecode | `boolean \| number` | `true` | How long the open morph waits for the destination image to decode before starting, so the lightbox doesn't flash empty space while the full-size image is still loading. - `true` (default) — wait up to ~200ms, then start regardless. - `false` — don't wait; start the transition immediately. Useful when the trigger image doubles as a placeholder for the lightbox item so there is nothing to wait for. - `number` — wait up to this many milliseconds. The morph starts as soon as the image decodes (or is served from cache), or when the timeout elapses — whichever comes first. Runs after the lightbox is prepared (mounted hidden) and before `onBeforeOpen`. Only relevant when `viewTransition` is enabled. |
 | onBeforeOpen | `LightboxBeforeOpen` |  | Called after the open morph has prepared the lightbox (mounted, still hidden) and finished any `awaitImageDecode` wait, and **before** the View Transition starts. Use this to await custom media readiness (iframe `load`, video `loadeddata`, WebGL, …). May return a Promise — the morph waits for it. Bound your own timeout inside the callback; there is no library-imposed cap. When a newer open/close supersedes this one, `ctx.signal` aborts. Only relevant when `viewTransition` is enabled. Skipped when unset. |
 | onBeforeClose | `LightboxBeforeClose` |  | Called synchronously just before close commits — and, when View Transitions are on, **before** the old snapshot is captured. Use this to freeze custom media (`video.pause()`, stop a rAF loop, …) so the close morph isn’t a mid-frame. Unlike `onBeforeOpen`, this cannot delay close (return values are ignored). Skipped when unset. |
 
 ### Trigger
 
-Opens the lightbox at a given index and is the morph source (view transitions on by default). Carries the Base UI dialog-trigger disclosure semantics: aria-haspopup="dialog", aria-controls pointing at the dialog while open, and aria-expanded set only on the trigger that opened it. Pass handle + id to use outside Root or for handle.open(..., { triggerId }). Prefer render-prop children to attach imageRef / morphRef.
+Opens the lightbox at the Item with the same itemId and is the morph source (view transitions on by default). Carries the Base UI dialog-trigger disclosure semantics: aria-haspopup="dialog", and aria-controls / aria-expanded on the trigger that opened the dialog. Pass handle to use it outside Root. Prefer render-prop children to attach imageRef / morphRef.
 
 #### Props
 
 | Name | Type | Default | Description |
 | --- | --- | --- | --- |
-| index | `number` |  | Item index this trigger opens. Required. |
-| id | `string` |  | Stable id for this trigger. Required for `handle.open(index, { triggerId })` association and for detached Triggers. Also applied as the DOM `id`. |
-| handle | `LightboxHandle` |  | Handle from `Lightbox.createHandle()`. Pass the same handle as Root to use this Trigger outside the Root tree (Base UI Dialog-style detached triggers). |
+| itemId | `string` |  | The item this trigger opens: the `itemId` of a `Lightbox.Item`. Only triggers whose `itemId` is in the open gallery take part in the morph, placeholders and `morphTo`, so one Root can serve many galleries. |
+| overflowItemIds | `readonly string[]` |  | Items this trigger stands in for without opening them, for grids whose visible tiles aren't simply the first photos (a curated "Show all photos" tile). While one of them is active the close morph lands on this trigger, crossfading since the tile shows a different photo; an item's own trigger always wins. A "+N" tile after the first photos doesn't need this: `morphTo="closest"` already lands on it. |
+| payload | `Payload` |  | Data for the gallery this trigger opens, read in the viewer with `useLightboxPayload()`. Pass whatever the viewer needs — the full image list, or just an id to look it up by. Required when the handle declares a payload type (`createHandle<Payload>()`), so a trigger can't silently reopen the previous gallery. |
+| handle | `LightboxHandle<Payload>` |  | Handle from `Lightbox.createHandle()`. Pass the same handle as Root to use this Trigger outside the Root tree (Base UI Dialog-style detached triggers). |
 | crossfade | `'open' \| 'close' \| 'both'` |  | Crossfade between trigger and item snapshots during the view-transition morph. Omit (default) for a hard-cut morph — ideal when trigger and item show the same image at the same intrinsic aspect (a CSS `object-cover` window or smaller srcset is fine; a CDN-baked crop that changes the aspect is not). Use a direction when they differ visually: - `'both'` — crossfade on open and close (e.g. a stack → single photo) - `'open'` — crossfade only when opening - `'close'` — crossfade only when closing (e.g. poster → live video) Sets `data-crossfade` on the trigger and `data-ramka-crossfade` on `<html>` during phases that dissolve (omitted for hard-cut). |
 | children | `ReactNode \| ((state: LightboxTriggerRenderState) => ReactNode)` |  | Static children, or a render function that receives `imageRef` / `morphRef` (attach them to designate the placeholder source and the morph element) plus `open` / `active` state. The render function is the recommended form: it wires the flash-free placeholder without any DOM guessing. |
 | render | `ReactElement \| ComponentRenderFn` |  | Replaces the part's default element with another tag or component. Accepts an element to clone, or a function that returns one. |
@@ -186,7 +188,8 @@ A single lightbox item. Registers captions and morph/placeholder refs. ARIA adap
 
 | Name | Type | Default | Description |
 | --- | --- | --- | --- |
-| index | `number` |  | The index of this item in the collection. |
+| index | `number` |  | This item's position in the viewer. |
+| itemId | `string` |  | Stable key for this item: what Triggers open, `value` names and `onValueChange` reports. Must be unique within the gallery — the image's id or URL works. |
 | caption | `ReactNode` |  | Optional caption for this item, displayed by Lightbox.Caption. |
 | children | `ReactNode \| ((state: LightboxItemRenderState) => ReactNode)` |  | Static children, or a render function that receives per-item state plus `imageRef` / `morphRef`. Prefer the render function and attach `imageRef` to your `<img>` so the open transition bridges the blank frame with the trigger's thumbnail (see `Lightbox.Trigger`'s `imageRef`). |
 | render | `ReactElement \| ComponentRenderFn` |  | Replaces the part's default element with another tag or component. Accepts an element to clone, or a function that returns one. |
@@ -224,7 +227,7 @@ Sized destination media host — morph target and placeholder canvas container. 
 
 ### Slides
 
-Default layout: horizontal snap carousel wired to the active index. Emits role="group" — the WAI-ARIA carousel container — and you pass the translated aria-roledescription="carousel" plus an aria-label / aria-labelledby naming the gallery (leave the word "carousel" out of the name; the roledescription already says it). Gates Item contents via `preload`; put Slide → Item → Zoom → Media inside. Consumer CSS sizes each Slide snap box (e.g. flex 0 0 100% for full-bleed); index geometry measures offsetLeft/offsetWidth. While the user is flinging, navigation is locked so pull-to-dismiss and zoom chrome do not fight the scroll.
+Default layout: horizontal snap carousel wired to the active item. Emits role="group" — the WAI-ARIA carousel container — and you pass the translated aria-roledescription="carousel" plus an aria-label / aria-labelledby naming the gallery (leave the word "carousel" out of the name; the roledescription already says it). Gates Item contents via `preload`; put Slide → Item → Zoom → Media inside. Consumer CSS sizes each Slide snap box (e.g. flex 0 0 100% for full-bleed); index geometry measures offsetLeft/offsetWidth. While the user is flinging, navigation is locked so pull-to-dismiss and zoom chrome do not fight the scroll.
 
 #### Props
 
@@ -500,13 +503,23 @@ While a view-transition morph runs, ramka sets attributes and CSS variables on <
 
 Helper types you will see in callbacks and render props (exported from `@ramka/react` / the Lightbox module):
 
-- `NavigationSource` — `'trigger' | 'keyboard' | 'thumbnail' | 'button' | 'scroll' | 'imperative'` . Second argument to Root `onValueChange`. Handle `open` /`goTo` use `'imperative'`; scroll-driven Slides use `'scroll'`.
+- `NavigationSource` — `'trigger' | 'keyboard' | 'thumbnail' | 'button' | 'scroll' | 'imperative'`. `details.source` in Root `onValueChange(itemId, details)`. Handle `open` /`goTo` use `'imperative'`; scroll-driven Slides use `'scroll'`.
 - `LightboxCrossfade` — `'open' | 'close' | 'both'` for Trigger `crossfade`. See [View transitions → crossfade](docs/lightbox/view-transitions.md#crossfade).
 - Render-state types such as `LightboxTriggerRenderState` and Item render args (`active`, `visible`, refs) — documented on [Trigger](docs/lightbox/api.md#api-trigger) / [Item](docs/lightbox/api.md#api-item).
 
 ## Hooks
 
 Optional contexts for nested wrapper components.
+
+### useLightboxPayload
+
+Payload of the current open (the opening Trigger’s payload, or handle.open(itemId, { payload })), for a viewer rendered as a plain Root child — so one Root can wrap a whole feed. Re-renders its caller only when an open brings a new payload, never on navigation, zoom or close. Performance: call it (and useLightboxContext) in the viewer, not in feed rows — a row that reads lightbox state re-renders on every change.
+
+#### Props
+
+| Name | Type | Default | Description |
+| --- | --- | --- | --- |
+| (return) | `Payload` |  | Payload of the current open (the opening Trigger's `payload`, or `handle.open({ payload })`), for viewer parts rendered as plain Root children. Re-renders its caller only when the payload changes — call it in the viewer, not in every feed row. |
 
 ### useLightboxTriggerContext
 
@@ -560,9 +573,9 @@ Imperative handle from Lightbox.createHandle(). Pass to Root (and optional detac
 
 | Name | Type | Default | Description |
 | --- | --- | --- | --- |
-| open | `(index?: number, options?: LightboxHandleOpenOptions) => void` |  | Open the lightbox. Optional `index` sets the active item. Pass `options.triggerId` to associate the open with a registered Trigger so view-transition morph / placeholders can use that element. Call only from an event handler or effect — not during render. |
+| open | `(itemId?: string, options?: LightboxHandleOpenOptions<Payload>) => void` |  | Open the lightbox at the `Lightbox.Item` with this `itemId` (or at the current item when omitted). The item's position is resolved once the payload's items mount, and the open morphs from that item's mounted Trigger, if any. Call only from an event handler or effect — not during render. |
 | close | `() => void` |  | Close the lightbox. |
-| goTo | `(index: number) => void` |  | Navigate to an index (source: `imperative`). Does not open. |
+| goTo | `(itemId: string) => void` |  | Navigate to the mounted `Lightbox.Item` with this `itemId` (source: `imperative`). Does not open. |
 | isOpen | `boolean` |  | Whether the bound Root is currently open. |
 
 ### LightboxZoomRef

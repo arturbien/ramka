@@ -14,7 +14,7 @@ export function NextjsImagePlusNExcerpt() {
   return (
     <Lightbox.Root morphTo="closest">
       {photos.slice(0, visible).map((photo, i) => (
-        <Lightbox.Trigger key={photo.src} index={i} crossfade={i === visible - 1 ? 'both' : undefined}>
+        <Lightbox.Trigger key={photo.src} itemId={photo.src} crossfade={i === visible - 1 ? 'both' : undefined}>
           {({ imageRef }) => <Image ref={imageRef} src={photo} alt="" placeholder="blur" />}
         </Lightbox.Trigger>
       ))}
@@ -25,7 +25,7 @@ export function NextjsImagePlusNExcerpt() {
           <Lightbox.Slides>
             {photos.map((photo, i) => (
               <Lightbox.Slide key={photo.src}>
-                <Lightbox.Item index={i}>
+                <Lightbox.Item index={i} itemId={photo.src}>
                   <Lightbox.Zoom>
                     <Lightbox.Media width={photo.width} height={photo.height}>
                       <Image
@@ -33,7 +33,7 @@ export function NextjsImagePlusNExcerpt() {
                         alt=""
                         sizes="100vw"
                         priority
-                        // Overflow indexes only — siblings with trigger thumbs stay clean.
+                        // Overflow items only — siblings with trigger thumbs stay clean.
                         {...(i >= visible ? { placeholder: 'blur' as const } : null)}
                       />
                     </Lightbox.Media>

@@ -36,7 +36,7 @@ afterEach(() => {
 function FullChromeLightbox() {
   return (
     <LightboxRoot defaultOpen>
-      <LightboxTrigger index={0}>Open</LightboxTrigger>
+      <LightboxTrigger itemId="0">Open</LightboxTrigger>
       <LightboxPortal>
         <LightboxBackdrop />
         <LightboxContent aria-label="Gallery">
@@ -50,7 +50,7 @@ function FullChromeLightbox() {
             <LightboxZoomOut aria-label="Zoom out" />
             <LightboxSlides aria-label="Slides">
               <LightboxSlide>
-                <LightboxItem index={0} caption="One">
+                <LightboxItem index={0} itemId="0" caption="One">
                   <LightboxZoom>
                     <LightboxMedia width={100} height={100}>
                       <img src="/a.jpg" alt="A" width={100} height={100} />
@@ -81,9 +81,7 @@ describe('Lightbox part identity markers', () => {
   it('publishes every listed identity marker on a mounted tree', () => {
     render(<FullChromeLightbox />);
 
-    const missing = LIGHTBOX_PART_IDENTITY_ATTRIBUTES.filter(
-      (attr) => document.querySelector(`[${attr}]`) === null,
-    );
+    const missing = LIGHTBOX_PART_IDENTITY_ATTRIBUTES.filter((attr) => document.querySelector(`[${attr}]`) === null);
 
     expect(missing).toEqual([]);
   });

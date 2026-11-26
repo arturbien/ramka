@@ -19,7 +19,7 @@ export function SlidesNestingExcerpt() {
           <Lightbox.Slides preload={1}>
             {items.map((item, i) => (
               <Lightbox.Slide key={item.id}>
-                <Lightbox.Item index={i}>
+                <Lightbox.Item index={i} itemId={item.id}>
                   <Lightbox.Zoom>
                     <Lightbox.Media>
                       <img src={item.src} alt={item.alt} />

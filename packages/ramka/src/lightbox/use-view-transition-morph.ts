@@ -7,30 +7,17 @@ import { isAndroidBlinkSnapshotRoot } from './is-android-blink';
 import { isFirefox } from './is-firefox';
 import { afterNextRenderFrame, shouldYieldBeforeCapture } from './vt-capture-yield';
 import { acquireVtTouchGuard } from './vt-touch-guard';
-import {
-  maybeUpgradeToCompositedMorph,
-  prewarmCompositedCssSheet,
-} from './vt-composited-morph';
+import { maybeUpgradeToCompositedMorph, prewarmCompositedCssSheet } from './vt-composited-morph';
 import { isViewTransitionPreset } from './vt-timing';
 import type { LightboxViewTransitionPreset } from './vt-timing';
 import { pageNeedsNameIsolation } from './vt-name-isolation';
-import {
-  findDestinationMorphTarget,
-  findItemMorphTarget,
-  findTriggerMorphTarget,
-} from './morph-target';
+import { findDestinationMorphTarget, findItemMorphTarget, findTriggerMorphTarget } from './morph-target';
 import { DEFAULT_DECODE_MAX_WAIT, VIEW_TRANSITION_NAME } from './vt-constants';
 import { LightboxDocumentCssVars } from './lightbox-css-vars';
-import {
-  LightboxDocumentDataAttributes,
-  LightboxSlideDataAttributes,
-} from './lightbox-data-attributes';
-import {
-  resolveScrollTriggerOption,
-  resolveTriggerIndex,
-  scrollTriggerEl,
-} from './scroll-trigger';
+import { LightboxDocumentDataAttributes, LightboxSlideDataAttributes } from './lightbox-data-attributes';
+import { resolveScrollTriggerOption, scrollTriggerEl } from './scroll-trigger';
 import type { InitializedRef } from '../react-compat';
+import type { LightboxTriggerMatch } from './lightbox-context';
 import type { ScrollTriggerIntoView } from './scroll-trigger';
 
 // ---------------------------------------------------------------------------
@@ -42,9 +29,7 @@ import type { ScrollTriggerIntoView } from './scroll-trigger';
  * `document` at call time (rather than capturing it) so environments — and
  * tests — that define/replace it after module load still work.
  */
-function startViewTransition(
-  callback: () => void | Promise<void>,
-): { finished: Promise<void>; ready?: Promise<void> } {
+function startViewTransition(callback: () => void | Promise<void>): { finished: Promise<void>; ready?: Promise<void> } {
   return (
     document as Document & {
       startViewTransition: (cb: () => void | Promise<void>) => {
@@ -155,15 +140,9 @@ function shouldWaitForSnapshotRootSettle(): boolean {
  * `loading="eager"` so the browser starts fetching immediately on mount
  * rather than waiting for a lazy-load intersection.
  */
-function waitForImageDecode(
-  target: HTMLElement | null,
-  maxWait: number = DEFAULT_DECODE_MAX_WAIT,
-): Promise<void> {
+function waitForImageDecode(target: HTMLElement | null, maxWait: number = DEFAULT_DECODE_MAX_WAIT): Promise<void> {
   if (!target) return Promise.resolve();
-  const img =
-    target.tagName === 'IMG'
-      ? (target as HTMLImageElement)
-      : target.querySelector<HTMLImageElement>('img');
+  const img = target.tagName === 'IMG' ? (target as HTMLImageElement) : target.querySelector<HTMLImageElement>('img');
   if (!img || !('decode' in img)) return Promise.resolve();
   // Image already loaded (e.g. cached from a previous open) — no wait needed.
   // The VT API captures the snapshot after this callback resolves, so the
@@ -193,10 +172,7 @@ function waitForImageDecode(
  */
 function getPendingDecodeImage(target: HTMLElement | null): HTMLImageElement | null {
   if (!target) return null;
-  const img =
-    target.tagName === 'IMG'
-      ? (target as HTMLImageElement)
-      : target.querySelector<HTMLImageElement>('img');
+  const img = target.tagName === 'IMG' ? (target as HTMLImageElement) : target.querySelector<HTMLImageElement>('img');
   if (!img || !('decode' in img)) return null;
   if (img.complete && img.naturalWidth > 0) return null;
   return img;
@@ -233,10 +209,8 @@ function isMorphTargetSizeResolvable(target: HTMLElement | null): boolean {
  * once instead of on every open. Keyed by element via a WeakSet so it never
  * leaks and resets naturally when the item unmounts.
  */
-const warnedUnwiredItems =
-  process.env.NODE_ENV !== 'production' ? new WeakSet<HTMLElement>() : null;
-const warnedCollapsedMedia =
-  process.env.NODE_ENV !== 'production' ? new WeakSet<HTMLElement>() : null;
+const warnedUnwiredItems = process.env.NODE_ENV !== 'production' ? new WeakSet<HTMLElement>() : null;
+const warnedCollapsedMedia = process.env.NODE_ENV !== 'production' ? new WeakSet<HTMLElement>() : null;
 
 /**
  * Dev-only guardrail. Fires when an item is about to morph but resolved its own
@@ -269,10 +243,9 @@ function warnUnwiredItemMorph(itemEl: HTMLElement, target: HTMLElement) {
  */
 function warnCollapsedMediaMorph(target: HTMLElement | null) {
   if (!warnedCollapsedMedia || !target) return;
-  const media =
-    target.hasAttribute('data-ramka-media')
-      ? target
-      : (target.closest('[data-ramka-media]') as HTMLElement | null);
+  const media = target.hasAttribute('data-ramka-media')
+    ? target
+    : (target.closest('[data-ramka-media]') as HTMLElement | null);
   if (!media || warnedCollapsedMedia.has(media)) return;
   if (isMorphTargetSizeResolvable(target)) return;
   warnedCollapsedMedia.add(media);
@@ -294,10 +267,7 @@ function warnCollapsedMediaMorph(target: HTMLElement | null) {
  * Whether the trigger's `crossfade` mode applies to the given morph phase.
  * `data-crossfade` is `'open' | 'close' | 'both'` (or absent = neither).
  */
-export function shouldUseCrossfade(
-  mode: string | undefined,
-  phase: 'opening' | 'closing',
-): boolean {
+export function shouldUseCrossfade(mode: string | undefined, phase: 'opening' | 'closing'): boolean {
   if (mode === 'both') return true;
   if (phase === 'opening') return mode === 'open';
   return mode === 'close';
@@ -413,27 +383,19 @@ export function resolveMorphBorderRadius(el: HTMLElement): string {
 
   // Expand the 1–4 token shorthand to per-corner values [tl, tr, br, bl].
   const [a, b = a, c = a, d = b] = tokens;
-  const [tl, tr, br, bl] = [a, b, c, d].map((token) =>
-    borderRadiusTokenToPx(token!, el, width),
-  ) as [number, number, number, number];
-
-  // CSS corner-overlap rule: one uniform scale factor across all corners,
-  // constrained by every edge. Zero sums divide to Infinity, which min()
-  // ignores in favor of 1.
-  const f = Math.min(
-    1,
-    width / (tl + tr),
-    width / (bl + br),
-    height / (tr + br),
-    height / (tl + bl),
-  );
-
-  const used = [tl, tr, br, bl].map((r) => roundRadiusPx(r * f)) as [
+  const [tl, tr, br, bl] = [a, b, c, d].map((token) => borderRadiusTokenToPx(token!, el, width)) as [
     number,
     number,
     number,
     number,
   ];
+
+  // CSS corner-overlap rule: one uniform scale factor across all corners,
+  // constrained by every edge. Zero sums divide to Infinity, which min()
+  // ignores in favor of 1.
+  const f = Math.min(1, width / (tl + tr), width / (bl + br), height / (tr + br), height / (tl + bl));
+
+  const used = [tl, tr, br, bl].map((r) => roundRadiusPx(r * f)) as [number, number, number, number];
 
   // Serialize back to the minimal shorthand.
   const [utl, utr, ubr, ubl] = used;
@@ -460,10 +422,7 @@ export function resolveMorphBorderRadius(el: HTMLElement): string {
  * not consumer CSS: arbitrary curves teleport on iOS (see the preset table
  * in vt-timing.ts).
  */
-function promoteVtMotionTokens(
-  docEl: HTMLElement,
-  preset: boolean | LightboxViewTransitionPreset | undefined,
-) {
+function promoteVtMotionTokens(docEl: HTMLElement, preset: boolean | LightboxViewTransitionPreset | undefined) {
   docEl.setAttribute(
     LightboxDocumentDataAttributes.viewTransitionPreset,
     isViewTransitionPreset(preset) ? preset : 'default',
@@ -550,8 +509,7 @@ function applyFirefoxFullBleedCaptureInset(morphTarget: HTMLElement): CaptureIns
   const axes = getFullBleedAxes(morphTarget);
   if (!axes.horizontal && !axes.vertical) return null;
 
-  const slide =
-    morphTarget.closest<HTMLElement>(`[${LightboxSlideDataAttributes.slide}]`) ?? morphTarget;
+  const slide = morphTarget.closest<HTMLElement>(`[${LightboxSlideDataAttributes.slide}]`) ?? morphTarget;
 
   const prevPaddingLeft = slide.style.paddingLeft;
   const prevPaddingRight = slide.style.paddingRight;
@@ -709,7 +667,6 @@ function clearMorphState(docEl: HTMLElement, owner: number) {
 // ---------------------------------------------------------------------------
 
 interface ViewTransitionMorphConfig {
-  morphTo: 'active' | 'origin' | 'closest';
   scrollTriggerIntoView: ScrollTriggerIntoView;
   /** Upper bound (ms) to await the destination image decode; 0 disables. */
   decodeMaxWait: number;
@@ -718,12 +675,17 @@ interface ViewTransitionMorphConfig {
    * See `Lightbox.Root` `onBeforeOpen`.
    */
   onBeforeOpenRef: InitializedRef<
-    | ((ctx: { destination: Element | null; signal: AbortSignal }) => void | Promise<void>)
-    | undefined
+    ((ctx: { destination: Element | null; signal: AbortSignal }) => void | Promise<void>) | undefined
   >;
   /** Holds the AbortController for the in-flight `onBeforeOpen` (if any). */
   beforeOpenAbortRef: React.MutableRefObject<AbortController | null>;
-  triggerElementsRef: InitializedRef<Map<number, HTMLElement>>;
+  /**
+   * The connected trigger of the open gallery's item at an index. Closing onto
+   * a stand-in (a "+N" tile) always crossfades: it shows a different photo.
+   */
+  triggerAt: (index: number) => LightboxTriggerMatch | null;
+  /** The index whose trigger the close lands on (respects `morphTo`). */
+  resolveCloseTriggerIndex: () => number;
   /** Trigger element → its designated morph descendant (see findTriggerMorphTarget). */
   triggerMorphElementsRef: InitializedRef<WeakMap<HTMLElement, HTMLElement>>;
   activeItemElementRef: React.RefObject<HTMLElement | null>;
@@ -736,11 +698,10 @@ interface ViewTransitionMorphConfig {
   destinationMorphElementRef: React.RefObject<HTMLElement | null>;
   openingTriggerIndexRef: InitializedRef<number>;
   /**
-   * Exact opening trigger (click or handle + triggerId). Preferred over the
-   * index map so morph is correct when several triggers share one index.
+   * Exact opening trigger (the clicked one, or the item's for handle.open). Preferred over
+   * `triggerAt` so the morph is correct when several triggers show one item.
    */
   openingTriggerElementRef: React.RefObject<HTMLElement | null>;
-  activeIndexRef: InitializedRef<number>;
   /**
    * The Root's `viewTransition` prop value. Named presets select the morph
    * timing (see vt-timing.ts); `true`/unknown values run the default preset.
@@ -766,6 +727,11 @@ interface ViewTransitionMorphConfig {
   commitAbortPrepare: () => void;
   /** flushSync body that hides the viewer; unmount waits for onCloseComplete. */
   commitClose: () => void;
+  /**
+   * Runs the `onOpenComplete` moment of `scrollTriggerIntoView` (scroll the
+   * close target into view, or `reveal` it), just before `onOpenComplete`.
+   */
+  scrollTriggerOnOpenComplete: () => void;
   /** Fired once the open morph settles (and its generation is still current). */
   onOpenComplete: () => void;
   /**
@@ -806,7 +772,7 @@ function createViewTransitionMorph(getConfig: () => ViewTransitionMorphConfig): 
       decodeMaxWait,
       onBeforeOpenRef,
       beforeOpenAbortRef,
-      triggerElementsRef,
+      triggerAt,
       triggerMorphElementsRef,
       activeItemElementRef,
       itemMorphElementsRef,
@@ -833,13 +799,10 @@ function createViewTransitionMorph(getConfig: () => ViewTransitionMorphConfig): 
     beforeOpenAbortRef.current = beforeOpenAbort;
 
     const triggerIdx = openingTriggerIndexRef.current;
-    // Prefer the exact origin element (click / handle.triggerId) over the
-    // index map — last-registered wins in the map when indexes collide.
-    const triggerEl =
-      openingTriggerElementRef.current ?? triggerElementsRef.current.get(triggerIdx) ?? undefined;
-    const triggerTarget = triggerEl
-      ? findTriggerMorphTarget(triggerEl, triggerMorphElementsRef.current)
-      : null;
+    // Prefer the exact origin element (click / handle.open) over the item's
+    // trigger: several triggers can show one item.
+    const triggerEl = openingTriggerElementRef.current ?? triggerAt(triggerIdx)?.element;
+    const triggerTarget = triggerEl ? findTriggerMorphTarget(triggerEl, triggerMorphElementsRef.current) : null;
     const useCrossfade = shouldUseCrossfade(triggerEl?.dataset.crossfade, 'opening');
 
     // Read the trigger's border-radius NOW, before any writes. At this point the
@@ -881,9 +844,7 @@ function createViewTransitionMorph(getConfig: () => ViewTransitionMorphConfig): 
     if (decodeMaxWait > 0) {
       const pendingItemEl = activeItemElementRef.current;
       // Decode waits on the item (Media / image), not a shared Stage surface.
-      const pendingItemTarget = pendingItemEl
-        ? findItemMorphTarget(pendingItemEl, itemMorphElementsRef.current)
-        : null;
+      const pendingItemTarget = pendingItemEl ? findItemMorphTarget(pendingItemEl, itemMorphElementsRef.current) : null;
       // Only actually await when the destination image is still loading. When
       // it's cached (or there's no image), skip the await so the open path stays
       // synchronous and the transition starts on the same tick as the click — no
@@ -1091,19 +1052,7 @@ function createViewTransitionMorph(getConfig: () => ViewTransitionMorphConfig): 
       // Reposition the active trigger while the viewer still covers the page
       // (and scroll is locked), so a later close morph lands on-screen with no
       // visible jump at close start. Invisible now; only pays off on close.
-      const openCompleteScroll = resolveScrollTriggerOption(
-        cfg.scrollTriggerIntoView,
-        'onOpenComplete',
-      );
-      if (openCompleteScroll) {
-        const idx = resolveTriggerIndex(
-          cfg.activeIndexRef.current,
-          cfg.morphTo,
-          cfg.openingTriggerIndexRef.current,
-          cfg.triggerElementsRef.current,
-        );
-        scrollTriggerEl(cfg.triggerElementsRef.current.get(idx), openCompleteScroll);
-      }
+      cfg.scrollTriggerOnOpenComplete();
 
       cfg.onOpenComplete();
     });
@@ -1141,15 +1090,13 @@ function createViewTransitionMorph(getConfig: () => ViewTransitionMorphConfig): 
 
   const runClose = (gen: number, releaseTouchGuard: () => void) => {
     const {
-      morphTo,
       scrollTriggerIntoView,
-      triggerElementsRef,
+      triggerAt,
+      resolveCloseTriggerIndex,
       triggerMorphElementsRef,
       activeItemElementRef,
       itemMorphElementsRef,
       destinationMorphElementRef,
-      openingTriggerIndexRef,
-      activeIndexRef,
       commitClose,
     } = getConfig();
 
@@ -1161,23 +1108,16 @@ function createViewTransitionMorph(getConfig: () => ViewTransitionMorphConfig): 
       itemMorphElementsRef.current,
       destinationMorphElementRef.current,
     );
-    const triggerIdx = resolveTriggerIndex(
-      activeIndexRef.current,
-      morphTo,
-      openingTriggerIndexRef.current,
-      triggerElementsRef.current,
-    );
-    const triggerEl = triggerElementsRef.current.get(triggerIdx);
-    const triggerTarget = triggerEl
-      ? findTriggerMorphTarget(triggerEl, triggerMorphElementsRef.current)
-      : null;
+    const trigger = triggerAt(resolveCloseTriggerIndex());
+    const triggerEl = trigger?.element;
+    const triggerTarget = triggerEl ? findTriggerMorphTarget(triggerEl, triggerMorphElementsRef.current) : null;
     // Mirror open: a morph needs both ends. Naming only the item (no trigger)
     // lifts it out of the root snapshot so chrome fades while the photo sticks,
     // then pops — e.g. controlled open with no Trigger. Fall back to a plain
     // root crossfade instead.
     const canMorph = !!triggerTarget && !!itemTarget;
     const useCrossfade = canMorph
-      ? shouldUseCrossfade(triggerEl?.dataset.crossfade, 'closing')
+      ? trigger?.standIn || shouldUseCrossfade(triggerEl?.dataset.crossfade, 'closing')
       : true;
 
     // Batch all reads before any writes to avoid forced reflow. Resolve to
@@ -1259,7 +1199,6 @@ export {
   startViewTransition,
   waitForImageDecode,
   scrollTriggerEl,
-  resolveTriggerIndex,
   resolveScrollTriggerOption,
   getFullBleedAxes,
   isHorizontallyFullBleed,

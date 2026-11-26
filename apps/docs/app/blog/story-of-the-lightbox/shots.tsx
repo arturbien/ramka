@@ -27,7 +27,7 @@ export function Shot({ id, caption, narrow = false }: { id: ArticleImageId; capt
     <figure className="mt-8">
       <Lightbox.Root>
         <Lightbox.Trigger
-          index={0}
+          itemId={img.id}
           className={`block w-full cursor-zoom-in overflow-hidden rounded-2xl border border-neutral-200 dark:border-neutral-800 ${
             narrow ? 'mx-auto max-w-sm' : ''
           } ${triggerFocusClass}`}
@@ -57,7 +57,7 @@ export function Shot({ id, caption, narrow = false }: { id: ArticleImageId; capt
               className="lightbox-demo-slides flex-1 [&::-webkit-scrollbar]:hidden"
             >
               <Lightbox.Slide className="lightbox-demo-slide-pad h-full">
-                <Lightbox.Item index={0} caption={img.caption}>
+                <Lightbox.Item index={0} itemId={img.id} caption={img.caption}>
                   <Lightbox.Zoom maxZoom={6}>
                     <Lightbox.Media
                       width={img.src.width}
@@ -69,7 +69,7 @@ export function Shot({ id, caption, narrow = false }: { id: ArticleImageId; capt
                         alt={img.alt}
                         sizes="100vw"
                         loading="eager"
-                        // No placeholder: this index has a trigger image, so
+                        // No placeholder: this item has a trigger image, so
                         // Ramka paints the open bridge (docs/lightbox/nextjs-image).
                         draggable={false}
                         className="select-none"

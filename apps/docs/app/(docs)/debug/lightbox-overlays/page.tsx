@@ -73,11 +73,11 @@ function OverlayDebugGallery({ items }: { items: OverlayItem[] }) {
             const ratio = itemAspectRatio(item);
             return (
               <Lightbox.Slide
-                key={item.id ?? i}
+                key={item.id}
                 className={snug ? 'lb-slide-snug' : undefined}
                 style={snug ? ({ '--lb-snug-ratio': ratio } as React.CSSProperties) : undefined}
               >
-                <Lightbox.Item index={i} caption={item.caption ?? item.alt}>
+                <Lightbox.Item index={i} itemId={item.id} caption={item.caption ?? item.alt}>
                   <Lightbox.Zoom maxZoom={6}>
                     <Lightbox.Media width={item.width} height={item.height}>
                       <Image
@@ -135,7 +135,7 @@ function OverlayDebugGallery({ items }: { items: OverlayItem[] }) {
           <Lightbox.ThumbnailStrip className="lb-thumbnail-strip-desktop">
             <Lightbox.ThumbnailStripTrack aria-label="Photo thumbnails">
               {items.map((item, i) => (
-                <Lightbox.Thumbnail key={item.id ?? i} index={i}>
+                <Lightbox.Thumbnail key={item.id} index={i}>
                   <Image src={item.image} alt={item.alt} sizes="96px" draggable={false} />
                 </Lightbox.Thumbnail>
               ))}
@@ -186,10 +186,10 @@ export default function LightboxOverlaysDebugPage() {
 
       <Lightbox.Root>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          {slides.slice(0, TRIGGER_COUNT).map((item, i) => (
+          {slides.slice(0, TRIGGER_COUNT).map((item) => (
             <Lightbox.Trigger
               key={item.id}
-              index={i}
+              itemId={item.id}
               className="block overflow-hidden rounded-lg border border-neutral-300 bg-neutral-100 p-0 dark:border-neutral-700 dark:bg-neutral-800"
             >
               {({ imageRef }) => (

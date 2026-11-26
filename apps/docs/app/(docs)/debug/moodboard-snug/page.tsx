@@ -6,11 +6,7 @@ import Image, { type StaticImageData } from 'next/image';
 import * as Lightbox from '@ramka/react/lightbox';
 
 import { ExampleShell } from '../../../_components/example-shell';
-import {
-  LightboxGallery,
-  type LightboxGalleryItem,
-  triggerFocusClass,
-} from '../../../_components/lightbox-chrome';
+import { LightboxGallery, type LightboxGalleryItem, triggerFocusClass } from '../../../_components/lightbox-chrome';
 import { inksPoster, moodboardSnugImages, plasticinePoster } from './images.generated';
 import {
   FRAME_SIZE,
@@ -299,20 +295,20 @@ export default function MoodboardSnugPage() {
   }
 
   const cols = useColumnCount();
-  const [activeIndex, setActiveIndex] = React.useState(0);
-  const activeIndexRef = React.useRef(0);
+  const [activeId, setActiveId] = React.useState(tiles[0]!.id);
+  const activeIdRef = React.useRef(activeId);
 
   const [open, setOpen] = React.useState(false);
   /** Orbit only after open settles — same gate as the 3d-models example. */
   const [orbitReady, setOrbitReady] = React.useState(false);
 
-  const activeTile = tiles[activeIndex]!;
+  const activeTile = tiles.find((tile) => tile.id === activeId) ?? tiles[0]!;
   // Videos stay chrome-free; photos + 3D share Zoom (trackpad pinch / buttons).
   const zoomControls = activeTile.kind !== 'video';
 
   const columns = React.useMemo(() => {
-    const buckets: { tile: Tile; index: number }[][] = Array.from({ length: cols }, () => []);
-    tiles.forEach((tile, i) => buckets[i % cols]!.push({ tile, index: i }));
+    const buckets: Tile[][] = Array.from({ length: cols }, () => []);
+    tiles.forEach((tile, i) => buckets[i % cols]!.push(tile));
     return buckets;
   }, [cols]);
 
@@ -323,11 +319,11 @@ export default function MoodboardSnugPage() {
     >
       <Lightbox.Root
         loop
-        value={activeIndex}
+        value={activeId}
         onValueChange={(next) => {
-          // Sync before paint so `onBeforeOpen` sees the opening index.
-          activeIndexRef.current = next;
-          setActiveIndex(next);
+          // Sync before paint so `onBeforeOpen` sees the opening item.
+          activeIdRef.current = next;
+          setActiveId(next);
         }}
         awaitImageDecode={false}
         scrollTriggerIntoView={[
@@ -339,7 +335,7 @@ export default function MoodboardSnugPage() {
           if (!nextOpen) setOrbitReady(false);
         }}
         onBeforeOpen={async ({ signal }) => {
-          const tile = tiles[activeIndexRef.current];
+          const tile = tiles.find((t) => t.id === activeIdRef.current);
           if (tile?.kind === 'model') {
             await waitForLightboxPainted(tile.product.id, { signal, timeoutMs: 2500 });
           }
@@ -352,12 +348,12 @@ export default function MoodboardSnugPage() {
         <div className="flex max-w-2xl gap-4">
           {columns.map((column, ci) => (
             <div key={ci} className="flex min-w-0 flex-1 flex-col gap-4">
-              {column.map(({ tile, index }) => {
+              {column.map((tile) => {
                 if (tile.kind === 'image') {
                   return (
                     <Lightbox.Trigger
                       key={tile.id}
-                      index={index}
+                      itemId={tile.id}
                       className={`block w-full cursor-pointer overflow-hidden rounded-xl border-none bg-transparent p-0 ${triggerFocusClass}`}
                     >
                       {({ imageRef }) => (
@@ -379,7 +375,7 @@ export default function MoodboardSnugPage() {
                   return (
                     <Lightbox.Trigger
                       key={tile.id}
-                      index={index}
+                      itemId={tile.id}
                       crossfade="close"
                       className={`block w-full cursor-pointer overflow-hidden rounded-xl border-none bg-transparent p-0 ${triggerFocusClass}`}
                     >
@@ -389,7 +385,7 @@ export default function MoodboardSnugPage() {
                         width={tile.poster.width}
                         height={tile.poster.height}
                         // Keep the wall looping; pause only while this tile is open.
-                        playing={!open || activeIndex !== index}
+                        playing={!open || activeId !== tile.id}
                         className="block w-full rounded-xl bg-neutral-100 object-cover transition duration-200 hover:opacity-90 dark:bg-neutral-800"
                       />
                     </Lightbox.Trigger>
@@ -400,7 +396,7 @@ export default function MoodboardSnugPage() {
                 return (
                   <Lightbox.Trigger
                     key={tile.id}
-                    index={index}
+                    itemId={tile.id}
                     crossfade="both"
                     className={`block w-full cursor-pointer overflow-hidden rounded-xl border-none bg-transparent p-0 ${triggerFocusClass}`}
                   >
@@ -409,10 +405,7 @@ export default function MoodboardSnugPage() {
                         ref={morphRef}
                         className={`relative aspect-square w-full overflow-hidden rounded-xl bg-transparent`}
                       >
-                        <TriggerScene
-                          product={tile.product}
-                          autoRotate={!open || activeIndex !== index}
-                        />
+                        <TriggerScene product={tile.product} autoRotate={!open || activeId !== tile.id} />
                       </div>
                     )}
                   </Lightbox.Trigger>
@@ -442,7 +435,7 @@ export default function MoodboardSnugPage() {
               );
             }
             if (tile.kind === 'model') {
-              const active = open && activeIndex === i;
+              const active = open && activeId === tile.id;
               return (
                 <Lightbox.Zoom maxZoom={6}>
                   <Lightbox.Media

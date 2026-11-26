@@ -15,13 +15,9 @@ import { TrackballControls } from 'three/examples/jsm/controls/TrackballControls
 import * as Lightbox from '@ramka/react/lightbox';
 
 import { ExampleShell } from '../../../../_components/example-shell';
-import {
-  LightboxGallery,
-  triggerFocusClass,
-} from '../../../../_components/lightbox-chrome';
+import { LightboxGallery, triggerFocusClass } from '../../../../_components/lightbox-chrome';
 
-const assetBase =
-  'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models';
+const assetBase = 'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models';
 
 /** Shared square frame for every trigger + Media so tiles match in the grid. */
 const FRAME_SIZE = 1024;
@@ -63,12 +59,7 @@ function getGltfPromise(url: string): Promise<THREE.Group> {
   let hit = gltfCache.get(url);
   if (!hit) {
     hit = new Promise((resolve, reject) => {
-      new GLTFLoader().load(
-        url,
-        (gltf) => resolve(gltf.scene),
-        undefined,
-        reject,
-      );
+      new GLTFLoader().load(url, (gltf) => resolve(gltf.scene), undefined, reject);
     });
     gltfCache.set(url, hit);
   }
@@ -162,13 +153,9 @@ function normalizeModel(model: THREE.Object3D): THREE.Group {
 }
 
 /** Fixed framing for {@link normalizeModel} unit-sized roots (target at origin). */
-function fitCameraToUnitObject(
-  camera: THREE.PerspectiveCamera,
-  controls: TrackballControls,
-) {
+function fitCameraToUnitObject(camera: THREE.PerspectiveCamera, controls: TrackballControls) {
   const maxSize = 1;
-  const fitHeightDistance =
-    maxSize / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2));
+  const fitHeightDistance = maxSize / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2));
   const fitWidthDistance = fitHeightDistance / Math.max(camera.aspect, 0.001);
   const distance = 1.45 * Math.max(fitHeightDistance, fitWidthDistance);
   camera.near = distance / 100;
@@ -249,11 +236,7 @@ const TARGET_SPIN_RAD_PER_SEC = ((2 * Math.PI) / 60) * TRIGGER_AUTO_ROTATE_SPEED
 const SPIN_SPEED_BLEND = 2.2;
 
 /** Unit look-direction + up; radius stays local to each canvas. */
-function readViewPose(
-  camera: THREE.PerspectiveCamera,
-  controls: TrackballControls,
-  spin: SpinState,
-): ViewPose {
+function readViewPose(camera: THREE.PerspectiveCamera, controls: TrackballControls, spin: SpinState): ViewPose {
   _direction.copy(camera.position).sub(controls.target).normalize();
   _up.copy(camera.up).normalize();
   return {
@@ -264,12 +247,7 @@ function readViewPose(
   };
 }
 
-function applyViewPose(
-  camera: THREE.PerspectiveCamera,
-  controls: TrackballControls,
-  pose: ViewPose,
-  spin: SpinState,
-) {
+function applyViewPose(camera: THREE.PerspectiveCamera, controls: TrackballControls, pose: ViewPose, spin: SpinState) {
   const tb = controls as TrackballInertia;
   const radius = camera.position.distanceTo(controls.target) || 1;
   _direction.fromArray(pose.direction).normalize();
@@ -290,11 +268,7 @@ function applyViewPose(
 }
 
 /** Sample flick axis + rad/s from Trackball, then clear its private damping. */
-function captureFlickIntoSpin(
-  controls: TrackballControls,
-  spin: SpinState,
-  dt: number,
-) {
+function captureFlickIntoSpin(controls: TrackballControls, spin: SpinState, dt: number) {
   const tb = controls as TrackballInertia;
   if (tb._lastAxis.lengthSq() > 1e-8) {
     spin.axis.copy(tb._lastAxis).normalize();
@@ -307,12 +281,7 @@ function captureFlickIntoSpin(
   tb._lastAngle = 0;
 }
 
-function applySpinStep(
-  camera: THREE.PerspectiveCamera,
-  controls: TrackballControls,
-  spin: SpinState,
-  dt: number,
-) {
+function applySpinStep(camera: THREE.PerspectiveCamera, controls: TrackballControls, spin: SpinState, dt: number) {
   // Ease flick velocity toward the cruise auto-spin — never drops through zero.
   const blend = 1 - Math.exp(-SPIN_SPEED_BLEND * dt);
   spin.speed += (TARGET_SPIN_RAD_PER_SEC - spin.speed) * blend;
@@ -576,13 +545,7 @@ function useThreeCanvas(
   }, [interactive]);
 }
 
-function TriggerScene({
-  product,
-  autoRotate,
-}: {
-  product: Product;
-  autoRotate: boolean;
-}) {
+function TriggerScene({ product, autoRotate }: { product: Product; autoRotate: boolean }) {
   const hostRef = React.useRef<HTMLDivElement | null>(null);
   // Grid tiles are view-only — orbit only in the lightbox.
   useThreeCanvas(hostRef, product, false, autoRotate, 'trigger');
@@ -635,16 +598,13 @@ function ProductLightbox({ product }: { product: Product }) {
       }}
     >
       <Lightbox.Trigger
-        index={0}
+        itemId={product.id}
         className={`group block w-full cursor-pointer rounded-xl border-none bg-transparent p-0 text-center ${triggerFocusClass}`}
         crossfade="both"
       >
         {({ morphRef }) => (
           <>
-            <div
-              ref={morphRef}
-              className={`relative aspect-square w-full overflow-hidden rounded-xl bg-transparent`}
-            >
+            <div ref={morphRef} className={`relative aspect-square w-full overflow-hidden rounded-xl bg-transparent`}>
               {/* Pause grid spin while this lightbox is open. */}
               <TriggerScene product={product} autoRotate={!open} />
             </div>
@@ -700,18 +660,12 @@ export default function ThreeDModelsPage() {
       description={
         <>
           Each tile is its own{' '}
-          <code className="rounded bg-neutral-100 px-1 py-0.5 text-xs dark:bg-neutral-800">
-            Lightbox.Root
-          </code>{' '}
-          with a single-item gallery — Three.js canvases in the trigger and{' '}
-          <code className="rounded bg-neutral-100 px-1 py-0.5 text-xs dark:bg-neutral-800">
-            Lightbox.Media
-          </code>
-          . <code className="rounded bg-neutral-100 px-1 py-0.5 text-xs dark:bg-neutral-800">
-            onBeforeOpen
-          </code>{' '}
-          waits for the prepared lightbox canvas to paint a synced frame before the morph (spin
-          stays live, like close). Rotate only (no zoom); orbit stays in sync with the grid tile.{' '}
+          <code className="rounded bg-neutral-100 px-1 py-0.5 text-xs dark:bg-neutral-800">Lightbox.Root</code> with a
+          single-item gallery — Three.js canvases in the trigger and{' '}
+          <code className="rounded bg-neutral-100 px-1 py-0.5 text-xs dark:bg-neutral-800">Lightbox.Media</code>.{' '}
+          <code className="rounded bg-neutral-100 px-1 py-0.5 text-xs dark:bg-neutral-800">onBeforeOpen</code> waits for
+          the prepared lightbox canvas to paint a synced frame before the morph (spin stays live, like close). Rotate
+          only (no zoom); orbit stays in sync with the grid tile.{' '}
           <code className="rounded bg-neutral-100 px-1 py-0.5 text-xs dark:bg-neutral-800">
             pullToClose={'{false}'}
           </code>{' '}
@@ -721,9 +675,7 @@ export default function ThreeDModelsPage() {
     >
       <div className="max-w-3xl">
         <div className="py-5">
-          <div className="text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">
-            Object studio
-          </div>
+          <div className="text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">Object studio</div>
           <h2 className="mt-1 text-2xl font-semibold tracking-tight">Khronos sample assets</h2>
           <p className="mt-2 max-w-md text-sm text-muted-foreground">
             Open any model. Orbit stays in sync with the grid tile.

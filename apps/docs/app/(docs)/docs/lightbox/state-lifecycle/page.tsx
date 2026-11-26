@@ -10,13 +10,9 @@ import { lightboxExcerpts } from '../../../../_content/lightbox/excerpts/generat
 export const metadata: Metadata = {
   title: 'State and lifecycle',
   description:
-    'Controlled and uncontrolled lightbox state in React: the open and index props, imperative handles with createHandle, and lifecycle callbacks like onBeforeOpen.',
+    'Controlled and uncontrolled lightbox state in React: the open and value props, imperative handles with createHandle, and lifecycle callbacks like onBeforeOpen.',
 };
-import {
-  ControlledStateDemo,
-  CreateHandleDemo,
-  LifecycleCallbacksDemo,
-} from '../state-lifecycle-demos';
+import { ControlledStateDemo, CreateHandleDemo, LifecycleCallbacksDemo } from '../state-lifecycle-demos';
 
 const toc: DocsTocItem[] = [
   { id: 'controlled', title: 'Controlled state' },
@@ -32,9 +28,8 @@ export default function LightboxStateLifecyclePage() {
       title="State & lifecycle"
       description={
         <>
-          Control open state and the active index from React,{' '}
-          <code className="text-xs">createHandle()</code>, or both — and know when callbacks fire. Part of{' '}
-          <DocsLink href={lightboxDocsPages.overview.href}>Lightbox</DocsLink>.
+          Control open state and the active item from React, <code className="text-xs">createHandle()</code>, or both —
+          and know when callbacks fire. Part of <DocsLink href={lightboxDocsPages.overview.href}>Lightbox</DocsLink>.
         </>
       }
       toc={toc}
@@ -43,39 +38,36 @@ export default function LightboxStateLifecyclePage() {
         <p>
           Pass <code className="text-xs">open</code> / <code className="text-xs">onOpenChange</code> and{' '}
           <code className="text-xs">value</code> / <code className="text-xs">onValueChange</code> on{' '}
-          <DocsLink href={lightboxApiHref.root}>Root</DocsLink> to drive the lightbox from URL params, a
-          store, or sibling UI. Omit them for uncontrolled defaults (
-          <code className="text-xs">defaultOpen</code> / <code className="text-xs">defaultValue</code>).
+          <DocsLink href={lightboxApiHref.root}>Root</DocsLink> to drive the lightbox from URL params, a store, or
+          sibling UI. Omit them for uncontrolled defaults (<code className="text-xs">defaultOpen</code> /{' '}
+          <code className="text-xs">defaultValue</code>). The value is the active{' '}
+          <DocsLink href={lightboxApiHref.item}>Item</DocsLink>&apos;s <code className="text-xs">itemId</code>, so it
+          reads well in a URL; <code className="text-xs">onValueChange</code> also passes the item&apos;s position as{' '}
+          <code className="text-xs">details.index</code>.
         </p>
-        <DocsDemo
-          code={lightboxExcerpts['controlled-state'].code}
-          title={lightboxExcerpts['controlled-state'].title}
-        >
+        <DocsDemo code={lightboxExcerpts['controlled-state'].code} title={lightboxExcerpts['controlled-state'].title}>
           <ControlledStateDemo />
         </DocsDemo>
       </DocsSection>
 
       <DocsSection id="imperative" title="Imperative API">
         <p>
-          <DocsLink href={lightboxApiHref.createHandle}>Lightbox.createHandle()</DocsLink> lets Triggers
-          and Root live apart — pass the same handle to both. Call{' '}
-          <code className="text-xs">open(index, {'{ triggerId }'})</code> from any button so the open still
-          morphs from the matching <DocsLink href={lightboxApiHref.trigger}>Trigger</DocsLink>.
+          <DocsLink href={lightboxApiHref.createHandle}>Lightbox.createHandle()</DocsLink> lets Triggers and Root live
+          apart — pass the same handle to both. Call <code className="text-xs">open(itemId)</code> from any button; the
+          open still morphs from that item&apos;s <DocsLink href={lightboxApiHref.trigger}>Trigger</DocsLink>.{' '}
+          <code className="text-xs">goTo(itemId)</code> navigates without opening.
         </p>
-        <DocsDemo
-          code={lightboxExcerpts['create-handle'].code}
-          title={lightboxExcerpts['create-handle'].title}
-        >
+        <DocsDemo code={lightboxExcerpts['create-handle'].code} title={lightboxExcerpts['create-handle'].title}>
           <CreateHandleDemo />
         </DocsDemo>
       </DocsSection>
 
       <DocsSection id="lifecycle" title="Lifecycle callbacks">
         <p>
-          <code className="text-xs">onOpenChange</code> fires immediately when open flips — use it to sync
-          URL or external state. <code className="text-xs">onOpenChangeComplete</code> fires after enter/exit
-          motion settles — use it for cleanup and focus. <code className="text-xs">onValueChange</code>{' '}
-          reports the new index plus a{' '}
+          <code className="text-xs">onOpenChange</code> fires immediately when open flips — use it to sync URL or
+          external state. <code className="text-xs">onOpenChangeComplete</code> fires after enter/exit motion settles —
+          use it for cleanup and focus. <code className="text-xs">onValueChange</code> fires when the active item
+          changes, with its <code className="text-xs">itemId</code>, its index, and a{' '}
           <DocsLink href={lightboxApiHref.types}>NavigationSource</DocsLink> (including{' '}
           <code className="text-xs">imperative</code> for handle navigation).
         </p>
@@ -89,13 +81,11 @@ export default function LightboxStateLifecyclePage() {
 
       <DocsSection id="before-open" title="onBeforeOpen">
         <p>
-          When View Transitions are on, open is{' '}
-          <em>prepare → optional image decode → optional onBeforeOpen → morph</em>. Use{' '}
-          <DocsLink href={lightboxApiHref.root}>Root</DocsLink>
-          ’s <code className="text-xs">onBeforeOpen</code> to delay the morph until custom media is
-          ready (iframe <code className="text-xs">load</code>, video, WebGL, …). It runs after the
-          lightbox is mounted hidden — so destination nodes exist — and before{' '}
-          <code className="text-xs">startViewTransition</code>.
+          When View Transitions are on, open is <em>prepare → optional image decode → optional onBeforeOpen → morph</em>
+          . Use <DocsLink href={lightboxApiHref.root}>Root</DocsLink>
+          ’s <code className="text-xs">onBeforeOpen</code> to delay the morph until custom media is ready (iframe{' '}
+          <code className="text-xs">load</code>, video, WebGL, …). It runs after the lightbox is mounted hidden — so
+          destination nodes exist — and before <code className="text-xs">startViewTransition</code>.
         </p>
         <p>
           Keep <code className="text-xs">awaitImageDecode</code> for photos (default{' '}
@@ -109,12 +99,12 @@ export default function LightboxStateLifecyclePage() {
 
       <DocsSection id="before-close" title="onBeforeClose">
         <p>
-          <code className="text-xs">onBeforeClose</code> fires synchronously when close begins — and,
-          with View Transitions, <em>before</em> the old snapshot is captured. Use it to freeze custom
-          media (<code className="text-xs">video.pause()</code>, stop a rAF loop) so the close morph
-          isn’t a mid-frame. Unlike <code className="text-xs">onBeforeOpen</code>, it cannot delay
-          close. <code className="text-xs">onOpenChange(false)</code> is too late for this: it runs
-          inside the transition callback, after the snapshot.
+          <code className="text-xs">onBeforeClose</code> fires synchronously when close begins — and, with View
+          Transitions, <em>before</em> the old snapshot is captured. Use it to freeze custom media (
+          <code className="text-xs">video.pause()</code>, stop a rAF loop) so the close morph isn’t a mid-frame. Unlike{' '}
+          <code className="text-xs">onBeforeOpen</code>, it cannot delay close.{' '}
+          <code className="text-xs">onOpenChange(false)</code> is too late for this: it runs inside the transition
+          callback, after the snapshot.
         </p>
       </DocsSection>
 

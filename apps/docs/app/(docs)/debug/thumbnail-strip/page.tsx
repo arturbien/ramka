@@ -6,10 +6,7 @@ import Image, { type StaticImageData } from 'next/image';
 import * as Lightbox from '@ramka/react/lightbox';
 import { X } from 'lucide-react';
 
-import {
-  lightboxChromeButton,
-  triggerFocusClass,
-} from '../../../_components/lightbox-chrome';
+import { lightboxChromeButton, triggerFocusClass } from '../../../_components/lightbox-chrome';
 
 import { AspectFrameStrip } from './aspect-frame-strip';
 import { stripImages } from './images.generated';
@@ -84,12 +81,8 @@ function DemoShell({
   return (
     <section className="rounded-2xl border border-neutral-200/80 bg-white p-5 shadow-[0_1px_0_rgb(0_0_0/0.03)] dark:border-neutral-800 dark:bg-neutral-950/60 dark:shadow-none sm:p-6">
       <header className="mb-4 max-w-xl">
-        <h2 className="text-base font-semibold tracking-tight text-neutral-900 dark:text-neutral-50">
-          {title}
-        </h2>
-        <p className="mt-1 text-sm leading-relaxed text-neutral-600 dark:text-neutral-400">
-          {description}
-        </p>
+        <h2 className="text-base font-semibold tracking-tight text-neutral-900 dark:text-neutral-50">{title}</h2>
+        <p className="mt-1 text-sm leading-relaxed text-neutral-600 dark:text-neutral-400">{description}</p>
       </header>
 
       <Lightbox.Root loop morphTo="closest">
@@ -97,7 +90,7 @@ function DemoShell({
           {photos.slice(0, TRIGGER_COUNT).map((photo, i) => (
             <Lightbox.Trigger
               key={photo.id}
-              index={i}
+              itemId={photo.id}
               crossfade={i === TRIGGER_COUNT - 1 ? 'both' : undefined}
               className={`relative aspect-square overflow-hidden rounded-lg bg-neutral-100 ${triggerFocusClass} dark:bg-neutral-900`}
             >
@@ -127,7 +120,7 @@ function DemoShell({
             >
               {photos.map((photo, i) => (
                 <Lightbox.Slide key={photo.id} className="lightbox-demo-slide-pad h-full">
-                  <Lightbox.Item index={i} caption={photo.caption}>
+                  <Lightbox.Item index={i} itemId={photo.id} caption={photo.caption}>
                     <Lightbox.Zoom maxZoom={4}>
                       <Lightbox.Media
                         width={photo.image.width}
@@ -141,7 +134,7 @@ function DemoShell({
                           loading="eager"
                           draggable={false}
                           className="select-none"
-                          // Indexes past the trigger grid have no trigger image
+                          // Photos past the trigger grid have no trigger image
                           // to bridge from — destination blur is the placeholder.
                           {...(i >= TRIGGER_COUNT ? { placeholder: 'blur' as const } : null)}
                         />
@@ -152,9 +145,7 @@ function DemoShell({
               ))}
             </Lightbox.Slides>
 
-            <div
-              className={`absolute right-3 top-[calc(0.75rem+env(safe-area-inset-top,0px))] z-30 ${chromePullHide}`}
-            >
+            <div className={`absolute right-3 top-[calc(0.75rem+env(safe-area-inset-top,0px))] z-30 ${chromePullHide}`}>
               <Lightbox.Close className={lightboxChromeButton} aria-label="Close">
                 <X aria-hidden className="h-[18px] w-[18px]" strokeWidth={2.25} />
               </Lightbox.Close>
@@ -246,11 +237,7 @@ function FadeStrip() {
     <Lightbox.ThumbnailStrip className="ts-debug-strip ts-debug-fade">
       <Lightbox.ThumbnailStripTrack aria-label="Thumbnails">
         {photos.map((photo, i) => (
-          <Lightbox.Thumbnail
-            key={photo.id}
-            index={i}
-            style={{ ['--ts-aspect' as string]: String(photo.aspect) }}
-          >
+          <Lightbox.Thumbnail key={photo.id} index={i} style={{ ['--ts-aspect' as string]: String(photo.aspect) }}>
             <Image src={photo.image} alt="" sizes="120px" draggable={false} />
           </Lightbox.Thumbnail>
         ))}
@@ -275,8 +262,8 @@ export default function ThumbnailStripDebugPage() {
           ThumbnailStrip recipes
         </h1>
         <p className="mt-3 max-w-2xl text-base leading-relaxed text-neutral-600 dark:text-neutral-400">
-          Same unstyled primitive, different consumer CSS. Open any grid — the strip stays
-          scroll-linked and midline-centered; only the skin changes.
+          Same unstyled primitive, different consumer CSS. Open any grid — the strip stays scroll-linked and
+          midline-centered; only the skin changes.
         </p>
       </header>
 

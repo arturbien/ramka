@@ -1,7 +1,7 @@
 /*
  * No entrance motion when the page ITSELF is the entrance — used by
  * deep-linked visits that server-render the lightbox already open
- * (the URL-synced state example's dynamic route).
+ * (the Shareable albums example's `?photo=` links).
  *
  * The skin's open/close fades run off `@starting-style` (open-close.css,
  * chrome-hide, the strip's data-positioned reveal), and @starting-style

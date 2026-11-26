@@ -10,13 +10,13 @@ import * as Lightbox from '@ramka/react/lightbox';
 export function AnatomyExcerpt() {
   return (
     <Lightbox.Root>
-      <Lightbox.Trigger index={0}>{/* thumb */}</Lightbox.Trigger>
+      <Lightbox.Trigger itemId="photo-1">{/* thumb */}</Lightbox.Trigger>
       <Lightbox.Portal>
         <Lightbox.Backdrop />
         <Lightbox.Content>
           <Lightbox.Slides>
             <Lightbox.Slide>
-              <Lightbox.Item index={0}>
+              <Lightbox.Item index={0} itemId="photo-1">
                 <Lightbox.Zoom>
                   <Lightbox.Media>
                     <img alt="" />
