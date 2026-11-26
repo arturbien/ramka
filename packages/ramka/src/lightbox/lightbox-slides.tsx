@@ -896,8 +896,9 @@ const LightboxSlidesEngine = React.forwardRef<HTMLDivElement, LightboxSlidesEngi
 
 LightboxSlidesEngine.displayName = 'LightboxSlides';
 
-const LightboxSlides: React.ForwardRefExoticComponent<LightboxSlidesProps & React.RefAttributes<HTMLDivElement>> =
-  LightboxSlidesEngine;
+const LightboxSlides: React.ForwardRefExoticComponent<
+  React.PropsWithoutRef<LightboxSlidesProps> & React.RefAttributes<HTMLDivElement>
+> = LightboxSlidesEngine;
 
 export { LightboxSlides, LightboxSlidesEngine, useSlidesPreload };
 export type { LightboxSlidesProps, LightboxSlidesState };
