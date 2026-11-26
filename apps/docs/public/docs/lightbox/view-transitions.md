@@ -117,7 +117,7 @@ Controls whether the morph *dissolves* between trigger and item snapshots or har
 - `both` — dissolve on open and close (stack → single photo, +N overlay tile, etc.).
 - `open` / `close` — dissolve in one direction only (e.g. poster → live video often wants `close`).
 
-Keep trigger and item images on `object-fit: cover` (or the same fit) so crops stay coherent. Put border-radius on the morph target itself — the library interpolates `--lightbox-morph-border-radius-from/to` on `<html>`.
+Keep trigger and item images on `object-fit: cover` (or the same fit) so crops stay coherent. Put border-radius on the morph target itself — the library reads it from the trigger and item and animates the morph group's corners between them.
 
 ```tsx crossfade="both"
 import * as Lightbox from '@ramka/react/lightbox';
@@ -232,7 +232,7 @@ You write **zero** view-transition CSS: the library injects the structural `::vi
 
 - `data-ramka-view-transition` — `opening` | `closing`
 - `data-ramka-crossfade` — dissolve path (present when Trigger `crossfade` is active for this phase; absent for hard-cut)
-- `--lightbox-morph-border-radius-from/to`, `--lightbox-morph-old/new-opacity`
+- `--lightbox-morph-old/new-opacity`
 - `data-ramka-vt-preset`, `--lightbox-vt-duration`, `--lightbox-vt-easing`, `--lightbox-vt-crossfade-close-easing`, `--lightbox-vt-root-easing` — the active timing preset, written by the library (see [Timing presets](#timing-presets))
 - [Trigger](docs/lightbox/api.md#api-trigger) `data-morph-target` / [Item](docs/lightbox/api.md#api-item) `data-skip-fade` — hide the live morph source and suppress entrance fades on the destination while the VT layer is up
 
@@ -258,7 +258,7 @@ Timing is preset-based rather than free-form CSS on purpose: each preset is vett
 On first [Root](docs/lightbox/api.md#api-root) mount the library injects one stylesheet with everything a morph structurally needs — no copy-paste block to maintain, and multiple skins on one page can never fight over it:
 
 - **Name isolation** — `startViewTransition` snapshots the whole document, so any page element with its own `view-transition-name` would paint *over* the lightbox. Every name is cleared while `data-ramka-view-transition` is set; the morph target re-applies its name inline with `!important` and stays the only captured group.
-- **Morph group** — clipping + border-radius interpolation (put radius on the morph target element; JS writes `--lightbox-morph-border-radius-from/to`), timed by the active preset.
+- **Morph group** — clipping + border-radius interpolation (put radius on the morph target element), timed by the active preset.
 - **Snapshots** — hard-cut by default (`object-fit: cover`, no UA dissolve); when Trigger `crossfade` sets `data-ramka-crossfade`, the dissolve path (UA fade, `plus-lighter`, `object-fit: fill`) runs on the same preset clock. Open uses the morph ease-out so the destination appears promptly; both phases run that complementary dissolve on a shorter window so the outgoing snapshot is gone before the size settle (`plus-lighter` stays opaque).
 - **Root snapshot** — the page-behind crossfade, kept as a *single* root group (promoting Backdrop / Content into named groups tanks Safari). Fade scrim and chrome with live `opacity` transitions instead.
 - **Morph-target hide** — `[data-morph-target]` gets `opacity: 0` with a 200ms fade-back (disabled during the transition so it can't be captured mid-flight), so the live trigger never shows doubled under the morphing snapshot.

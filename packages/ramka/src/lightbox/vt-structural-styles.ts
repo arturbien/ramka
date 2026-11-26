@@ -86,29 +86,22 @@ function buildCss(): string {
 
 ${presetTimingRules}
 
-/* Hard-cut snapshot opacities and the radius from/to derivation, by phase
-   (see the hard-cut rules below and applyMorphState for the rationale).
-   Published on the ::view-transition pseudo instead of inline on <html> —
-   see the preset-timing comment above. Under crossfade the opacity vars are
-   inert anyway (the crossfade rules override the consuming 'opacity'
-   declarations with 'revert !important'), so they can be keyed on the phase
-   attribute alone. The trigger/item radius pair is inline on <html> (per
-   morph, deduplicated); the pseudo inherits from the root element, so the
-   var() references resolve. */
+/* Hard-cut snapshot opacities, by phase (see the hard-cut rules below and
+   applyMorphState for the rationale). Published on the ::view-transition
+   pseudo instead of inline on <html> — see the preset-timing comment above.
+   Under crossfade the opacity vars are inert anyway (the crossfade rules
+   override the consuming 'opacity' declarations with 'revert !important'),
+   so they can be keyed on the phase attribute alone. */
 :root[${vt}]::view-transition {
   ${vars.morphOldOpacity}: 1;
 }
 
 :root[${vt}="opening"]::view-transition {
   ${vars.morphNewOpacity}: 1;
-  ${vars.morphBorderRadiusFrom}: var(${vars.morphRadiusTrigger}, 0px);
-  ${vars.morphBorderRadiusTo}: var(${vars.morphRadiusItem}, 0px);
 }
 
 :root[${vt}="closing"]::view-transition {
   ${vars.morphNewOpacity}: 0;
-  ${vars.morphBorderRadiusFrom}: var(${vars.morphRadiusItem}, 0px);
-  ${vars.morphBorderRadiusTo}: var(${vars.morphRadiusTrigger}, 0px);
 }
 
 /* The morph-target hide rule (opacity zero plus its during-VT transition
@@ -127,19 +120,12 @@ ${presetTimingRules}
     animation-timing-function: ${rootEasing};
   }
 
-  /* Shape morph is CSS-only: JS writes the from/to radius vars; the group
-     owns clipping for the whole transition. The 'from' radius is the cascade
-     base (not only a keyframe) so frame 0 can't flash the 0px fallback. */
-  @keyframes ramka-morph-border-radius {
-    to {
-      border-radius: var(${vars.morphBorderRadiusTo}, 0px);
-    }
-  }
-
+  /* The group owns clipping for the whole transition. Its border-radius is
+     animated only by the composited morph (passed in as values, never via
+     vars on <html> — those restyle the whole document in WebKit); the stock
+     fallback morph keeps square corners. */
   ${groupPseudo} {
     overflow: hidden;
-    border-radius: var(${vars.morphBorderRadiusFrom}, 0px);
-    animation-name: -ua-view-transition-group-anim-${VIEW_TRANSITION_NAME}, ramka-morph-border-radius;
     animation-duration: ${duration};
     animation-timing-function: ${easing};
     animation-fill-mode: both;

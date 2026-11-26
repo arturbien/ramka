@@ -62,8 +62,10 @@ describe('vt-structural-styles', () => {
     // — see morph-target-hide.ts. Assert on attribute + opacity co-occurrence
     // rather than exact formatting so a minified reintroduction still fails.
     expect(css).not.toMatch(/\[data-morph-target\][^{]*\{[^}]*opacity/);
-    // Group radius interpolation + preset-driven timing.
-    expect(css).toContain('@keyframes ramka-morph-border-radius');
+    // Preset-driven timing. No radius plumbing: the composited morph carries
+    // the radii as values, and vars on <html> would restyle the whole page.
+    expect(css).not.toContain('morph-border-radius');
+    expect(css).not.toContain('morph-radius');
     expect(css).toContain('::view-transition-group(lightbox-morph)');
     expect(css).toContain('var(--lightbox-vt-duration');
     // Crossfade dissolve retimed to the preset (open curve; close inverse).
