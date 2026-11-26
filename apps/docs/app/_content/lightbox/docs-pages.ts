@@ -70,6 +70,7 @@ export const lightboxApiHref = {
   item: `${api}#api-item`,
   media: `${api}#api-media`,
   slides: `${api}#api-slides`,
+  virtualSlides: `${api}#api-virtual-slides`,
   slide: `${api}#api-slide`,
   previous: `${api}#api-previous`,
   next: `${api}#api-next`,

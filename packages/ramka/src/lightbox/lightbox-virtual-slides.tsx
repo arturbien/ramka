@@ -33,7 +33,14 @@ import { LightboxSlidesEngine, type LightboxSlidesProps } from './lightbox-slide
  * Slides must be uniform and scrollport-wide (`flex: 0 0 100%`).
  */
 
-interface LightboxVirtualSlidesProps extends Omit<LightboxSlidesProps, 'children' | 'ssrSlideShift'> {
+interface LightboxVirtualSlidesProps extends Omit<LightboxSlidesProps, 'children' | 'ssrSlideShift' | 'preload'> {
+  /**
+   * How many slides on each side of the active one keep their
+   * `Lightbox.Item` content mounted. Unlike `Lightbox.Slides`, slide boxes
+   * outside this window plus `overscan` aren't mounted at all.
+   * @default 1
+   */
+  preload?: number;
   /**
    * Slide boxes kept mounted beyond the `preload` window on each side of
    * the active slide. @default 2

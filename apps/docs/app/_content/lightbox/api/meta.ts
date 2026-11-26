@@ -8,6 +8,8 @@
 export type EnumExtract = {
   enumName: string;
   file: string;
+  /** Drop these members, by value (a part that shares an enum but never sets them). */
+  exclude?: string[];
 };
 
 export type ExtractSpec =
@@ -226,12 +228,13 @@ export const lightboxApiMeta: ApiPartMeta[] = [
       kind: 'interface-props',
       typeName: 'LightboxVirtualSlidesProps',
       file: 'lightbox-virtual-slides.tsx',
-      includeInherited: ['render', 'preload'],
+      includeInherited: ['render'],
       exclude: ['className'],
     },
     attributesFrom: {
       enumName: 'LightboxSlidesDataAttributes',
       file: 'lightbox-data-attributes.ts',
+      exclude: ['data-ssr-shift'],
     },
   },
   {

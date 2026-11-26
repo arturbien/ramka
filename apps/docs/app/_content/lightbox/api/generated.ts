@@ -275,6 +275,12 @@ export const generatedProps: Record<string, PropRow[]> = {
   ],
   "api-virtual-slides": [
     {
+      name: "preload",
+      type: "number",
+      default: "1",
+      description: "How many slides on each side of the active one keep their `Lightbox.Item` content mounted. Unlike `Lightbox.Slides`, slide boxes outside this window plus `overscan` aren't mounted at all.",
+    },
+    {
       name: "overscan",
       type: "number",
       default: "2",
@@ -290,12 +296,6 @@ export const generatedProps: Record<string, PropRow[]> = {
       name: "render",
       type: "ReactElement | ComponentRenderFn",
       description: "Replaces the part's default element with another tag or component. Accepts an element to clone, or a function that returns one.",
-    },
-    {
-      name: "preload",
-      type: "number",
-      default: "1",
-      description: "How many slides on each side of the active one keep their `Lightbox.Item` content mounted. Slide *boxes* are always present (so scroll extent is correct); only their content is preload-gated. `1` keeps the neighbours you can swipe to ready.",
     },
   ],
   "api-slide": [],
@@ -745,10 +745,6 @@ export const generatedAttributes: Record<string, AttrRow[]> = {
     {
       name: "data-orientation",
       description: "Always `horizontal`.",
-    },
-    {
-      name: "data-ssr-shift",
-      description: "Present while the `ssrSlideShift` transform stand-in is applied: from the server render of an open lightbox until the mount layout effect swaps the real scroll offset in (same commit — the swap never paints). While set, every slide is translated so the active one occupies the scrollport at scroll offset 0, and the scrollport's `overflow-x` is frozen so a pre-hydration swipe can't reveal the empty positions the translated slides vacated.",
     },
   ],
   "api-slide": [

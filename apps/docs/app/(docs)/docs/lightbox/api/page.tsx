@@ -38,6 +38,7 @@ const byConcern: { label: string; links: { href: string; title: string }[] }[] =
     label: 'Layout',
     links: [
       { href: lightboxApiHref.slides, title: 'Slides' },
+      { href: lightboxApiHref.virtualSlides, title: 'VirtualSlides' },
       { href: lightboxApiHref.slide, title: 'Slide' },
     ],
   },

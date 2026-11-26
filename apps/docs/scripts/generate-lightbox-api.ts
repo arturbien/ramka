@@ -42,8 +42,7 @@ const lightboxSrc = path.join(repoRoot, 'packages/ramka/src/lightbox');
 const ramkaTsconfig = path.join(repoRoot, 'packages/ramka/tsconfig.json');
 const outFile = path.join(docsRoot, 'app/_content/lightbox/api/generated.ts');
 
-const TYPE_FORMAT =
-  TypeFormatFlags.NoTruncation | TypeFormatFlags.UseAliasDefinedOutsideCurrentScope;
+const TYPE_FORMAT = TypeFormatFlags.NoTruncation | TypeFormatFlags.UseAliasDefinedOutsideCurrentScope;
 
 const project = new Project({
   tsConfigFilePath: ramkaTsconfig,
@@ -82,11 +81,7 @@ function expandStringLiteralAliasDecl(aliasDecl: Node | undefined): string | und
   );
 }
 
-function typeTextForDeclaration(
-  decl: Node | undefined,
-  type: Type,
-  propName?: string,
-): string {
+function typeTextForDeclaration(decl: Node | undefined, type: Type, propName?: string): string {
   // Inherited Base UI `render` prints as a huge generic — keep a stable short form.
   if (propName === 'render') {
     return 'ReactElement | ComponentRenderFn';
@@ -197,13 +192,10 @@ function propRowFromSymbol(
   const description = jsDocDescription(jsDocs);
   const defaultValue = jsDocDefault(jsDocs);
   const decl =
-    symbol.getDeclarations().find(Node.isPropertySignature) ??
-    symbol.getDeclarations().find(Node.isMethodSignature);
+    symbol.getDeclarations().find(Node.isPropertySignature) ?? symbol.getDeclarations().find(Node.isMethodSignature);
   const typeText = typeTextForDeclaration(decl, type, name);
   const optional =
-    opts.required === false ||
-    (Node.isPropertySignature(decl) && decl.hasQuestionToken()) ||
-    type.isNullable();
+    opts.required === false || (Node.isPropertySignature(decl) && decl.hasQuestionToken()) || type.isNullable();
 
   const row: PropRow = {
     name,
@@ -397,17 +389,19 @@ function extractEnumRows(spec: EnumExtract): { name: string; description: string
   const en = source.getEnum(spec.enumName);
   if (!en) throw new Error(`Enum ${spec.enumName} not found in ${spec.file}`);
 
-  return en.getMembers().map((member) => {
+  const exclude = new Set(spec.exclude ?? []);
+  return en.getMembers().flatMap((member) => {
     const docs = member.getJsDocs();
     const value = member.getValue();
     const name = typeof value === 'string' ? value : member.getName();
+    if (exclude.has(name)) return [];
     const row: { name: string; description: string; type?: string } = {
       name,
       description: jsDocDescription(docs) || '—',
     };
     const type = jsDocType(docs);
     if (type) row.type = type;
-    return row;
+    return [row];
   });
 }
 
@@ -424,10 +418,7 @@ function serializeObjectRow(row: Record<string, string | boolean | undefined>): 
   return `    {\n      ${fields.join(',\n      ')},\n    }`;
 }
 
-function serializeMap(
-  byId: Record<string, object[]>,
-  serialize: (row: never) => string,
-): string {
+function serializeMap(byId: Record<string, object[]>, serialize: (row: never) => string): string {
   return Object.entries(byId)
     .map(([id, rows]) => {
       if (rows.length === 0) return `  ${JSON.stringify(id)}: [],`;
@@ -484,12 +475,7 @@ ${cssEntries}
 }
 
 function collectMeta(): ApiPartMeta[] {
-  return [
-    ...lightboxApiMeta,
-    documentViewTransitionMeta,
-    ...hooksApiMeta,
-    ...imperativeApiMeta,
-  ];
+  return [...lightboxApiMeta, documentViewTransitionMeta, ...hooksApiMeta, ...imperativeApiMeta];
 }
 
 function main() {

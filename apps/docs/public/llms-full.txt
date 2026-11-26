@@ -1423,7 +1423,7 @@ Each part accepts native element props for its default host (via Base UI `render
 
 - **State**: [Root](docs/lightbox/api.md#api-root), [createHandle](docs/lightbox/api.md#api-create-handle)
 - **Trigger / Item**: [Trigger](docs/lightbox/api.md#api-trigger), [Item](docs/lightbox/api.md#api-item), [Media](docs/lightbox/api.md#api-media)
-- **Layout**: [Slides](docs/lightbox/api.md#api-slides), [Slide](docs/lightbox/api.md#api-slide)
+- **Layout**: [Slides](docs/lightbox/api.md#api-slides), [VirtualSlides](docs/lightbox/api.md#api-virtual-slides), [Slide](docs/lightbox/api.md#api-slide)
 - **View transitions**: [Root (VT props)](docs/lightbox/api.md#api-root), [Document (VT)](docs/lightbox/api.md#api-view-transition-document)
 - **Shell**: [Portal](docs/lightbox/api.md#api-portal), [Backdrop](docs/lightbox/api.md#api-backdrop), [Content](docs/lightbox/api.md#api-content)
 - **Gestures**: [Content](docs/lightbox/api.md#api-content), [Zoom](docs/lightbox/api.md#api-zoom), [ZoomIn](docs/lightbox/api.md#api-zoom-in), [ZoomOut](docs/lightbox/api.md#api-zoom-out)
@@ -1670,10 +1670,10 @@ Slides for very large galleries: only a window of slides around the active one i
 
 | Name | Type | Default | Description |
 | --- | --- | --- | --- |
+| preload | `number` | `1` | How many slides on each side of the active one keep their `Lightbox.Item` content mounted. Unlike `Lightbox.Slides`, slide boxes outside this window plus `overscan` aren't mounted at all. |
 | overscan | `number` | `2` | Slide boxes kept mounted beyond the `preload` window on each side of the active slide. |
 | children | `(index: number, itemId: string) => ReactNode` |  | Renders the slide at a collection index: a `Lightbox.Slide` with a `Lightbox.Item` carrying the same `index` and `itemId` inside. Only called for the mounted window. |
 | render | `ReactElement \| ComponentRenderFn` |  | Replaces the part's default element with another tag or component. Accepts an element to clone, or a function that returns one. |
-| preload | `number` | `1` | How many slides on each side of the active one keep their `Lightbox.Item` content mounted. Slide *boxes* are always present (so scroll extent is correct); only their content is preload-gated. `1` keeps the neighbours you can swipe to ready. |
 
 #### Data attributes
 
@@ -1683,7 +1683,6 @@ Slides for very large galleries: only a window of slides around the active one i
 | `data-active-index` | Current active index. |
 | `data-direction` | `forward` or `backward`. |
 | `data-orientation` | Always `horizontal`. |
-| `data-ssr-shift` | Present while the `ssrSlideShift` transform stand-in is applied: from the server render of an open lightbox until the mount layout effect swaps the real scroll offset in (same commit — the swap never paints). While set, every slide is translated so the active one occupies the scrollport at scroll offset 0, and the scrollport's `overflow-x` is frozen so a pre-hydration swipe can't reveal the empty positions the translated slides vacated. |
 
 ### Slide
 
