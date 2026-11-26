@@ -13,11 +13,13 @@ import { LightboxRoot } from './lightbox-root';
 import { LightboxSlide } from './lightbox-slide';
 import { LightboxTrigger } from './lightbox-trigger';
 import { LightboxVirtualSlides } from './lightbox-virtual-slides';
+import type { TextDirection } from './lightbox-direction';
 import {
   SLIDE_TEST_WIDTH as WIDTH,
   endScroll,
   flushRaf,
   flushResizeObservers,
+  inlineToPhysicalScroll,
   installSlidesLayoutMocks,
   resetSlidesLayoutMocks,
   swipeTo,
@@ -26,11 +28,16 @@ import {
 const COUNT = 1000;
 const IDS = Array.from({ length: COUNT }, (_, i) => `photo-${i}`);
 
+// An RTL flex row lays slide 0 at the right edge and the rest leftward.
+let layoutDir: TextDirection = 'ltr';
+
 beforeEach(() => {
+  layoutDir = 'ltr';
   installSlidesLayoutMocks();
   vi.spyOn(HTMLElement.prototype, 'offsetLeft', 'get').mockImplementation(function (this: HTMLElement) {
     const index = this.dataset.slideIndex;
-    return index === undefined ? 0 : Number(index) * WIDTH;
+    if (index === undefined) return 0;
+    return (layoutDir === 'rtl' ? -Number(index) : Number(index)) * WIDTH;
   });
   vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockImplementation(function (this: HTMLElement) {
     return this.dataset.slideIndex === undefined ? 0 : WIDTH;
@@ -52,6 +59,7 @@ function VirtualGallery({
   defaultOpen = true,
   defaultValue,
   loop,
+  dir,
   handle,
   onValueChange,
   triggers = [],
@@ -60,6 +68,7 @@ function VirtualGallery({
   defaultOpen?: boolean;
   defaultValue?: string;
   loop?: boolean;
+  dir?: TextDirection;
   handle?: LightboxHandle;
   onValueChange?: (value: string, details: { index: number; source: string }) => void;
   triggers?: string[];
@@ -70,6 +79,7 @@ function VirtualGallery({
       defaultOpen={defaultOpen}
       defaultValue={defaultValue}
       loop={loop}
+      dir={dir}
       handle={handle}
       onValueChange={onValueChange}
       viewTransition={false}
@@ -257,5 +267,77 @@ describe('Lightbox.VirtualSlides', () => {
     render(<VirtualGallery ids={null} />);
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('needs `itemIds` on Lightbox.Root'));
     expect(mountedSlideIndexes()).toEqual([]);
+  });
+});
+
+describe('Lightbox.VirtualSlides (dir=rtl)', () => {
+  const physical = (index: number) => inlineToPhysicalScroll(index * WIDTH, 'rtl');
+
+  beforeEach(() => {
+    layoutDir = 'rtl';
+  });
+
+  it('opens deep into the gallery at the mirrored scroll position', () => {
+    render(<VirtualGallery dir="rtl" defaultValue="photo-500" />);
+    const viewport = setupViewport();
+    expect(viewport.scrollLeft).toBe(physical(500));
+    expect(mountedSlideIndexes()).toEqual([497, 498, 499, 500, 501, 502, 503]);
+  });
+
+  it('derives the active slide from a swipe and recentres the window', () => {
+    render(<VirtualGallery dir="rtl" defaultValue="photo-500" />);
+    const viewport = setupViewport();
+    swipeTo(viewport, 501, WIDTH, 'rtl');
+    endScroll(viewport);
+    expect(screen.getByTestId('item-photo-501')).toHaveAttribute('data-active');
+    expect(mountedSlideIndexes()).toEqual([498, 499, 500, 501, 502, 503, 504]);
+    expect(viewport.scrollLeft).toBe(physical(501));
+  });
+
+  it('mirrors the horizontal arrow keys', () => {
+    render(<VirtualGallery dir="rtl" defaultValue="photo-500" />);
+    const viewport = setupViewport();
+    act(() => {
+      fireEvent.keyDown(screen.getByTestId('content'), { key: 'ArrowLeft' });
+      flushRaf();
+    });
+    expect(screen.getByTestId('item-photo-501')).toHaveAttribute('data-active');
+    expect(viewport.scrollLeft).toBe(physical(501));
+    endScroll(viewport);
+    act(() => {
+      fireEvent.keyDown(screen.getByTestId('content'), { key: 'ArrowRight' });
+      flushRaf();
+    });
+    expect(screen.getByTestId('item-photo-500')).toHaveAttribute('data-active');
+    expect(viewport.scrollLeft).toBe(physical(500));
+  });
+
+  it('navigates with Next and Previous', () => {
+    render(<VirtualGallery dir="rtl" defaultValue="photo-500" />);
+    const viewport = setupViewport();
+    act(() => {
+      fireEvent.click(screen.getByTestId('next'));
+      flushRaf();
+    });
+    expect(screen.getByTestId('item-photo-501')).toHaveAttribute('data-active');
+    expect(viewport.scrollLeft).toBe(physical(501));
+    endScroll(viewport);
+    act(() => {
+      fireEvent.click(screen.getByTestId('previous'));
+      flushRaf();
+    });
+    expect(screen.getByTestId('item-photo-500')).toHaveAttribute('data-active');
+    expect(viewport.scrollLeft).toBe(physical(500));
+  });
+
+  it('jumps to the last slide with End', () => {
+    render(<VirtualGallery dir="rtl" defaultValue="photo-0" />);
+    const viewport = setupViewport();
+    act(() => {
+      fireEvent.keyDown(screen.getByTestId('content'), { key: 'End' });
+      flushRaf();
+    });
+    expect(viewport.scrollLeft).toBe(physical(999));
+    expect(mountedSlideIndexes()).toEqual([996, 997, 998, 999]);
   });
 });
