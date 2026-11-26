@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import Image, { type StaticImageData } from 'next/image';
+import { useWindowVirtualizer, type Virtualizer } from '@tanstack/react-virtual';
 import * as Lightbox from '@ramka/react/lightbox';
 import { ChevronLeft, ChevronRight, X } from 'lucide-react';
 
@@ -21,8 +22,10 @@ import { feedImages } from '../infinite-scroll/images.generated';
  * the whole gallery, which is how a photo whose slide isn't mounted can still
  * be opened, counted and navigated to.
  *
- * The grid is the page's own concern: `content-visibility: auto` lets the
- * browser skip rendering tiles that are off screen.
+ * The grid is virtualized too, by rows, so only the tiles near the viewport
+ * have a Trigger. When the photo being viewed has no mounted tile, `reveal`
+ * scrolls its row into view and Ramka waits for that Trigger before the close
+ * morph.
  */
 
 interface Photo {
@@ -40,39 +43,53 @@ const photos: Photo[] = Array.from({ length: PHOTO_COUNT }, (_, i) => ({
 }));
 
 const photoIds = photos.map((photo) => photo.id);
+const photoIndex = new Map(photoIds.map((id, index) => [id, index]));
 
 const handle = Lightbox.createHandle();
 
-// Every tile re-renders when the lightbox opens or closes (its trigger flips
-// `data-popup-open`); memo keeps that from re-running next/image 5,000 times.
-const TileImage = React.memo(function TileImage({
-  photo,
-  imageRef,
-}: {
-  photo: Photo;
-  imageRef: React.Ref<HTMLImageElement>;
-}) {
-  return (
-    <Image
-      ref={imageRef}
-      src={photo.image}
-      alt={photo.alt}
-      sizes="(min-width: 1024px) 12.5vw, (min-width: 768px) 20vw, 33vw"
-      loading="lazy"
-      className="block size-full object-cover"
-    />
-  );
-});
+const GAP_PX = 2;
+
+// Same breakpoints as Tailwind's `md` and `lg`.
+const COLUMN_QUERIES = [
+  ['(min-width: 1024px)', 8],
+  ['(min-width: 768px)', 5],
+] as const;
+
+function getColumns() {
+  return COLUMN_QUERIES.find(([query]) => window.matchMedia(query).matches)?.[1] ?? 3;
+}
+
+function subscribeColumns(onChange: () => void) {
+  const lists = COLUMN_QUERIES.map(([query]) => window.matchMedia(query));
+  lists.forEach((list) => list.addEventListener('change', onChange));
+  return () => lists.forEach((list) => list.removeEventListener('change', onChange));
+}
+
+function useColumns() {
+  return React.useSyncExternalStore(subscribeColumns, getColumns, () => 3);
+}
 
 export function HugeGallery() {
+  const virtualizerRef = React.useRef<Virtualizer<Window, Element> | null>(null);
+  const columnsRef = React.useRef(3);
+
+  // The close morph needs its tile on screen. When the photo being viewed is
+  // in a row the virtualizer has unmounted, bring that row back.
+  const reveal = React.useCallback(({ itemId }: { itemId: string }) => {
+    const index = photoIndex.get(itemId);
+    if (index === undefined) return;
+    virtualizerRef.current?.scrollToIndex(Math.floor(index / columnsRef.current), { align: 'center' });
+  }, []);
+
   return (
     <div className="min-h-screen select-none">
       <Lightbox.Root
         handle={handle}
         itemIds={photoIds}
         scrollTriggerIntoView={[
-          { type: 'onChange', behavior: 'instant' },
-          { type: 'onOpenComplete', behavior: 'instant' },
+          { type: 'onChange', behavior: 'instant', reveal },
+          { type: 'onOpenComplete', behavior: 'instant', reveal },
+          { type: 'onClose', behavior: 'instant', reveal },
         ]}
         awaitImageDecode={false}
       >
@@ -94,17 +111,7 @@ export function HugeGallery() {
           </button>
         </div>
 
-        <div className="grid grid-cols-3 gap-0.5 md:grid-cols-5 lg:grid-cols-8">
-          {photos.map((photo) => (
-            <Lightbox.Trigger
-              key={photo.id}
-              itemId={photo.id}
-              className={`relative block aspect-square cursor-pointer overflow-hidden bg-transparent p-0 [contain-intrinsic-size:auto_160px] [content-visibility:auto] md:scroll-mt-16 ${triggerFocusClass}`}
-            >
-              {({ imageRef }) => <TileImage photo={photo} imageRef={imageRef} />}
-            </Lightbox.Trigger>
-          ))}
-        </div>
+        <PhotoGrid virtualizerRef={virtualizerRef} columnsRef={columnsRef} />
 
         <Lightbox.Portal>
           <Lightbox.Backdrop className="lightbox-demo-backdrop fixed inset-0 bg-white dark:bg-black" />
@@ -177,3 +184,80 @@ export function HugeGallery() {
     </div>
   );
 }
+
+// Its own component so scrolling re-renders only the grid, not the Root.
+function PhotoGrid({
+  virtualizerRef,
+  columnsRef,
+}: {
+  virtualizerRef: React.RefObject<Virtualizer<Window, Element> | null>;
+  columnsRef: React.RefObject<number>;
+}) {
+  const columns = useColumns();
+  columnsRef.current = columns;
+
+  const listRef = React.useRef<HTMLDivElement>(null);
+  const [layout, setLayout] = React.useState({ width: 0, top: 0 });
+  React.useLayoutEffect(() => {
+    const list = listRef.current!;
+    const update = () => setLayout({ width: list.clientWidth, top: list.getBoundingClientRect().top + window.scrollY });
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(list);
+    return () => observer.disconnect();
+  }, []);
+
+  const rowHeight = layout.width ? (layout.width - GAP_PX * (columns - 1)) / columns + GAP_PX : 160;
+  const virtualizer = useWindowVirtualizer({
+    count: Math.ceil(PHOTO_COUNT / columns),
+    estimateSize: () => rowHeight,
+    overscan: 3,
+    scrollMargin: layout.top,
+  });
+  virtualizerRef.current = virtualizer;
+
+  React.useLayoutEffect(() => {
+    virtualizer.measure();
+  }, [virtualizer, rowHeight]);
+
+  return (
+    <div ref={listRef} className="relative" style={{ height: virtualizer.getTotalSize() }}>
+      {virtualizer.getVirtualItems().map((row) => (
+        <div
+          key={row.key}
+          className="absolute inset-x-0 top-0"
+          style={{ transform: `translateY(${row.start - layout.top}px)` }}
+        >
+          <PhotoRow row={row.index} columns={columns} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// Memoized so a scroll frame doesn't re-render rows that were already mounted.
+const PhotoRow = React.memo(function PhotoRow({ row, columns }: { row: number; columns: number }) {
+  const rowPhotos = photos.slice(row * columns, (row + 1) * columns);
+  return (
+    <div className="grid gap-0.5" style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}>
+      {rowPhotos.map((photo) => (
+        <Lightbox.Trigger
+          key={photo.id}
+          itemId={photo.id}
+          className={`relative block aspect-square cursor-pointer overflow-hidden bg-transparent p-0 md:scroll-mt-16 ${triggerFocusClass}`}
+        >
+          {({ imageRef }) => (
+            <Image
+              ref={imageRef}
+              src={photo.image}
+              alt={photo.alt}
+              sizes="(min-width: 1024px) 12.5vw, (min-width: 768px) 20vw, 33vw"
+              loading="lazy"
+              className="block size-full object-cover"
+            />
+          )}
+        </Lightbox.Trigger>
+      ))}
+    </div>
+  );
+});
