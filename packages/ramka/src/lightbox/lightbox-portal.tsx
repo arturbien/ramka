@@ -74,7 +74,7 @@ function resolvePortalTarget(container: PortalContainer | undefined): ResolvedTa
  *
  * ```tsx
  * <Lightbox.Root>
- *   <Lightbox.Trigger index={0} />
+ *   <Lightbox.Trigger itemId="photo-1" />
  *   <Lightbox.Portal>
  *     <Lightbox.Backdrop />
  *     <Lightbox.Content>…</Lightbox.Content>
