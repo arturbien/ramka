@@ -1447,7 +1447,7 @@ Groups all parts of the lightbox and owns open state, the active item (value, by
 | defaultValue | `string` | `the first item` | Uncontrolled initial active item: its `itemId`. |
 | value | `string` |  | Controlled active item: its `itemId`. |
 | onValueChange | `(value: string, details: { index: number; source: NavigationSource }) => void` |  | Called when the active item changes, with its `itemId` — the stable key to write to a URL. `details.index` is its position in the viewer. |
-| itemIds | `readonly string[]` |  | The gallery's `itemId`s in viewer order, for a page that server-renders an open lightbox (a deep link). Items register in effects, which never run during server rendering, so without this the first paint can't know where `value` sits: `Lightbox.Counter`, `Lightbox.Caption`, the Previous/Next boundaries and the slide position stay wrong until hydration. Once items mount the live registry takes over and this prop is ignored, so it can't drift. |
+| itemIds | `readonly string[]` |  | The gallery's `itemId`s in viewer order, for a page that server-renders an open lightbox (a deep link). Items register in effects, which never run during server rendering, so without this the first paint can't know where `value` sits: `Lightbox.Counter`, `Lightbox.Caption`, the Previous/Next boundaries and the slide position stay wrong until hydration. Once items mount the live registry takes over, so it can't drift. Required with `Lightbox.VirtualSlides`, which only mounts a window of items: the list then stands in for every item that isn't mounted, and its length is the item count. |
 | loop | `boolean` | `false` | Wrap navigation at boundaries. |
 | dir | `TextDirection` | `'ltr' (behavior); no `dir` attribute is written when omitted` | Reading direction. `'rtl'` mirrors slide navigation, thumbnail-strip travel, and the horizontal arrow keys (so `ArrowLeft` advances). Setting this is enough on its own: the direction is written to the `Lightbox.Portal` host as a `dir` attribute, so CSS follows it across the portal boundary even though the host mounts on `document.body`. That also makes it the way to run one RTL lightbox inside an otherwise-LTR page. Pass it whenever the surrounding UI is RTL, including in an app that is already RTL end to end (`dir="rtl"` on `<html>`) — behavior falls back to `'ltr'` without it, and navigation would run against the layout. Omitting it writes no attribute at all, so such an app still *lays out* RTL by inheritance; in development that disagreement logs a warning. |
 | viewTransition | `boolean \| LightboxViewTransitionPreset` | `true` | Morph between trigger and lightbox item via the View Transitions API. On by default: clicking a trigger morphs into the fullscreen item, and close morphs back. The morph engine is loaded on first use — pass `false` to skip that download. Falls back to a plain fade when unsupported, when prefers-reduced-motion is set, or on low-end devices. Pass a preset name to pick the morph's motion (duration + easing): - `"default"` — 360ms, sheet curve with a tamed launch (same as `true`) - `"snappy"` — 340ms, hotter launch; reads quicker - `"relaxed"` — 400ms, softer launch and longer settle - `"spring"` — 450ms, critically damped spring; Photos-style settle Timing is preset-based (not free-form CSS) on purpose: each preset is vetted on-device to stay smooth and skip-safe on iOS Safari (including Low Power Mode) and Android, where arbitrary curves stutter or teleport. The chosen timing drives the morph, the crossfade and the root fade together so they always stay in sync. |
@@ -1651,6 +1651,29 @@ Default layout: horizontal snap carousel wired to the active item. Emits role="g
 | preload | `number` | `1` | How many slides on each side of the active one keep their `Lightbox.Item` content mounted. Slide *boxes* are always present (so scroll extent is correct); only their content is preload-gated. `1` keeps the neighbours you can swipe to ready. |
 | ssrSlideShift | `boolean` | `false` | First-paint slide positioning for pages that SERVER-RENDER an open lightbox (deep links rendering `Portal container={null}`). A scroll offset cannot be serialized into HTML, so such pages otherwise paint slide 0 (or a blank past the `preload` window) until hydration. While this is on, the server HTML carries a transform that translates every slide by `activeIndex × (100% + gap)` so the active slide occupies the scrollport at scroll offset 0; the post-hydration commit swaps the real scroll offset in and drops the transform together — no flash, every browser. ONLY for scrollport-wide slides (`flex: 0 0 100%` tracks): the percentage resolves against each slide's own width, so content-sized (snug) slides would shift by unequal distances. If the track has a `gap`, mirror it into `--lightbox-ssr-slide-gap` (see `LightboxSlidesCssVars`). Without the opt-in, the library still marks the active item so engines with `scroll-initial-target` position any layout natively; other engines keep the hydration jump. Client-side opens are unaffected either way — the stand-in only ever renders for server paint + hydration. Degradation: the transform rule ships as a React 19 hoistable `<style>` tag. On React 18, or under a strict CSP without the nonce wired (see `Lightbox.CSPProvider`), the tag is unavailable and the server paint shows slide 0 with the scroller frozen until the hydration jump — the pre-existing baseline, never anything worse. |
 | render | `ReactElement \| ComponentRenderFn` |  | Replaces the part's default element with another tag or component. Accepts an element to clone, or a function that returns one. |
+
+#### Data attributes
+
+| Name | Description |
+| --- | --- |
+| `data-ramka-slides` | Always present on the slides scrollport. |
+| `data-active-index` | Current active index. |
+| `data-direction` | `forward` or `backward`. |
+| `data-orientation` | Always `horizontal`. |
+| `data-ssr-shift` | Present while the `ssrSlideShift` transform stand-in is applied: from the server render of an open lightbox until the mount layout effect swaps the real scroll offset in (same commit — the swap never paints). While set, every slide is translated so the active one occupies the scrollport at scroll offset 0, and the scrollport's `overflow-x` is frozen so a pre-hydration swipe can't reveal the empty positions the translated slides vacated. |
+
+### VirtualSlides
+
+Slides for very large galleries: only a window of slides around the active one is in the DOM, and two empty spacers stand in for the rest, so the native scroll-snap track keeps its full length, snap positions and scroll offset. Same scroll engine, props and data attributes as Slides. Children is a function `(index, itemId) => <Lightbox.Slide>…</Lightbox.Slide>` called for the mounted window. Requires `itemIds` on Root (the whole gallery in viewer order, which also sets the item count). Slides must be uniform and scrollport-wide (`flex: 0 0 100%`); the track `gap` is read from CSS. `ssrSlideShift` is not supported.
+
+#### Props
+
+| Name | Type | Default | Description |
+| --- | --- | --- | --- |
+| overscan | `number` | `2` | Slide boxes kept mounted beyond the `preload` window on each side of the active slide. |
+| children | `(index: number, itemId: string) => ReactNode` |  | Renders the slide at a collection index: a `Lightbox.Slide` with a `Lightbox.Item` carrying the same `index` and `itemId` inside. Only called for the mounted window. |
+| render | `ReactElement \| ComponentRenderFn` |  | Replaces the part's default element with another tag or component. Accepts an element to clone, or a function that returns one. |
+| preload | `number` | `1` | How many slides on each side of the active one keep their `Lightbox.Item` content mounted. Slide *boxes* are always present (so scroll extent is correct); only their content is preload-gated. `1` keeps the neighbours you can swipe to ready. |
 
 #### Data attributes
 
@@ -9017,6 +9040,28 @@ export const metadata: Metadata = {
 
 export default function InfiniteScrollPage() {
   return <InfiniteScrollFeed />;
+}
+```
+
+# Huge gallery
+
+A 5,000-photo library in one lightbox. Lightbox.VirtualSlides mounts only the slides around the active one, with spacers standing in for the rest so the native scroll-snap track keeps its full length; Root itemIds lets a photo whose slide is not mounted be opened, counted and navigated to.
+
+## Source
+
+```tsx examples/lightbox/huge-gallery/page.tsx
+import type { Metadata } from 'next';
+
+import { HugeGallery } from './huge-gallery';
+
+export const metadata: Metadata = {
+  title: 'Huge gallery example',
+  description:
+    'A 5,000-photo lightbox that mounts only the slides around the active one, on a native scroll-snap track, built with ramka.',
+};
+
+export default function HugeGalleryPage() {
+  return <HugeGallery />;
 }
 ```
 

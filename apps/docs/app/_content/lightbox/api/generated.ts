@@ -63,7 +63,7 @@ export const generatedProps: Record<string, PropRow[]> = {
     {
       name: "itemIds",
       type: "readonly string[]",
-      description: "The gallery's `itemId`s in viewer order, for a page that server-renders an open lightbox (a deep link). Items register in effects, which never run during server rendering, so without this the first paint can't know where `value` sits: `Lightbox.Counter`, `Lightbox.Caption`, the Previous/Next boundaries and the slide position stay wrong until hydration. Once items mount the live registry takes over and this prop is ignored, so it can't drift.",
+      description: "The gallery's `itemId`s in viewer order, for a page that server-renders an open lightbox (a deep link). Items register in effects, which never run during server rendering, so without this the first paint can't know where `value` sits: `Lightbox.Counter`, `Lightbox.Caption`, the Previous/Next boundaries and the slide position stay wrong until hydration. Once items mount the live registry takes over, so it can't drift.\n\nRequired with `Lightbox.VirtualSlides`, which only mounts a window of items: the list then stands in for every item that isn't mounted, and its length is the item count.",
     },
     {
       name: "loop",
@@ -271,6 +271,31 @@ export const generatedProps: Record<string, PropRow[]> = {
       name: "render",
       type: "ReactElement | ComponentRenderFn",
       description: "Replaces the part's default element with another tag or component. Accepts an element to clone, or a function that returns one.",
+    },
+  ],
+  "api-virtual-slides": [
+    {
+      name: "overscan",
+      type: "number",
+      default: "2",
+      description: "Slide boxes kept mounted beyond the `preload` window on each side of the active slide.",
+    },
+    {
+      name: "children",
+      type: "(index: number, itemId: string) => ReactNode",
+      required: true,
+      description: "Renders the slide at a collection index: a `Lightbox.Slide` with a `Lightbox.Item` carrying the same `index` and `itemId` inside. Only called for the mounted window.",
+    },
+    {
+      name: "render",
+      type: "ReactElement | ComponentRenderFn",
+      description: "Replaces the part's default element with another tag or component. Accepts an element to clone, or a function that returns one.",
+    },
+    {
+      name: "preload",
+      type: "number",
+      default: "1",
+      description: "How many slides on each side of the active one keep their `Lightbox.Item` content mounted. Slide *boxes* are always present (so scroll extent is correct); only their content is preload-gated. `1` keeps the neighbours you can swipe to ready.",
     },
   ],
   "api-slide": [],
@@ -704,6 +729,28 @@ export const generatedAttributes: Record<string, AttrRow[]> = {
       description: "Present while the `ssrSlideShift` transform stand-in is applied: from the server render of an open lightbox until the mount layout effect swaps the real scroll offset in (same commit — the swap never paints). While set, every slide is translated so the active one occupies the scrollport at scroll offset 0, and the scrollport's `overflow-x` is frozen so a pre-hydration swipe can't reveal the empty positions the translated slides vacated.",
     },
   ],
+  "api-virtual-slides": [
+    {
+      name: "data-ramka-slides",
+      description: "Always present on the slides scrollport.",
+    },
+    {
+      name: "data-active-index",
+      description: "Current active index.",
+    },
+    {
+      name: "data-direction",
+      description: "`forward` or `backward`.",
+    },
+    {
+      name: "data-orientation",
+      description: "Always `horizontal`.",
+    },
+    {
+      name: "data-ssr-shift",
+      description: "Present while the `ssrSlideShift` transform stand-in is applied: from the server render of an open lightbox until the mount layout effect swaps the real scroll offset in (same commit — the swap never paints). While set, every slide is translated so the active one occupies the scrollport at scroll offset 0, and the scrollport's `overflow-x` is frozen so a pre-hydration swipe can't reveal the empty positions the translated slides vacated.",
+    },
+  ],
   "api-slide": [
     {
       name: "data-ramka-slide",
@@ -892,6 +939,7 @@ export const generatedCssVariables: Record<string, CssVarRow[]> = {
   "api-item": [],
   "api-media": [],
   "api-slides": [],
+  "api-virtual-slides": [],
   "api-slide": [],
   "api-previous": [],
   "api-next": [],

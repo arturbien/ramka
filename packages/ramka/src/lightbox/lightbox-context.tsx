@@ -121,6 +121,13 @@ interface LightboxStateSlice {
   navigationLockedRef: React.MutableRefObject<boolean>;
   itemCount: number;
   registerItem: (index: number) => () => void;
+  /** Root's `itemIds`: the full gallery `Lightbox.VirtualSlides` windows over. */
+  itemIds: readonly string[] | undefined;
+  /**
+   * A mounted `Lightbox.VirtualSlides` registers so `itemCount` comes from
+   * `itemIds` instead of the mounted items. Returns an unregister fn.
+   */
+  registerVirtualSlides: () => () => void;
   loop: boolean;
   /**
    * Stable id prefix for the whole lightbox instance (from `React.useId()` in

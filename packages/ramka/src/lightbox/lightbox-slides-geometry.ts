@@ -35,9 +35,7 @@ function slideOffsetLeftInViewport(slide: HTMLElement, viewport: HTMLElement): n
   // Rect fallback. Adding `scrollLeft` is right in both directions: it is the
   // scroll translation applied to the content, and it is 0 at the inline-start
   // edge either way (just negative-going under RTL).
-  return (
-    slide.getBoundingClientRect().left - viewport.getBoundingClientRect().left + viewport.scrollLeft
-  );
+  return slide.getBoundingClientRect().left - viewport.getBoundingClientRect().left + viewport.scrollLeft;
 }
 
 export const SLIDE_SELECTOR = '[data-ramka-slide]';
@@ -62,10 +60,7 @@ export interface SlidesGeometry {
 /**
  * Measure per-slide snap offsets from layout values, as inline positions.
  */
-export function measureSlidesGeometry(
-  viewport: HTMLElement,
-  dir: TextDirection = 'ltr',
-): SlidesGeometry {
+export function measureSlidesGeometry(viewport: HTMLElement, dir: TextDirection = 'ltr'): SlidesGeometry {
   const slides = viewport.querySelectorAll<HTMLElement>(SLIDE_SELECTOR);
   const count = slides.length;
   const clientWidth = viewport.clientWidth || 1;
@@ -80,12 +75,7 @@ export function measureSlidesGeometry(
 
   const offsets = Array.from(slides, (slide) => {
     const width = slide.offsetWidth || clientWidth;
-    const left = toInlineOffset(
-      slideOffsetLeftInViewport(slide, viewport),
-      width,
-      referenceWidth,
-      dir,
-    );
+    const left = toInlineOffset(slideOffsetLeftInViewport(slide, viewport), width, referenceWidth, dir);
     // Inline position that centers this slide (0 for a full-width slide at
     // the inline-start edge).
     return left + width / 2 - clientWidth / 2;
@@ -125,11 +115,11 @@ export function slideInlinePositionForIndex(index: number, geometry: SlidesGeome
 /** Nearest slide index for an inline scroll position. */
 export function slideIndexFromInlinePosition(inline: number, geometry: SlidesGeometry): number {
   const { offsets, count, base, step } = geometry;
-  if (count <= 0) return 0;
-  if (count === 1 || offsets.length === 0) return 0;
+  if (count <= 1) return 0;
 
-  // Fast path: uniform stride (full-bleed slides).
-  if (slidesGeometryIsUniform(geometry) && step > 0) {
+  // Fast path: uniform stride (full-bleed slides). A geometry with no stored
+  // offsets is uniform by construction (`Lightbox.VirtualSlides`).
+  if ((offsets.length === 0 || slidesGeometryIsUniform(geometry)) && step > 0) {
     return Math.min(count - 1, Math.max(0, Math.round((inline - base) / step)));
   }
 

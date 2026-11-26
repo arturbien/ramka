@@ -43,6 +43,12 @@ export const lightboxExamples: ExampleLink[] = [
       'An endless feed where the lightbox paginates too — one photo array drives grid tiles and slides; the grid loads pages via an IntersectionObserver sentinel, and onValueChange fetches ahead inside the open viewer, appending slides to the native scroll-snap track with a minimal Previous/Next chrome (no thumbnails).',
   },
   {
+    slug: 'huge-gallery',
+    title: 'Huge gallery',
+    description:
+      'A 5,000-photo library in one lightbox. Lightbox.VirtualSlides mounts only the slides around the active one, with spacers standing in for the rest so the native scroll-snap track keeps its full length; Root itemIds lets a photo whose slide is not mounted be opened, counted and navigated to.',
+  },
+  {
     slug: 'intercepted-routes',
     title: 'Intercepted routes',
     description:

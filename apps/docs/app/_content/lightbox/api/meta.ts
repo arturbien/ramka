@@ -218,6 +218,23 @@ export const lightboxApiMeta: ApiPartMeta[] = [
     },
   },
   {
+    id: 'api-virtual-slides',
+    name: 'VirtualSlides',
+    description:
+      'Slides for very large galleries: only a window of slides around the active one is in the DOM, and two empty spacers stand in for the rest, so the native scroll-snap track keeps its full length, snap positions and scroll offset. Same scroll engine, props and data attributes as Slides. Children is a function `(index, itemId) => <Lightbox.Slide>…</Lightbox.Slide>` called for the mounted window. Requires `itemIds` on Root (the whole gallery in viewer order, which also sets the item count). Slides must be uniform and scrollport-wide (`flex: 0 0 100%`); the track `gap` is read from CSS. `ssrSlideShift` is not supported.',
+    extract: {
+      kind: 'interface-props',
+      typeName: 'LightboxVirtualSlidesProps',
+      file: 'lightbox-virtual-slides.tsx',
+      includeInherited: ['render', 'preload'],
+      exclude: ['className'],
+    },
+    attributesFrom: {
+      enumName: 'LightboxSlidesDataAttributes',
+      file: 'lightbox-data-attributes.ts',
+    },
+  },
+  {
     id: 'api-slide',
     name: 'Slide',
     description:
