@@ -19,8 +19,8 @@ import { feedImages } from './images.generated';
 /**
  * Infinite scroll — one paginated photo list feeding both surfaces:
  *
- * - The **page feed** loads the next page when a sentinel below the grid
- *   enters the viewport (a hand-rolled IntersectionObserver — no library).
+ * - The **page feed** keeps `LOAD_AHEAD_SCREENS` screens of photos loaded
+ *   below the viewport, so ordinary scrolling never reaches the end.
  * - The **open viewer** loads the next page when the active slide gets within
  *   `LOAD_AHEAD` slides of the end, via Root's `onValueChange` — which fires
  *   for swipes, arrow keys, and the Previous/Next buttons alike.
@@ -49,16 +49,21 @@ interface FeedPhoto {
 }
 
 /** Photos per simulated API page. */
-const PAGE_SIZE = 12;
+const PAGE_SIZE = 48;
+/**
+ * How many screens of grid must remain below the viewport; any less and the
+ * next page is requested. Pages keep coming until that buffer is full.
+ */
+const LOAD_AHEAD_SCREENS = 3;
 /**
  * How close to the end (in slides) the viewer may get before the next page is
  * requested. Keep it larger than Slides' `preload` so new slides exist before
  * their media would be needed — the user should never swipe into the edge
  * rubber-band while the network is still working.
  */
-const LOAD_AHEAD = 4;
+const LOAD_AHEAD = 15;
 /** Simulated network latency. */
-const FETCH_DELAY_MS = 800;
+const FETCH_DELAY_MS = 500;
 
 const GAP_PX = 2;
 
@@ -136,25 +141,6 @@ export function InfiniteScrollFeed() {
     });
   }, []);
 
-  // Page-feed pagination: fetch when the sentinel under the grid comes within
-  // 800px of the viewport. Re-created whenever the list grows — an observer
-  // only reports intersection *changes*, so after an append that leaves the
-  // sentinel still inside the margin it would otherwise stay silent.
-  const sentinelRef = React.useRef<HTMLDivElement | null>(null);
-  const photoCount = photos.length;
-  React.useEffect(() => {
-    const sentinel = sentinelRef.current;
-    if (!sentinel) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries.some((entry) => entry.isIntersecting)) loadMore();
-      },
-      { rootMargin: '800px 0px' },
-    );
-    observer.observe(sentinel);
-    return () => observer.disconnect();
-  }, [loadMore, photoCount]);
-
   // Viewer pagination: `onValueChange` fires for every navigation source —
   // swipe, arrow keys, the Previous/Next buttons, and the opening trigger —
   // so nearing the end by any route requests the next page. The value is the
@@ -174,6 +160,17 @@ export function InfiniteScrollFeed() {
 
   const virtualizerRef = React.useRef<Virtualizer<Window, Element> | null>(null);
   const columnsRef = React.useRef(3);
+
+  // Scrolling into the loaded end mid-fetch would rubber-band the whole page,
+  // sidebar included. Only the root element's value applies to page scroll.
+  React.useEffect(() => {
+    const html = document.documentElement;
+    const previous = html.style.overscrollBehaviorY;
+    html.style.overscrollBehaviorY = 'none';
+    return () => {
+      html.style.overscrollBehaviorY = previous;
+    };
+  }, []);
 
   // The close morph needs its tile on screen. When the photo being viewed is
   // in a row the virtualizer has unmounted, bring that row back.
@@ -212,11 +209,10 @@ export function InfiniteScrollFeed() {
 
         {/* Every tile is a Trigger; new pages render new tiles AND new slides
             from the same array, so the viewer and the feed can never drift. */}
-        <FeedGrid photos={photos} virtualizerRef={virtualizerRef} columnsRef={columnsRef} />
+        <FeedGrid photos={photos} virtualizerRef={virtualizerRef} columnsRef={columnsRef} onNearEnd={loadMore} />
 
-        {/* Load-more sentinel + spinner. Observed with an 800px margin, so
-            pages usually land before this scrolls into view. */}
-        <div ref={sentinelRef} className="flex items-center justify-center py-10" aria-hidden>
+        {/* Only reached when scrolling outruns the network. */}
+        <div className="flex items-center justify-center py-10" aria-hidden>
           <LoaderCircle
             className={`h-5 w-5 animate-spin text-neutral-400 transition-opacity ${loading ? 'opacity-100' : 'opacity-0'}`}
           />
@@ -324,10 +320,12 @@ function FeedGrid({
   photos,
   virtualizerRef,
   columnsRef,
+  onNearEnd,
 }: {
   photos: FeedPhoto[];
   virtualizerRef: React.RefObject<Virtualizer<Window, Element> | null>;
   columnsRef: React.RefObject<number>;
+  onNearEnd: () => void;
 }) {
   const columns = useColumns();
   columnsRef.current = columns;
@@ -361,6 +359,15 @@ function FeedGrid({
   React.useLayoutEffect(() => {
     virtualizer.measure();
   }, [virtualizer, rowHeight]);
+
+  // The grid re-renders as it scrolls and when a page lands, so checking here
+  // also chains requests until the buffer below the viewport is full.
+  const totalSize = virtualizer.getTotalSize();
+  const viewportBottom = (virtualizer.scrollOffset ?? 0) - layout.top + (virtualizer.scrollRect?.height ?? 0);
+  React.useEffect(() => {
+    if (!layout.width) return;
+    if (totalSize - viewportBottom < LOAD_AHEAD_SCREENS * window.innerHeight) onNearEnd();
+  }, [layout.width, totalSize, viewportBottom, onNearEnd]);
 
   return (
     <div ref={listRef} className="relative" style={{ height: virtualizer.getTotalSize() }}>
