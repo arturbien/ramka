@@ -10,7 +10,7 @@ import { LightboxPortal } from './lightbox-portal';
 import { LightboxRoot, type LightboxRootProps } from './lightbox-root';
 import { flushRaf, installSlidesLayoutMocks, resetSlidesLayoutMocks, SlidesHost } from './lightbox-slides-test-utils';
 import { LightboxTrigger } from './lightbox-trigger';
-import { resetVtTouchGuardForTesting } from './vt-touch-guard';
+import { resetVtInputGuardForTesting } from './vt-input-guard';
 
 /*
  * One Root serving many galleries (a chat feed): every message's images are
@@ -92,7 +92,7 @@ afterEach(() => {
     if (attr.name.startsWith('data-ramka')) document.documentElement.removeAttribute(attr.name);
   }
   document.documentElement.removeAttribute('style');
-  resetVtTouchGuardForTesting();
+  resetVtInputGuardForTesting();
   resetSlidesLayoutMocks();
   vi.restoreAllMocks();
 });

@@ -733,7 +733,7 @@ function LightboxRoot<Payload = unknown>(props: LightboxRootProps<Payload>) {
   // until the morph has finished (handleOpenComplete) instead of paying it
   // inside the transition's capture window. The guard exists for the open
   // steady state; gestures during the morph itself are already swallowed by
-  // the VT touch guard.
+  // the VT input guard.
   //
   // Touch devices only. The failure this guards against is touch-driven —
   // WebKit's touch handling starting a selection on the page behind the
