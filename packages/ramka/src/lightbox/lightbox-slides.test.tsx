@@ -941,6 +941,8 @@ describe('Lightbox.Slides', () => {
         metaKey,
       });
       Object.defineProperty(event, 'deltaMode', { value: 0 });
+      // jsdom stamps real time; fake timers (with `performance`) move this.
+      Object.defineProperty(event, 'timeStamp', { value: performance.now() });
       target.dispatchEvent(event);
     }
 
@@ -948,7 +950,7 @@ describe('Lightbox.Slides', () => {
       // Production path: `scrollend` is the settle signal. jsdom advertises
       // `onscrollend` (so the idle fallback is not used); a quiet gap must not
       // unlock and let a vertical continuation of the same trackpad swipe pull.
-      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
       try {
         render(<GestureLightbox />);
         const viewport = screen.getByTestId('slides');
@@ -997,7 +999,7 @@ describe('Lightbox.Slides', () => {
     it('a trackpad pull locks the slides against sideways scroll until its momentum tail ends', () => {
       // Wheel events stay passive, so a sideways turn mid-pull would scroll
       // the gallery in engines that don't latch the gesture to Content.
-      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
       try {
         render(<GestureLightbox />);
         const viewport = screen.getByTestId('slides');
@@ -1028,8 +1030,93 @@ describe('Lightbox.Slides', () => {
       }
     });
 
+    it('a new trackpad gesture after a pull springs back can swipe and pull again', () => {
+      // Regression: the spring-back's momentum swallow re-armed on every wheel
+      // event, so swipes and pulls kept the gallery frozen.
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
+      try {
+        render(<GestureLightbox />);
+        const viewport = screen.getByTestId('slides');
+        const content = screen.getByTestId('content');
+        setupGeometry(viewport, 8);
+        const img = screen.getByTestId('img-0');
+
+        act(() => {
+          for (let i = 0; i < 3; i++) dispatchTrackpadWheel(img, 0, -10);
+        });
+        act(() => {
+          vi.advanceTimersByTime(90); // spring-back; momentum swallow armed
+        });
+        expect(viewport.style.overflowX).toBe('hidden');
+
+        // Slides unlock before fingers can land again: the browser picks the
+        // next gesture's scroller at its start.
+        act(() => {
+          vi.advanceTimersByTime(50);
+        });
+        expect(viewport.style.overflowX).toBe('auto');
+
+        act(() => {
+          for (let i = 0; i < 5; i++) {
+            dispatchTrackpadWheel(img, 40, 0);
+            vi.advanceTimersByTime(8);
+          }
+        });
+        expect(viewport.style.overflowX).toBe('auto');
+        act(() => {
+          vi.advanceTimersByTime(200);
+        });
+
+        act(() => {
+          for (let i = 0; i < 3; i++) dispatchTrackpadWheel(img, 0, -10);
+        });
+        expect(content).toHaveAttribute('data-pulling');
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('swallows a stream still flowing when a pull springs back, even if it turns vertical', () => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
+      try {
+        render(<GestureLightbox />);
+        const viewport = screen.getByTestId('slides');
+        const content = screen.getByTestId('content');
+        setupGeometry(viewport, 8);
+        const img = screen.getByTestId('img-0');
+
+        act(() => {
+          for (let i = 0; i < 3; i++) dispatchTrackpadWheel(img, 0, -10);
+        });
+        // A sideways flick mid-pull: dropped, so the pull resolves under it.
+        act(() => {
+          for (let i = 0; i < 15; i++) {
+            vi.advanceTimersByTime(8);
+            dispatchTrackpadWheel(img, 40, 0);
+          }
+        });
+        expect(content).not.toHaveAttribute('data-pulling');
+        expect(content).toHaveAttribute('data-pull-snapping');
+        act(() => {
+          for (let i = 0; i < 5; i++) {
+            vi.advanceTimersByTime(8);
+            dispatchTrackpadWheel(img, 2, -10);
+          }
+        });
+        expect(content).not.toHaveAttribute('data-pulling');
+        expect(viewport.style.overflowX).toBe('hidden');
+
+        act(() => {
+          vi.advanceTimersByTime(50);
+        });
+        expect(viewport.style.overflowX).toBe('auto');
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
     it('a dismissing trackpad pull releases the slides lock even when the close is refused', () => {
-      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
       try {
         render(<GestureLightbox refuseClose />);
         const viewport = screen.getByTestId('slides');
@@ -1087,25 +1174,67 @@ describe('Lightbox.Slides', () => {
       expect(activeThumb()).toBe(6);
     });
 
-    it('starts a trackpad pull after scrollend of a gallery swipe', () => {
-      render(<GestureLightbox />);
-      const viewport = screen.getByTestId('slides');
-      const content = screen.getByTestId('content');
-      setupGeometry(viewport, 8);
+    it('starts a trackpad pull from a new gesture after scrollend of a gallery swipe', () => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
+      try {
+        render(<GestureLightbox />);
+        const viewport = screen.getByTestId('slides');
+        const content = screen.getByTestId('content');
+        setupGeometry(viewport, 8);
 
-      swipeTo(viewport, 2);
-      const img = screen.getByTestId('img-2');
+        swipeTo(viewport, 2);
+        const img = screen.getByTestId('img-2');
 
-      act(() => {
-        for (let i = 0; i < 3; i++) dispatchTrackpadWheel(img, 0, -20);
-      });
-      expect(content).not.toHaveAttribute('data-pulling');
+        act(() => {
+          for (let i = 0; i < 3; i++) dispatchTrackpadWheel(img, 0, -20);
+        });
+        expect(content).not.toHaveAttribute('data-pulling');
 
-      endScroll(viewport);
-      act(() => {
-        for (let i = 0; i < 3; i++) dispatchTrackpadWheel(img, 0, -20);
-      });
-      expect(content).toHaveAttribute('data-pulling');
+        endScroll(viewport);
+        act(() => {
+          vi.advanceTimersByTime(100); // fingers lift and land again
+        });
+        act(() => {
+          for (let i = 0; i < 3; i++) dispatchTrackpadWheel(img, 0, -20);
+        });
+        expect(content).toHaveAttribute('data-pulling');
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('does not let a gallery swipe stream pull after scrollend', () => {
+      // Snap settles while momentum still flows; fingers are already up.
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
+      try {
+        render(<GestureLightbox />);
+        const viewport = screen.getByTestId('slides');
+        const content = screen.getByTestId('content');
+        setupGeometry(viewport, 8);
+        const img = screen.getByTestId('img-2');
+        act(() => {
+          for (let i = 0; i < 3; i++) dispatchTrackpadWheel(img, 40, 0);
+        });
+        swipeTo(viewport, 2);
+        // Momentum while the gallery scrolls: the gallery claims the stream.
+        act(() => {
+          for (let i = 0; i < 3; i++) {
+            vi.advanceTimersByTime(16);
+            dispatchTrackpadWheel(img, 20, 0);
+          }
+        });
+        endScroll(viewport);
+        act(() => {
+          for (let i = 0; i < 6; i++) {
+            vi.advanceTimersByTime(16);
+            dispatchTrackpadWheel(img, 1, -20);
+          }
+        });
+        expect(content).not.toHaveAttribute('data-pulling');
+        expect(viewport.style.overflowX).toBe('auto');
+      } finally {
+        vi.useRealTimers();
+      }
     });
 
     it('starts a trackpad pull on a slides lightbox at rest', () => {
@@ -1140,7 +1269,7 @@ describe('Lightbox.Slides', () => {
       // aborts the gallery scroll without `scrollend`. The idle fallback is
       // normally skipped when `onscrollend` exists (vertical-turn must not
       // unlock), so pull/pinch/thumbs stayed dead until the next real swipe.
-      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
       try {
         const zoomRef = React.createRef<LightboxZoomRef>();
         render(<GestureLightbox withZoom zoomRef={zoomRef} observedIndex={2} />);
@@ -1203,7 +1332,7 @@ describe('Lightbox.Slides', () => {
     });
 
     it('does not freeze gestures after a Safari trackpad pinch interrupts an in-flight swipe', () => {
-      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
       try {
         render(<GestureLightbox />);
         const viewport = screen.getByTestId('slides');
@@ -1241,7 +1370,7 @@ describe('Lightbox.Slides', () => {
     });
 
     it('does not freeze gestures after ⌘+scroll (metaKey wheel) interrupts an in-flight swipe', () => {
-      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
       try {
         render(<GestureLightbox />);
         const viewport = screen.getByTestId('slides');
@@ -1418,7 +1547,7 @@ describe('Lightbox.Slides', () => {
       // next gesture that happened to scroll (which is why a pinch only worked
       // on the second attempt). After the last finger lifts, a quiet gap must
       // be the guaranteed release; while a finger is still down, it must not.
-      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
       try {
         const zoomRef = React.createRef<LightboxZoomRef>();
         render(<GestureLightbox withZoom zoomRef={zoomRef} observedIndex={2} />);
@@ -1572,7 +1701,7 @@ describe('Lightbox.Slides', () => {
       // Regression: keyboard zoom was not gated (unlike pinch / zoom buttons).
       // A discrete zoom mid-swipe aborts compositor scrolling without
       // `scrollend` and freezes pull/pinch/thumbs.
-      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
       try {
         const zoomRef = React.createRef<LightboxZoomRef>();
         render(<GestureLightbox withZoom zoomRef={zoomRef} observedIndex={1} />);

@@ -214,12 +214,15 @@ function usePullToDismiss({
   // captured a frame after the momentum event that would reset it).
   const wheelDismissedRef = React.useRef(false);
   // Same latch for a pull that resolved to a *snap-back*: the gesture's
-  // leftover momentum tail is ignored until a real idle gap, so it can't
-  // restart a pull mid-snap-back. Cleared by its own idle timer.
+  // stream, still flowing when the pull resolved (momentum, a sideways
+  // flick's tail), is ignored so it can't restart a pull mid-snap-back.
+  // Cleared once that stream stops.
   const wheelTailRef = React.useRef(false);
-  // True while this wheel sequence was claimed by a Slides scroll. Cleared on
-  // `scrollend` (lock drops) so the next wheel can start a fresh pull.
+  // True while this wheel sequence was claimed by a Slides scroll. Outlives
+  // `scrollend` until the stream itself stops.
   const wheelLockedByScrollRef = React.useRef(false);
+  // Time of the previous wheel event; a gap marks a new trackpad gesture.
+  const lastWheelTimeRef = React.useRef(0);
   // The Slides scroller a trackpad pull locked, with the inline `overflow-x`
   // to restore. Restored verbatim: React won't re-apply its own value.
   const slidesLockRef = React.useRef<{ viewport: HTMLElement; overflowX: string } | null>(null);
@@ -592,6 +595,10 @@ function usePullToDismiss({
     // image with the swipe, then dismiss past the threshold or snap back.
     // -----------------------------------------------------------------
     const WHEEL_IDLE_END = 90;
+    // Wheel silence that ends a stream: in-gesture and momentum events arrive
+    // a frame apart (~8–33ms, 30Hz included); fingers lifting and landing
+    // again take longer.
+    const WHEEL_STREAM_GAP = 50;
     // Require several events so a single discrete mouse-wheel notch (which can
     // exceed the dismiss distance in one step) can't dismiss — trackpads emit
     // many small events per swipe.
@@ -655,7 +662,10 @@ function usePullToDismiss({
 
     // Latch the momentum-tail swallow and (re)schedule its release. Reuses the
     // idle timer slot — by the time this is armed, the gesture state has been
-    // reset, so no `finishWheel` is pending on it.
+    // reset, so no `finishWheel` is pending on it. Released as soon as the
+    // stream stops, before fingers can land again: the browser picks a
+    // gesture's scroller at its start, and a still-locked Slides would lose
+    // the next swipe to Content.
     const armWheelTail = () => {
       wheelTailRef.current = true;
       if (wheelIdleRef.current) clearTimeout(wheelIdleRef.current);
@@ -663,7 +673,7 @@ function usePullToDismiss({
         wheelTailRef.current = false;
         wheelIdleRef.current = null;
         unlockSlidesScroll();
-      }, WHEEL_IDLE_END);
+      }, WHEEL_STREAM_GAP);
     };
 
     // After a dismiss, release the Slides lock once the momentum stops. The
@@ -679,6 +689,8 @@ function usePullToDismiss({
     };
 
     const handleWheel = (event: WheelEvent) => {
+      const wheelGap = event.timeStamp - lastWheelTimeRef.current;
+      lastWheelTimeRef.current = event.timeStamp;
       // Already committed to dismissing — ignore the momentum tail.
       if (wheelDismissedRef.current) {
         scheduleSlidesUnlock();
@@ -698,8 +710,8 @@ function usePullToDismiss({
       const wheelTarget = event.target as Node | null;
       if (stage && wheelTarget && !stage.contains(wheelTarget)) return;
 
-      // A just-resolved pull's momentum tail: ignore it until a real idle
-      // gap so it can't restart a pull mid-snap-back. Native scroll stays
+      // A just-resolved pull's momentum tail: ignore it until the stream
+      // stops so it can't restart a pull mid-snap-back. Native scroll stays
       // untouched — the browser latched this gesture to Content's contained
       // chain at its first event, so the tail cannot scroll anything anyway.
       if (wheelTailRef.current) {
@@ -717,9 +729,14 @@ function usePullToDismiss({
         scheduleWheelIdle();
         return;
       }
-      // `scrollend` has fired. A gallery-owned sequence must not block a new
-      // vertical gesture now that the scroller is at rest.
+      // `scrollend` has fired, but the gallery's stream may not have: snap
+      // settles while momentum still flows, and a vertical event in it would
+      // pull with no fingers down. Only a new gesture is free to pull.
       if (wheelLockedByScrollRef.current) {
+        if (wheelGap < WHEEL_STREAM_GAP) {
+          scheduleWheelIdle();
+          return;
+        }
         wheelLockedByScrollRef.current = false;
         wheelDirRef.current = 'none';
       }
