@@ -60,7 +60,7 @@ import {
 } from './gesture-math';
 import { computePullTransform } from './pull-math';
 import { WHEEL_PINCH_END_MS } from './use-zoom-gestures';
-import { resetVtTouchGuardForTesting } from './vt-touch-guard';
+import { resetVtInputGuardForTesting } from './vt-input-guard';
 
 // ---------------------------------------------------------------------------
 // Mocks — jsdom lacks matchMedia, getAnimations
@@ -116,7 +116,7 @@ afterEach(() => {
   // VT tests mock startViewTransition with `finished` promises they never
   // resolve, which would leak the morph's document-level touch-pan guard
   // (held until `finished` settles) into subsequent tests.
-  resetVtTouchGuardForTesting();
+  resetVtInputGuardForTesting();
 });
 
 // ---------------------------------------------------------------------------
@@ -2269,6 +2269,23 @@ describe('Lightbox', () => {
       } finally {
         restoreTouch();
       }
+    });
+
+    it('disables the history swipe from the open click until the open morph finishes', async () => {
+      const { startViewTransition, resolveFinished } = mockViewTransitionAPI();
+      let overscrollAtStart: string | undefined;
+      const mocked = startViewTransition.getMockImplementation()!;
+      startViewTransition.mockImplementation((callback) => {
+        overscrollAtStart = document.documentElement.style.overscrollBehaviorX;
+        return mocked(callback);
+      });
+      render(<TestLightbox viewTransition />);
+      fireEvent.click(screen.getByTestId('trigger-0'));
+      expect(startViewTransition).toHaveBeenCalledOnce();
+      // Applied in the click task, ahead of the decode wait and the capture.
+      expect(overscrollAtStart).toBe('none');
+      await act(async () => resolveFinished());
+      expect(document.documentElement.style.overscrollBehaviorX).toBe('');
     });
 
     it('does not arm name isolation on a page without foreign view-transition-names', () => {

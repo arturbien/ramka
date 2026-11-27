@@ -39,7 +39,7 @@ actually defeated.
 
 Specifically still unverified, and needing a real device:
 
-- **The iOS Safari address-bar interaction.** `vt-touch-guard` exists because
+- **The iOS Safari address-bar interaction.** `vt-input-guard` exists because
   panning during a morph makes Safari expand its address bar and resize the
   viewport mid-transition. Headless WebKit has no address bar, so the bug cannot
   be reproduced and the guard cannot be shown to work.

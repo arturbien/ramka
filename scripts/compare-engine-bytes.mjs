@@ -98,7 +98,7 @@ const RAMKA_GROUPS = {
     'vt-composited-morph.ts',
     'vt-structural-styles.ts',
     'vt-timing.ts',
-    'vt-touch-guard.ts',
+    'vt-input-guard.ts',
     'vt-morph-radius.ts',
     'vt-morph-radius.ts',
     'scroll-trigger.ts',

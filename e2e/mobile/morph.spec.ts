@@ -27,7 +27,7 @@ import {
  * What this cannot reach is stated plainly, because it is the residual risk:
  * these are emulated viewports in automation builds, not devices. There is no
  * real URL bar to collapse, so the iOS Safari address-bar interaction that
- * `vt-touch-guard` exists to defeat is not reproducible here, and neither is
+ * `vt-input-guard` exists to defeat is not reproducible here, and neither is
  * real Android Blink compositing. Those need a device.
  */
 test.describe('mobile morph', () => {

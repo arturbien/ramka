@@ -51,6 +51,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Trackpad: a sideways swipe while the lightbox's open or close view
+  transition is still running no longer triggers the browser's back/forward
+  navigation gesture. The transition's overlay sends every wheel event to
+  `<html>`, past the lightbox's `overscroll-behavior: contain`. For the
+  length of the morph, wheel events are canceled and `<html>` gets
+  `overscroll-behavior-x: none`.
+- Safari: a trackpad swipe begun during the open or close view transition no
+  longer scrolls `Lightbox.Slides` or starts a pull once the transition ends,
+  so the slides no longer jump back and forth as the active slide changes. The
+  rest of that swipe is ignored, as in Chrome and Firefox; a new swipe scrolls
+  immediately.
+- Android Chrome: an open superseded while waiting for the URL bar to settle
+  no longer unmounts the viewer that the newer open or close is using.
 - Trackpad: after a pull-to-dismiss springs back, the lightbox no longer
   freezes. The pull's leftover momentum is ignored, and that window used to
   restart on every wheel event, so swiping or pulling again kept

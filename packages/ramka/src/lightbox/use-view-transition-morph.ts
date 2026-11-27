@@ -6,7 +6,7 @@ import { flushSync } from 'react-dom';
 import { isAndroidBlinkSnapshotRoot } from './is-android-blink';
 import { isFirefox } from './is-firefox';
 import { afterNextRenderFrame, shouldYieldBeforeCapture } from './vt-capture-yield';
-import { acquireVtTouchGuard } from './vt-touch-guard';
+import { acquireVtInputGuard } from './vt-input-guard';
 import { maybeUpgradeToCompositedMorph, prewarmCompositedCssSheet } from './vt-composited-morph';
 import { isViewTransitionPreset } from './vt-timing';
 import type { LightboxViewTransitionPreset } from './vt-timing';
@@ -755,12 +755,13 @@ function createViewTransitionMorph(getConfig: () => ViewTransitionMorphConfig): 
     const docEl = document.documentElement;
     const gen = closeGenRef.current;
 
-    // Swallow touch panning for the whole open morph — from prepare (viewer
-    // hidden, page not yet locked) through the transition itself, when hit
-    // testing resolves to <html> and an upward pan would expand iOS Safari's
-    // address bar, resizing the viewport mid-morph. Idempotent; released on
-    // every bail path below and in the finished finalizer.
-    const releaseTouchGuard = acquireVtTouchGuard();
+    // Swallow touch panning and wheel for the whole open morph — from prepare
+    // (viewer hidden, page not yet locked) through the transition itself, when
+    // hit testing resolves to <html>: an upward pan would expand iOS Safari's
+    // address bar mid-morph, and a sideways trackpad swipe would trigger the
+    // back gesture. Idempotent; released on every bail path below and in the
+    // finished finalizer.
+    const releaseInputGuard = acquireVtInputGuard();
 
     // Fresh controller for this open attempt; Root aborts it when gen bumps.
     const beforeOpenAbort = new AbortController();
@@ -829,7 +830,7 @@ function createViewTransitionMorph(getConfig: () => ViewTransitionMorphConfig): 
           if (beforeOpenAbortRef.current === beforeOpenAbort) {
             beforeOpenAbortRef.current = null;
           }
-          releaseTouchGuard();
+          releaseInputGuard();
           return;
         }
       }
@@ -858,20 +859,20 @@ function createViewTransitionMorph(getConfig: () => ViewTransitionMorphConfig): 
         if (getConfig().closeGenRef.current === gen) {
           flushSync(commitAbortPrepare);
         }
-        releaseTouchGuard();
+        releaseInputGuard();
         return;
       }
       if (beforeOpenAbortRef.current === beforeOpenAbort) {
         beforeOpenAbortRef.current = null;
       }
       if (getConfig().closeGenRef.current !== gen) {
-        releaseTouchGuard();
+        releaseInputGuard();
         return;
       }
       // Aborted without throw (signal only) — same cleanup as supersede.
       if (beforeOpenAbort.signal.aborted) {
         flushSync(commitAbortPrepare);
-        releaseTouchGuard();
+        releaseInputGuard();
         return;
       }
     } else if (beforeOpenAbortRef.current === beforeOpenAbort) {
@@ -883,9 +884,10 @@ function createViewTransitionMorph(getConfig: () => ViewTransitionMorphConfig): 
     if (shouldWaitForSnapshotRootSettle()) {
       await waitForStableSnapshotRoot();
       waitedSinceMount = true;
+      // Same supersede semantics as the decode await: a newer open/close owns
+      // the tree, so leave it mounted.
       if (getConfig().closeGenRef.current !== gen) {
-        flushSync(commitAbortPrepare);
-        releaseTouchGuard();
+        releaseInputGuard();
         return;
       }
     }
@@ -902,7 +904,7 @@ function createViewTransitionMorph(getConfig: () => ViewTransitionMorphConfig): 
       // Same supersede semantics as the decode await: a newer open/close owns
       // the tree — bail before touching document-level morph state.
       if (getConfig().closeGenRef.current !== gen) {
-        releaseTouchGuard();
+        releaseInputGuard();
         return;
       }
     }
@@ -999,7 +1001,7 @@ function createViewTransitionMorph(getConfig: () => ViewTransitionMorphConfig): 
     }
 
     transition.finished.finally(() => {
-      releaseTouchGuard();
+      releaseInputGuard();
       restoreFirefoxCaptureInset?.();
       restoreFirefoxCaptureInset = null;
       if (getConfig().closeGenRef.current !== gen) return;
@@ -1028,10 +1030,11 @@ function createViewTransitionMorph(getConfig: () => ViewTransitionMorphConfig): 
     const gen = getConfig().closeGenRef.current;
 
     // Same guard as the open morph: the portal is hidden until close
-    // `finished`, so a touch pan can resolve to <html> and expand Safari's
-    // address bar mid-morph. Acquired synchronously — before any yield — so
-    // the guard covers the frame(s) between the input and the capture too.
-    const releaseTouchGuard = acquireVtTouchGuard();
+    // `finished`, so a touch pan or wheel can resolve to <html> and expand
+    // Safari's address bar or swipe back mid-morph. Acquired synchronously —
+    // before any yield — so the guard covers the frame(s) between the input
+    // and the capture too.
+    const releaseInputGuard = acquireVtInputGuard();
 
     // Heavy documents: run the capture from a rAF callback instead of the
     // input task (Escape / close-button click), so the old snapshot's paint +
@@ -1044,17 +1047,17 @@ function createViewTransitionMorph(getConfig: () => ViewTransitionMorphConfig): 
         // A newer open/close superseded this close during the yield — it owns
         // the document-level morph state now.
         if (getConfig().closeGenRef.current !== gen) {
-          releaseTouchGuard();
+          releaseInputGuard();
           return;
         }
-        runClose(gen, releaseTouchGuard);
+        runClose(gen, releaseInputGuard);
       });
       return;
     }
-    runClose(gen, releaseTouchGuard);
+    runClose(gen, releaseInputGuard);
   };
 
-  const runClose = (gen: number, releaseTouchGuard: () => void) => {
+  const runClose = (gen: number, releaseInputGuard: () => void) => {
     const {
       scrollTriggerIntoView,
       triggerAt,
@@ -1142,7 +1145,7 @@ function createViewTransitionMorph(getConfig: () => ViewTransitionMorphConfig): 
     }
 
     transition.finished.finally(() => {
-      releaseTouchGuard();
+      releaseInputGuard();
       restoreFirefoxCaptureInset?.();
       restoreFirefoxCaptureInset = null;
       if (canMorph) {

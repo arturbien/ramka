@@ -6,7 +6,7 @@ import { LightboxContent } from './lightbox-content';
 import { LightboxPortal } from './lightbox-portal';
 import { LightboxRoot } from './lightbox-root';
 import { LightboxTrigger } from './lightbox-trigger';
-import { resetVtTouchGuardForTesting } from './vt-touch-guard';
+import { resetVtInputGuardForTesting } from './vt-input-guard';
 
 /**
  * The morph, zoom and pull engines are separate chunks, so a deploy landing
@@ -75,7 +75,7 @@ afterEach(() => {
   delete (document as unknown as Record<string, unknown>).startViewTransition;
   document.documentElement.removeAttribute('data-ramka-view-transition');
   vi.restoreAllMocks();
-  resetVtTouchGuardForTesting();
+  resetVtInputGuardForTesting();
 });
 
 describe('a lazy engine chunk that fails to load', () => {
