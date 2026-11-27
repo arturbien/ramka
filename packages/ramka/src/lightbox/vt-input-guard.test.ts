@@ -26,6 +26,8 @@ function dispatchTouchMove(cancelable = true): boolean {
 // pointer.
 function dispatchWheel(target: EventTarget = document.documentElement): boolean {
   const event = new WheelEvent('wheel', { bubbles: true, cancelable: true, deltaX: -20 });
+  // Browsers stamp events on the `performance.now()` clock; jsdom uses `Date.now()`.
+  Object.defineProperty(event, 'timeStamp', { value: performance.now() });
   target.dispatchEvent(event);
   return event.defaultPrevented;
 }
@@ -36,21 +38,21 @@ describe('acquireVtInputGuard', () => {
   });
 
   it('prevents cancelable touchmove while held, stops after release', () => {
-    const release = acquireVtInputGuard();
+    const release = acquireVtInputGuard('open');
     expect(dispatchTouchMove()).toBe(true);
     release();
     expect(dispatchTouchMove()).toBe(false);
   });
 
   it('leaves non-cancelable touchmove alone (already-committed scroll)', () => {
-    const release = acquireVtInputGuard();
+    const release = acquireVtInputGuard('open');
     expect(dispatchTouchMove(false)).toBe(false);
     release();
   });
 
   it('is ref-counted across overlapping morphs', () => {
-    const releaseA = acquireVtInputGuard();
-    const releaseB = acquireVtInputGuard();
+    const releaseA = acquireVtInputGuard('open');
+    const releaseB = acquireVtInputGuard('open');
     releaseA();
     expect(dispatchTouchMove()).toBe(true);
     releaseB();
@@ -58,8 +60,8 @@ describe('acquireVtInputGuard', () => {
   });
 
   it('release is idempotent', () => {
-    const releaseA = acquireVtInputGuard();
-    const releaseB = acquireVtInputGuard();
+    const releaseA = acquireVtInputGuard('open');
+    const releaseB = acquireVtInputGuard('open');
     releaseA();
     releaseA();
     // A double release must not steal B's hold.
@@ -69,7 +71,7 @@ describe('acquireVtInputGuard', () => {
   });
 
   it('defers teardown while a finger is still down, detaches on final touchend', () => {
-    const release = acquireVtInputGuard();
+    const release = acquireVtInputGuard('open');
     document.dispatchEvent(touchEvent('touchstart', { touches: 1 }));
     release();
     // Gesture still in flight — its moves must stay swallowed.
@@ -83,7 +85,7 @@ describe('acquireVtInputGuard', () => {
   });
 
   it('touchcancel also completes a deferred teardown', () => {
-    const release = acquireVtInputGuard();
+    const release = acquireVtInputGuard('open');
     document.dispatchEvent(touchEvent('touchstart', { touches: 1 }));
     release();
     document.dispatchEvent(touchEvent('touchcancel', { touches: 0 }));
@@ -91,7 +93,7 @@ describe('acquireVtInputGuard', () => {
   });
 
   it('a touch ending while still held does not tear the guard down', () => {
-    const release = acquireVtInputGuard();
+    const release = acquireVtInputGuard('open');
     document.dispatchEvent(touchEvent('touchstart', { touches: 1 }));
     document.dispatchEvent(touchEvent('touchend', { touches: 0 }));
     expect(dispatchTouchMove()).toBe(true);
@@ -100,9 +102,9 @@ describe('acquireVtInputGuard', () => {
   });
 
   it('a release from before a test reset cannot leave the guard attached', () => {
-    const stale = acquireVtInputGuard();
+    const stale = acquireVtInputGuard('open');
     resetVtInputGuardForTesting();
-    const release = acquireVtInputGuard();
+    const release = acquireVtInputGuard('open');
     stale();
     release();
     expect(dispatchTouchMove()).toBe(false);
@@ -111,7 +113,7 @@ describe('acquireVtInputGuard', () => {
 
 describe('acquireVtInputGuard — wheel', () => {
   beforeEach(() => {
-    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
   });
 
   afterEach(() => {
@@ -121,7 +123,7 @@ describe('acquireVtInputGuard — wheel', () => {
 
   it('prevents wheel while held, stops after release', () => {
     expect(dispatchWheel()).toBe(false);
-    const release = acquireVtInputGuard();
+    const release = acquireVtInputGuard('open');
     expect(dispatchWheel()).toBe(true);
     release();
     vi.advanceTimersByTime(1100);
@@ -129,7 +131,7 @@ describe('acquireVtInputGuard — wheel', () => {
   });
 
   it('keeps swallowing a wheel stream that outlives the morph, detaches once it goes quiet', () => {
-    const release = acquireVtInputGuard();
+    const release = acquireVtInputGuard('open');
     expect(dispatchWheel()).toBe(true);
     release();
     // The same swipe keeps flowing after the morph ends — still swallowed, so
@@ -146,7 +148,7 @@ describe('acquireVtInputGuard — wheel', () => {
   });
 
   it('lets a new swipe through at once when it follows the swallowed tail without a gap', () => {
-    const release = acquireVtInputGuard();
+    const release = acquireVtInputGuard('open');
     dispatchWheel();
     release();
     vi.advanceTimersByTime(16);
@@ -161,18 +163,85 @@ describe('acquireVtInputGuard — wheel', () => {
     expect(document.documentElement.style.overscrollBehaviorX).toBe('');
   });
 
+  it('after a close, swallows a continuous stream aimed at the page until it pauses', () => {
+    const release = acquireVtInputGuard('close');
+    dispatchWheel(document.body);
+    release();
+    // The dismissing flick's momentum, retargeted at the page once the
+    // lightbox unmounted.
+    for (let i = 0; i < 10; i++) {
+      vi.advanceTimersByTime(16);
+      expect(dispatchWheel(document.body)).toBe(true);
+    }
+    // Fingers land again: a new gesture scrolls the page at once.
+    vi.advanceTimersByTime(80);
+    expect(dispatchWheel(document.body)).toBe(false);
+    vi.advanceTimersByTime(16);
+    expect(dispatchWheel(document.body)).toBe(false);
+  });
+
+  it('after a close, a gap ends the swallowed stream even before the guard detaches', () => {
+    const release = acquireVtInputGuard('close');
+    dispatchWheel();
+    release();
+    vi.advanceTimersByTime(200);
+    expect(dispatchWheel(document.body)).toBe(false);
+  });
+
+  it('after a close, a wheel started during it scrolls the page at once', () => {
+    const release = acquireVtInputGuard('close');
+    vi.advanceTimersByTime(200);
+    // A mouse wheel spun during the close: aimed at <html> while held…
+    expect(dispatchWheel()).toBe(true);
+    release();
+    // …and at the page once it's over.
+    vi.advanceTimersByTime(16);
+    expect(dispatchWheel(document.body)).toBe(false);
+  });
+
+  it('after a close, keeps swallowing a stream still aimed at <html> past a gap', () => {
+    const release = acquireVtInputGuard('close');
+    dispatchWheel();
+    release();
+    vi.advanceTimersByTime(200);
+    expect(dispatchWheel()).toBe(true);
+  });
+
+  it('an open during a close tail keeps the open rule for its own swipe', () => {
+    const releaseClose = acquireVtInputGuard('close');
+    dispatchWheel(document.body);
+    releaseClose();
+    vi.advanceTimersByTime(16);
+    dispatchWheel(document.body);
+    const releaseOpen = acquireVtInputGuard('open');
+    vi.advanceTimersByTime(16);
+    dispatchWheel();
+    releaseOpen();
+    // A swipe begun during the open, resuming after its fingers rested.
+    vi.advanceTimersByTime(200);
+    expect(dispatchWheel()).toBe(true);
+  });
+
+  it('after an open, a gap does not let the rest of a swipe aimed at <html> through', () => {
+    const release = acquireVtInputGuard('open');
+    dispatchWheel();
+    release();
+    vi.advanceTimersByTime(200);
+    expect(dispatchWheel()).toBe(true);
+  });
+
   it('keeps swallowing wheel aimed at live content while held', () => {
-    const release = acquireVtInputGuard();
+    const release = acquireVtInputGuard('open');
     expect(dispatchWheel(document.body)).toBe(true);
     release();
   });
 
   it('a morph starting during pass-through swallows wheel again', () => {
-    const releaseOpen = acquireVtInputGuard();
+    const releaseOpen = acquireVtInputGuard('open');
     dispatchWheel();
     releaseOpen();
     expect(dispatchWheel(document.body)).toBe(false);
-    const releaseClose = acquireVtInputGuard();
+    const releaseClose = acquireVtInputGuard('close');
     expect(dispatchWheel()).toBe(true);
     releaseClose();
   });
@@ -181,7 +250,7 @@ describe('acquireVtInputGuard — wheel', () => {
     const onContentWheel = vi.fn();
     document.body.addEventListener('wheel', onContentWheel);
     try {
-      const release = acquireVtInputGuard();
+      const release = acquireVtInputGuard('open');
       document.body.dispatchEvent(new WheelEvent('wheel', { bubbles: true, cancelable: true, deltaY: 20 }));
       expect(onContentWheel).not.toHaveBeenCalled();
       release();
@@ -193,8 +262,8 @@ describe('acquireVtInputGuard — wheel', () => {
   it('sets overscroll-behavior-x: none on the root while attached, restoring the page value', () => {
     document.documentElement.style.overscrollBehaviorX = 'auto';
     try {
-      const releaseA = acquireVtInputGuard();
-      const releaseB = acquireVtInputGuard();
+      const releaseA = acquireVtInputGuard('open');
+      const releaseB = acquireVtInputGuard('open');
       expect(document.documentElement.style.overscrollBehaviorX).toBe('none');
       releaseA();
       expect(document.documentElement.style.overscrollBehaviorX).toBe('none');
@@ -206,7 +275,7 @@ describe('acquireVtInputGuard — wheel', () => {
   });
 
   it('a quiet wheel stream while still held does not tear the guard down', () => {
-    const release = acquireVtInputGuard();
+    const release = acquireVtInputGuard('open');
     dispatchWheel();
     vi.advanceTimersByTime(1100);
     expect(dispatchWheel()).toBe(true);

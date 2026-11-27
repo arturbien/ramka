@@ -761,7 +761,7 @@ function createViewTransitionMorph(getConfig: () => ViewTransitionMorphConfig): 
     // address bar mid-morph, and a sideways trackpad swipe would trigger the
     // back gesture. Idempotent; released on every bail path below and in the
     // finished finalizer.
-    const releaseInputGuard = acquireVtInputGuard();
+    const releaseInputGuard = acquireVtInputGuard('open');
 
     // Fresh controller for this open attempt; Root aborts it when gen bumps.
     const beforeOpenAbort = new AbortController();
@@ -1033,8 +1033,9 @@ function createViewTransitionMorph(getConfig: () => ViewTransitionMorphConfig): 
     // `finished`, so a touch pan or wheel can resolve to <html> and expand
     // Safari's address bar or swipe back mid-morph. Acquired synchronously —
     // before any yield — so the guard covers the frame(s) between the input
-    // and the capture too.
-    const releaseInputGuard = acquireVtInputGuard();
+    // and the capture too. It also keeps the momentum of a flick that pulled
+    // the lightbox shut off the page once the close ends.
+    const releaseInputGuard = acquireVtInputGuard('close');
 
     // Heavy documents: run the capture from a rAF callback instead of the
     // input task (Escape / close-button click), so the old snapshot's paint +

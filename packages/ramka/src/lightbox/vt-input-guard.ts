@@ -49,6 +49,16 @@
 // gesture, so WebKit doesn't treat it as a user scroll and re-snaps the slides
 // on every slide change. Only the root's `overscroll-behavior-x: none` stays
 // until the stream goes quiet.
+//
+// A close is different: its tail is usually the momentum of the flick that
+// pulled the lightbox shut. That gesture was latched to Content, and Content
+// keeps it off the page. Safari drops the latch when the lightbox unmounts, so
+// the momentum hit-tests the page and would scroll it. So when a wheel stream
+// is already flowing as a close begins (its first event comes within a frame),
+// that stream is swallowed for as long as it runs without a gap; a new gesture
+// starts after one. A wheel the user starts during or after the close isn't
+// armed this way, so mouse-wheel scrolling of the page isn't held back.
+// Events still aimed at <html> stay swallowed either way, as after an open.
 // ---------------------------------------------------------------------------
 
 /**
@@ -58,6 +68,8 @@
  * for this (see the module comment), so it can be long.
  */
 const WHEEL_QUIET_MS = 1000;
+/** Gap that starts a new wheel gesture: lifting and landing fingers takes longer than a frame. */
+const WHEEL_STREAM_GAP_MS = 50;
 
 let holdCount = 0;
 /** Bumped by the test reset so releases of dropped holds become no-ops. */
@@ -68,6 +80,11 @@ let touchInFlight = false;
 /** Pending while a wheel stream is in flight. */
 let wheelQuietTimer: ReturnType<typeof setTimeout> | undefined;
 let wheelPassthrough = false;
+let lastWheelTime = -Infinity;
+/** When the latest close hold began, until the next wheel event checks it. */
+let closeStartTime: number | undefined;
+/** A wheel stream was already flowing when a close began (see the module comment). */
+let closeTail = false;
 let originalOverscrollBehaviorX = '';
 
 function detachIfIdle(): void {
@@ -106,8 +123,14 @@ function setWheelPassthrough(passthrough: boolean): void {
 function onWheel(event: WheelEvent): void {
   clearTimeout(wheelQuietTimer);
   wheelQuietTimer = setTimeout(onWheelQuiet, WHEEL_QUIET_MS);
+  const gap = event.timeStamp - lastWheelTime;
+  lastWheelTime = event.timeStamp;
+  if (closeStartTime !== undefined) {
+    if (event.timeStamp - closeStartTime < WHEEL_STREAM_GAP_MS) closeTail = true;
+    closeStartTime = undefined;
+  }
   if (wheelPassthrough) return;
-  if (holdCount === 0 && event.target !== document.documentElement) {
+  if (holdCount === 0 && event.target !== document.documentElement && (!closeTail || gap >= WHEEL_STREAM_GAP_MS)) {
     setWheelPassthrough(true);
     return;
   }
@@ -142,6 +165,8 @@ function detach(): void {
   if (!attached) return;
   attached = false;
   wheelPassthrough = false;
+  closeStartTime = undefined;
+  closeTail = false;
   clearTimeout(wheelQuietTimer);
   wheelQuietTimer = undefined;
   document.documentElement.style.overscrollBehaviorX = originalOverscrollBehaviorX;
@@ -157,12 +182,13 @@ function detach(): void {
  * Returns an idempotent release function — safe to call from both a morph's
  * early-bail paths and its `finished` finalizer.
  */
-function acquireVtInputGuard(): () => void {
+function acquireVtInputGuard(morph: 'open' | 'close'): () => void {
   if (typeof document === 'undefined') {
     return () => {};
   }
   holdCount += 1;
   attach();
+  if (morph === 'close') closeStartTime = performance.now();
   // A new morph (e.g. closing during an open's tail) swallows wheel again.
   setWheelPassthrough(false);
   const holdEpoch = epoch;
