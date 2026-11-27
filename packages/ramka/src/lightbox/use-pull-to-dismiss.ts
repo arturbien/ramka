@@ -12,6 +12,7 @@ import {
   wheelAxis,
 } from './pull-math';
 import { LightboxContentCssVars } from './lightbox-css-vars';
+import { LightboxSlidesDataAttributes } from './lightbox-data-attributes';
 import type { InitializedRef } from '../react-compat';
 
 const useLayoutEffect = typeof window !== 'undefined' ? React.useLayoutEffect : React.useEffect;
@@ -144,6 +145,13 @@ interface PullToDismissOptions {
    * never gated.
    */
   isScrollingRef?: InitializedRef<boolean>;
+  /**
+   * The `Lightbox.Slides` scroller. A trackpad pull makes it user-unscrollable
+   * until the gesture (and its momentum tail) ends: wheel events stay passive,
+   * so their sideways component would otherwise scroll the gallery in engines
+   * that don't latch the gesture to Content (Safari, Firefox).
+   */
+  slidesViewportRef?: React.RefObject<HTMLElement | null>;
 }
 
 // ---------------------------------------------------------------------------
@@ -161,6 +169,7 @@ function usePullToDismiss({
   onClose,
   disabled = false,
   isScrollingRef,
+  slidesViewportRef,
 }: PullToDismissOptions) {
   const pointerIdRef = React.useRef<number | null>(null);
   const startYRef = React.useRef(0);
@@ -211,6 +220,26 @@ function usePullToDismiss({
   // True while this wheel sequence was claimed by a Slides scroll. Cleared on
   // `scrollend` (lock drops) so the next wheel can start a fresh pull.
   const wheelLockedByScrollRef = React.useRef(false);
+  // The Slides scroller a trackpad pull locked, with the inline `overflow-x`
+  // to restore. Restored verbatim: React won't re-apply its own value.
+  const slidesLockRef = React.useRef<{ viewport: HTMLElement; overflowX: string } | null>(null);
+
+  const lockSlidesScroll = React.useCallback(() => {
+    const viewport = slidesViewportRef?.current;
+    // The SSR stand-in (`overflow-x: clip`) isn't user-scrollable anyway.
+    if (slidesLockRef.current || !viewport || viewport.hasAttribute(LightboxSlidesDataAttributes.ssrShift)) return;
+    slidesLockRef.current = { viewport, overflowX: viewport.style.overflowX };
+    // `hidden` keeps scrollLeft and programmatic scrolling; only user scroll stops.
+    viewport.style.overflowX = 'hidden';
+  }, [slidesViewportRef]);
+
+  const unlockSlidesScroll = React.useCallback(() => {
+    const lock = slidesLockRef.current;
+    if (!lock) return;
+    slidesLockRef.current = null;
+    // React may have written a new value mid-lock; it wins.
+    if (lock.viewport.style.overflowX === 'hidden') lock.viewport.style.overflowX = lock.overflowX;
+  }, []);
 
   const cleanup = React.useCallback(() => {
     pointerIdRef.current = null;
@@ -226,12 +255,7 @@ function usePullToDismiss({
       const target = dragTargetRef.current;
       if (!target) return;
 
-      const { x, y, scale, progress } = computePullTransform(
-        rawDeltaX,
-        rawDeltaY,
-        DISMISS_DISTANCE,
-        MIN_SCALE,
-      );
+      const { x, y, scale, progress } = computePullTransform(rawDeltaX, rawDeltaY, DISMISS_DISTANCE, MIN_SCALE);
 
       target.style.transform = `translate(${x}px, ${y}px) scale(${scale})`;
       lastAppliedYRef.current = y;
@@ -264,106 +288,107 @@ function usePullToDismiss({
     }
   }, [contentRef, backdropRef]);
 
-  const snapBack = React.useCallback((velocity = 0) => {
-    const target = dragTargetRef.current;
-    const content = contentRef.current;
-    const backdrop = backdropRef.current;
-    const releaseY = lastAppliedYRef.current;
+  const snapBack = React.useCallback(
+    (velocity = 0) => {
+      const target = dragTargetRef.current;
+      const content = contentRef.current;
+      const backdrop = backdropRef.current;
+      const releaseY = lastAppliedYRef.current;
 
-    // Honor reduced-motion: snap straight to rest with no spring (mirrors the
-    // zoom animations, which already collapse to a 0ms transition). The var
-    // published below goes to 0ms too, so the backdrop/chrome fade is instant
-    // in lockstep.
-    const prefersReducedMotion =
-      typeof window !== 'undefined' &&
-      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const duration = prefersReducedMotion ? 0 : SNAP_DURATION;
+      // Honor reduced-motion: snap straight to rest with no spring (mirrors the
+      // zoom animations, which already collapse to a 0ms transition). The var
+      // published below goes to 0ms too, so the backdrop/chrome fade is instant
+      // in lockstep.
+      const prefersReducedMotion =
+        typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const duration = prefersReducedMotion ? 0 : SNAP_DURATION;
 
-    // Feed the release velocity into a spring so the snap-back continues in the
-    // gesture's direction (follow-through) before settling, like native iOS —
-    // instead of reversing from a dead stop. Normalize the pointer velocity
-    // (px/s) against the animation window and the displayed pull amplitude:
-    // `d(fraction)/d(progress)|0 = velocity * durationSeconds / releaseY`.
-    // Positive means "still moving away from rest", which the spring carries on.
-    const normalizedVelocity =
-      duration > 0 && Math.abs(releaseY) > 1
-        ? clamp((velocity * (duration / 1000)) / releaseY, -MAX_SNAP_VELOCITY, MAX_SNAP_VELOCITY)
-        : 0;
+      // Feed the release velocity into a spring so the snap-back continues in the
+      // gesture's direction (follow-through) before settling, like native iOS —
+      // instead of reversing from a dead stop. Normalize the pointer velocity
+      // (px/s) against the animation window and the displayed pull amplitude:
+      // `d(fraction)/d(progress)|0 = velocity * durationSeconds / releaseY`.
+      // Positive means "still moving away from rest", which the spring carries on.
+      const normalizedVelocity =
+        duration > 0 && Math.abs(releaseY) > 1
+          ? clamp((velocity * (duration / 1000)) / releaseY, -MAX_SNAP_VELOCITY, MAX_SNAP_VELOCITY)
+          : 0;
 
-    // Single source of truth for the snap-back timing. The same duration+easing
-    // drives the item's WAAPI transform below AND is published as CSS vars so
-    // consumer visuals keyed to `--lightbox-pull-progress` (backdrop opacity,
-    // chrome, blur) spring back on the identical curve. The easing is a
-    // normalized (dimensionless) fraction, so it maps 1:1 onto opacity despite
-    // the different amplitude — follow-through and the no-overshoot guarantee
-    // included.
-    const snapEasing = supportsLinearEasing
-      ? springEasingLinear(normalizedVelocity, SNAP_DAMPING, SNAP_SETTLE)
-      : SNAP_EASING_FALLBACK;
+      // Single source of truth for the snap-back timing. The same duration+easing
+      // drives the item's WAAPI transform below AND is published as CSS vars so
+      // consumer visuals keyed to `--lightbox-pull-progress` (backdrop opacity,
+      // chrome, blur) spring back on the identical curve. The easing is a
+      // normalized (dimensionless) fraction, so it maps 1:1 onto opacity despite
+      // the different amplitude — follow-through and the no-overshoot guarantee
+      // included.
+      const snapEasing = supportsLinearEasing
+        ? springEasingLinear(normalizedVelocity, SNAP_DAMPING, SNAP_SETTLE)
+        : SNAP_EASING_FALLBACK;
 
-    // Hand backdrop/chrome styling back to the consumer: publish the snap
-    // timing, drop `data-pulling` (re-enabling the transition they suppressed
-    // while pulling), latch `data-pull-snapping` so pull-only layout stays
-    // until the item is parked, and reset progress to 0 so that transition —
-    // now on the item's curve+duration — eases everything back to rest.
-    for (const el of [content, backdrop]) {
-      if (!el) continue;
-      el.style.setProperty(PULL_SNAP_DURATION_VAR, `${duration}ms`);
-      el.style.setProperty(PULL_SNAP_EASING_VAR, snapEasing);
-      el.removeAttribute('data-pulling');
-      el.setAttribute('data-pull-snapping', '');
-      el.style.setProperty(PULL_PROGRESS_VAR, '0');
-    }
-
-    if (!target) {
-      dragTargetRef.current = null;
+      // Hand backdrop/chrome styling back to the consumer: publish the snap
+      // timing, drop `data-pulling` (re-enabling the transition they suppressed
+      // while pulling), latch `data-pull-snapping` so pull-only layout stays
+      // until the item is parked, and reset progress to 0 so that transition —
+      // now on the item's curve+duration — eases everything back to rest.
       for (const el of [content, backdrop]) {
-        el?.removeAttribute('data-pull-snapping');
+        if (!el) continue;
+        el.style.setProperty(PULL_SNAP_DURATION_VAR, `${duration}ms`);
+        el.style.setProperty(PULL_SNAP_EASING_VAR, snapEasing);
+        el.removeAttribute('data-pulling');
+        el.setAttribute('data-pull-snapping', '');
+        el.style.setProperty(PULL_PROGRESS_VAR, '0');
       }
-      return;
-    }
 
-    const currentTransform = target.style.transform;
-
-    // Clear the inline transform BEFORE starting the animation. The WAAPI
-    // animation layer overrides computed values during playback, so the
-    // cleared inline style is invisible while the animation runs. When the
-    // animation finishes and is cancelled, the underlying computed value is
-    // already clean — no flash.
-    target.style.transform = '';
-
-    const keyframes = [
-      { transform: currentTransform },
-      { transform: 'translate(0, 0) scale(1)' },
-    ];
-
-    let targetAnim: Animation;
-    try {
-      targetAnim = target.animate(keyframes, { duration, easing: snapEasing });
-    } catch {
-      // Easing rejected (e.g. `linear()` unsupported) — fall back to a static curve.
-      targetAnim = target.animate(keyframes, { duration, easing: SNAP_EASING_FALLBACK });
-    }
-
-    animationRef.current = targetAnim;
-
-    targetAnim.finished.then(() => {
-      animationRef.current = null;
-      targetAnim.cancel();
-      dragTargetRef.current = null;
-      // Fully at rest — drop the inline vars so the consumer's fallbacks
-      // (`var(--lightbox-pull-progress, 0)`, and their own open/close timing)
-      // take over cleanly.
-      for (const el of [content, backdrop]) {
-        el?.style.removeProperty(PULL_PROGRESS_VAR);
-        el?.style.removeProperty(PULL_SNAP_DURATION_VAR);
-        el?.style.removeProperty(PULL_SNAP_EASING_VAR);
-        el?.removeAttribute('data-pull-snapping');
+      if (!target) {
+        dragTargetRef.current = null;
+        for (const el of [content, backdrop]) {
+          el?.removeAttribute('data-pull-snapping');
+        }
+        return;
       }
-    }).catch(() => {
-      // Animation cancelled — cleanup already handled
-    });
-  }, [contentRef, backdropRef]);
+
+      const currentTransform = target.style.transform;
+
+      // Clear the inline transform BEFORE starting the animation. The WAAPI
+      // animation layer overrides computed values during playback, so the
+      // cleared inline style is invisible while the animation runs. When the
+      // animation finishes and is cancelled, the underlying computed value is
+      // already clean — no flash.
+      target.style.transform = '';
+
+      const keyframes = [{ transform: currentTransform }, { transform: 'translate(0, 0) scale(1)' }];
+
+      let targetAnim: Animation;
+      try {
+        targetAnim = target.animate(keyframes, { duration, easing: snapEasing });
+      } catch {
+        // Easing rejected (e.g. `linear()` unsupported) — fall back to a static curve.
+        targetAnim = target.animate(keyframes, { duration, easing: SNAP_EASING_FALLBACK });
+      }
+
+      animationRef.current = targetAnim;
+
+      targetAnim.finished
+        .then(() => {
+          animationRef.current = null;
+          targetAnim.cancel();
+          dragTargetRef.current = null;
+          // Fully at rest — drop the inline vars so the consumer's fallbacks
+          // (`var(--lightbox-pull-progress, 0)`, and their own open/close timing)
+          // take over cleanly.
+          for (const el of [content, backdrop]) {
+            el?.style.removeProperty(PULL_PROGRESS_VAR);
+            el?.style.removeProperty(PULL_SNAP_DURATION_VAR);
+            el?.style.removeProperty(PULL_SNAP_EASING_VAR);
+            el?.removeAttribute('data-pull-snapping');
+          }
+        })
+        .catch(() => {
+          // Animation cancelled — cleanup already handled
+        });
+    },
+    [contentRef, backdropRef],
+  );
 
   const computeVelocity = React.useCallback(() => computePullVelocity(velocityHistoryRef.current), []);
 
@@ -375,6 +400,7 @@ function usePullToDismiss({
   const resetDismissState = React.useCallback(() => {
     wheelDismissedRef.current = false;
     wheelTailRef.current = false;
+    unlockSlidesScroll();
     const dismissed = dismissedTargetRef.current;
     if (dismissed) {
       dismissed.style.transform = '';
@@ -389,7 +415,7 @@ function usePullToDismiss({
       el.style.removeProperty(PULL_SNAP_DURATION_VAR);
       el.style.removeProperty(PULL_SNAP_EASING_VAR);
     }
-  }, [contentRef, backdropRef]);
+  }, [contentRef, backdropRef, unlockSlidesScroll]);
 
   // Reset on the OPENING edge, not on mount: when a reopen interrupts an
   // in-flight close, Content (and this hook) never unmounted, so the mount
@@ -595,8 +621,7 @@ function usePullToDismiss({
       resetWheel();
       if (!wasVertical) return;
 
-      const shouldDismiss =
-        (dismissNow || Math.abs(pulledY) >= DISMISS_DISTANCE) && count >= MIN_WHEEL_EVENTS;
+      const shouldDismiss = (dismissNow || Math.abs(pulledY) >= DISMISS_DISTANCE) && count >= MIN_WHEEL_EVENTS;
 
       if (shouldDismiss) {
         // Latch: swallow the trackpad's momentum tail so it can't restart a
@@ -613,6 +638,7 @@ function usePullToDismiss({
         dismissedTargetRef.current = dragTargetRef.current;
         dragTargetRef.current = null;
         onClose();
+        scheduleSlidesUnlock();
       } else {
         // The stream that drove this pull may still have a momentum tail in
         // flight — swallow it until a real idle gap so it can't restart a
@@ -636,12 +662,28 @@ function usePullToDismiss({
       wheelIdleRef.current = setTimeout(() => {
         wheelTailRef.current = false;
         wheelIdleRef.current = null;
+        unlockSlidesScroll();
+      }, WHEEL_IDLE_END);
+    };
+
+    // After a dismiss, release the Slides lock once the momentum stops. The
+    // close may be refused (controlled `open`), and a lock held until the
+    // next open would leave the gallery unswipeable.
+    const scheduleSlidesUnlock = () => {
+      if (!slidesLockRef.current) return;
+      if (wheelIdleRef.current) clearTimeout(wheelIdleRef.current);
+      wheelIdleRef.current = setTimeout(() => {
+        wheelIdleRef.current = null;
+        unlockSlidesScroll();
       }, WHEEL_IDLE_END);
     };
 
     const handleWheel = (event: WheelEvent) => {
       // Already committed to dismissing — ignore the momentum tail.
-      if (wheelDismissedRef.current) return;
+      if (wheelDismissedRef.current) {
+        scheduleSlidesUnlock();
+        return;
+      }
       // Precision devices (trackpads) report pixel-mode deltas; line/page mode
       // is a classic mouse wheel — leave those alone.
       if (event.deltaMode !== 0) return;
@@ -708,6 +750,8 @@ function usePullToDismiss({
         }
         dragTargetRef.current = dragTarget;
         wheelDirRef.current = 'vertical';
+        // Stays locked until the gesture's momentum tail stops.
+        lockSlidesScroll();
         wheelPullXRef.current = 0;
         wheelPullYRef.current = 0;
         wheelCountRef.current = 0;
@@ -743,10 +787,7 @@ function usePullToDismiss({
       wheelCountRef.current += 1;
       applyTransform(wheelPullXRef.current, wheelPullYRef.current);
 
-      if (
-        Math.abs(wheelPullYRef.current) >= DISMISS_DISTANCE &&
-        wheelCountRef.current >= MIN_WHEEL_EVENTS
-      ) {
+      if (Math.abs(wheelPullYRef.current) >= DISMISS_DISTANCE && wheelCountRef.current >= MIN_WHEEL_EVENTS) {
         finishWheel(true);
       }
     };
@@ -774,17 +815,34 @@ function usePullToDismiss({
       el.removeEventListener('pointercancel', handlePointerCancel);
       el.removeEventListener('touchmove', handleTouchMove);
       el.removeEventListener('wheel', handleWheel);
-      if (wheelIdleRef.current) {
-        clearTimeout(wheelIdleRef.current);
-        wheelIdleRef.current = null;
-      }
+      resetWheel();
+      unlockSlidesScroll();
       if (animationRef.current) {
         animationRef.current.cancel();
         animationRef.current = null;
       }
       clearTransform();
     };
-  }, [disabled, contentRef, backdropRef, activeItemRef, destinationMorphElementRef, stageRef, getZoom, onClose, isScrollingRef, applyTransform, clearTransform, snapBack, cleanup, computeVelocity, resolveDragTarget, resetDismissState]);
+  }, [
+    disabled,
+    contentRef,
+    backdropRef,
+    activeItemRef,
+    destinationMorphElementRef,
+    stageRef,
+    getZoom,
+    onClose,
+    isScrollingRef,
+    applyTransform,
+    clearTransform,
+    snapBack,
+    cleanup,
+    computeVelocity,
+    resolveDragTarget,
+    resetDismissState,
+    lockSlidesScroll,
+    unlockSlidesScroll,
+  ]);
 }
 
 export { usePullToDismiss };

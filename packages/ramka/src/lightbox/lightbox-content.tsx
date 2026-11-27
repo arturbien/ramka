@@ -7,11 +7,7 @@ import { LightboxContentDataAttributes } from './lightbox-data-attributes';
 import { useLightboxContext } from './lightbox-context';
 import { useLightboxPortalContext } from './lightbox-portal';
 import { useLightboxZoomPublish } from './lightbox-zoom-context';
-import {
-  getPullRuntimeSync,
-  loadPullRuntime,
-  type PullRuntime,
-} from './lightbox-pull-loader';
+import { getPullRuntimeSync, loadPullRuntime, type PullRuntime } from './lightbox-pull-loader';
 import { inertWhen } from '../react-compat';
 import { useContentKeyboard } from './use-content-keyboard';
 import { useNativePinchGuard } from './use-native-pinch-guard';
@@ -131,6 +127,7 @@ const LightboxContent = React.forwardRef<HTMLDivElement, LightboxContentProps>(
       activeItemElementRef,
       destinationMorphElementRef,
       navigationLockedRef,
+      slidesViewportRef,
       baseId,
       dir,
     } = useLightboxContext();
@@ -188,8 +185,7 @@ const LightboxContent = React.forwardRef<HTMLDivElement, LightboxContentProps>(
       if (!mounted || parked) return;
       const el = contentRef.current;
       if (!el) return;
-      const hasName =
-        !!el.getAttribute('aria-label')?.trim() || !!el.getAttribute('aria-labelledby')?.trim();
+      const hasName = !!el.getAttribute('aria-label')?.trim() || !!el.getAttribute('aria-labelledby')?.trim();
       if (!hasName) {
         // eslint-disable-next-line no-console
         console.warn(
@@ -389,9 +385,7 @@ const LightboxContent = React.forwardRef<HTMLDivElement, LightboxContentProps>(
           ...(preparing || parked ? { visibility: 'hidden' as const } : null),
           ...(parked ? { pointerEvents: 'none' as const } : null),
         },
-        ...(open
-          ? { [LightboxContentDataAttributes.open]: '' }
-          : { [LightboxContentDataAttributes.closed]: '' }),
+        ...(open ? { [LightboxContentDataAttributes.open]: '' } : { [LightboxContentDataAttributes.closed]: '' }),
         onKeyDown: handleKeyDown,
         onPointerDown: handlePointerDown,
         onClick: handleClick,
@@ -412,12 +406,7 @@ const LightboxContent = React.forwardRef<HTMLDivElement, LightboxContentProps>(
             redirects synchronously — so screen readers only ever announce
             the redirect target. Radix ships the same guard shape. */}
         {!parked ? (
-          <span
-            tabIndex={0}
-            data-focus-guard=""
-            style={focusGuardStyle}
-            onFocus={handleBeforeGuardFocus}
-          />
+          <span tabIndex={0} data-focus-guard="" style={focusGuardStyle} onFocus={handleBeforeGuardFocus} />
         ) : null}
         <div ref={mergedRef} {...dialogProps}>
           {children}
@@ -446,15 +435,11 @@ const LightboxContent = React.forwardRef<HTMLDivElement, LightboxContentProps>(
             onClose={stableSetOpen}
             // Suppress the pull gesture while a Lightbox.Slides swipe/fling is running.
             isScrollingRef={navigationLockedRef}
+            slidesViewportRef={slidesViewportRef}
           />
         ) : null}
         {!parked ? (
-          <span
-            tabIndex={0}
-            data-focus-guard=""
-            style={focusGuardStyle}
-            onFocus={handleAfterGuardFocus}
-          />
+          <span tabIndex={0} data-focus-guard="" style={focusGuardStyle} onFocus={handleAfterGuardFocus} />
         ) : null}
       </>
     );

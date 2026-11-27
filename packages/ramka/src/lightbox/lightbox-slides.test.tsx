@@ -856,15 +856,20 @@ describe('Lightbox.Slides', () => {
       zoomRef,
       observedIndex = 0,
       itemCount = 8,
+      refuseClose = false,
     }: {
       withZoom?: boolean;
       withButtons?: boolean;
       zoomRef?: ZoomRefObject<LightboxZoomRef>;
       observedIndex?: number;
       itemCount?: number;
+      refuseClose?: boolean;
     } = {}) {
       return (
-        <LightboxRoot defaultOpen defaultValue="0">
+        <LightboxRoot
+          {...(refuseClose ? { open: true, onOpenChange: () => {} } : { defaultOpen: true })}
+          defaultValue="0"
+        >
           {Array.from({ length: itemCount }, (_, i) => (
             <LightboxTrigger key={`t-${i}`} itemId={String(i)}>
               Trigger {i}
@@ -984,6 +989,67 @@ describe('Lightbox.Slides', () => {
           dispatchPointer(content, 'pointermove', { clientX: 200, clientY: 240 });
         });
         expect(content).toHaveAttribute('data-pulling');
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('a trackpad pull locks the slides against sideways scroll until its momentum tail ends', () => {
+      // Wheel events stay passive, so a sideways turn mid-pull would scroll
+      // the gallery in engines that don't latch the gesture to Content.
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+      try {
+        render(<GestureLightbox />);
+        const viewport = screen.getByTestId('slides');
+        const content = screen.getByTestId('content');
+        setupGeometry(viewport, 8);
+        const img = screen.getByTestId('img-0');
+        expect(viewport.style.overflowX).toBe('auto');
+
+        act(() => {
+          for (let i = 0; i < 3; i++) dispatchTrackpadWheel(img, 0, -10);
+        });
+        expect(content).toHaveAttribute('data-pulling');
+        expect(viewport.style.overflowX).toBe('hidden');
+
+        // Sideways turn, then the snap-back and its momentum tail.
+        act(() => {
+          for (let i = 0; i < 5; i++) dispatchTrackpadWheel(img, 40, 0);
+          vi.advanceTimersByTime(90);
+        });
+        expect(viewport.style.overflowX).toBe('hidden');
+        act(() => {
+          dispatchTrackpadWheel(img, 20, 0);
+          vi.advanceTimersByTime(90);
+        });
+        expect(viewport.style.overflowX).toBe('auto');
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('a dismissing trackpad pull releases the slides lock even when the close is refused', () => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+      try {
+        render(<GestureLightbox refuseClose />);
+        const viewport = screen.getByTestId('slides');
+        const content = screen.getByTestId('content');
+        setupGeometry(viewport, 8);
+        const img = screen.getByTestId('img-0');
+
+        act(() => {
+          for (let i = 0; i < 4; i++) dispatchTrackpadWheel(img, 0, -40);
+        });
+        expect(content).toHaveAttribute('data-pull-dismissing');
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+        expect(viewport.style.overflowX).toBe('hidden');
+
+        // Momentum tail, then quiet: the still-open gallery's scroller is released.
+        act(() => {
+          dispatchTrackpadWheel(img, 30, -5);
+          vi.advanceTimersByTime(90);
+        });
+        expect(viewport.style.overflowX).toBe('auto');
       } finally {
         vi.useRealTimers();
       }
