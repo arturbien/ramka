@@ -51,6 +51,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Trackpad: after a pull-to-dismiss springs back, the lightbox no longer
+  freezes. The pull's leftover momentum is ignored, and that window used to
+  restart on every wheel event, so swiping or pulling again kept
+  `Lightbox.Slides` locked and every pull ignored until the trackpad went
+  quiet. It now ends 50ms after the momentum stops, before the next gesture
+  can begin.
+- Trackpad: the momentum of a gallery swipe that curves downward no longer
+  starts a pull once `Lightbox.Slides` settles. The stream stays the swipe's
+  until it stops, so a pull, or a dismiss, can't start with no fingers on the
+  trackpad.
 - A trackpad pull-to-dismiss that turns sideways no longer scrolls
   `Lightbox.Slides` in Safari and Firefox. The pull reads wheel events without
   cancelling them, and unlike Chrome those browsers route the sideways part to
