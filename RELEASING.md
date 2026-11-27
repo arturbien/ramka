@@ -47,13 +47,18 @@ Authentication is [npm trusted publishing][trusted-publishing] over OIDC, so
 there is no `NPM_TOKEN` in this repository to rotate or leak. It has to be
 configured once per package, under Settings → Trusted publishers:
 
-| Field             | Value           |
-| ----------------- | --------------- |
-| Publisher         | GitHub Actions  |
-| Organization/user | `arturbien`     |
-| Repository        | `ramka`         |
-| Workflow filename | `release.yml`   |
-| Environment       | _(leave empty)_ |
+| Field              | Value           |
+| ------------------ | --------------- |
+| Publisher          | GitHub Actions  |
+| Organization/user  | `arturbien`     |
+| Repository         | `ramka`         |
+| Workflow filename  | `release.yml`   |
+| Environment        | _(leave empty)_ |
+| Allow npm publish  | ticked          |
+| Allow npm dist-tag | unticked        |
+
+Without "Allow npm publish" the trusted publisher can only stage a release,
+not publish it, and the workflow runs a plain `npm publish`.
 
 The workflow filename is part of the trust relationship: renaming
 `release.yml` breaks publishing until the publisher config is updated to match.

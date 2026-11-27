@@ -165,12 +165,14 @@ jobs:
 
       # Closes the loop. Provenance being *configured* is not the same as the
       # registry having recorded an attestation, and the difference is invisible
-      # until a customer runs the check for us.
+      # until a customer runs the check for us. npm processes a new version
+      # before serving it, which took about four minutes for 0.1.0, so the
+      # check waits up to ten.
       - name: Verify the published provenance
         if: github.event_name == 'push'
         run: |
           version="${GITHUB_REF_NAME#v}"
-          for attempt in 1 2 3; do
+          for attempt in $(seq 1 40); do
             url="$(npm view "@ramka/react@${version}" dist.attestations.url 2>/dev/null || true)"
             if [ -n "$url" ]; then
               echo "Attestation recorded: $url"
