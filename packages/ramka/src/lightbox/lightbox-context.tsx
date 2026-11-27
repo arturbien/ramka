@@ -121,6 +121,13 @@ interface LightboxStateSlice {
   navigationLockedRef: React.MutableRefObject<boolean>;
   itemCount: number;
   registerItem: (index: number) => () => void;
+  /** Root's `itemIds`: the full gallery `Lightbox.VirtualSlides` windows over. */
+  itemIds: readonly string[] | undefined;
+  /**
+   * A mounted `Lightbox.VirtualSlides` registers so `itemCount` comes from
+   * `itemIds` instead of the mounted items. Returns an unregister fn.
+   */
+  registerVirtualSlides: () => () => void;
   loop: boolean;
   /**
    * Stable id prefix for the whole lightbox instance (from `React.useId()` in
@@ -304,12 +311,6 @@ interface LightboxStableContextValue {
   touchKeyedTrigger: (reg: LightboxHandleTriggerRegistration) => void;
   /** The Root's host (same object a bound handle exposes). */
   keyedHost: LightboxHandleHost;
-  /**
-   * Root's `itemIds` as a set, written during Root's render: which items
-   * belong to the open gallery during a server render, before any item has
-   * registered.
-   */
-  serverItemIdsRef: React.MutableRefObject<ReadonlySet<string> | null>;
   registerCaption: (index: number, caption: React.ReactNode) => () => void;
   subscribeOpenComplete: (listener: () => void) => () => void;
   openTransitionPendingRef: React.MutableRefObject<boolean>;

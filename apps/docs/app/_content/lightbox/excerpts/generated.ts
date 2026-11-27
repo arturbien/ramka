@@ -137,6 +137,21 @@ export const lightboxExcerpts = {
     code: "import * as Lightbox from '@ramka/react/lightbox';\n\n<Lightbox.Root>\n  <Lightbox.Portal>\n    <Lightbox.Backdrop />\n    <Lightbox.Content>\n      <Lightbox.Slides preload={1}>\n        {items.map((item, i) => (\n          <Lightbox.Slide key={item.id}>\n            <Lightbox.Item index={i} itemId={item.id}>\n              <Lightbox.Zoom>\n                <Lightbox.Media>\n                  <img src={item.src} alt={item.alt} />\n                </Lightbox.Media>\n              </Lightbox.Zoom>\n            </Lightbox.Item>\n          </Lightbox.Slide>\n        ))}\n      </Lightbox.Slides>\n    </Lightbox.Content>\n  </Lightbox.Portal>\n</Lightbox.Root>\n",
     source: "app/_content/lightbox/excerpts/sources/slides-nesting.tsx",
   },
+  "virtual-grid-reveal": {
+    title: "Virtualized grid + reveal",
+    code: "import * as Lightbox from '@ramka/react/lightbox';\n\nconst reveal = ({ itemId }: { itemId: string }) => virtualizer.scrollToIndex(rowOf(itemId), { align: 'center' });\n\n<Lightbox.Root\n  scrollTriggerIntoView={[\n    // When the tile isn't mounted, scroll your virtualizer to its row instead.\n    { type: 'onChange', behavior: 'instant', reveal },\n    { type: 'onOpenComplete', behavior: 'instant', reveal },\n    { type: 'onClose', behavior: 'instant', reveal },\n  ]}\n>\n  {/* virtualized grid of Triggers + the viewer */}\n</Lightbox.Root>\n",
+    source: "app/_content/lightbox/excerpts/sources/virtual-grid-reveal.tsx",
+  },
+  "virtual-slides": {
+    title: "Slides → VirtualSlides",
+    code: "import * as Lightbox from '@ramka/react/lightbox';\n\n<Lightbox.Root\n  // 1. Every itemId, in viewer order.\n  itemIds={photos.map((photo) => photo.id)}\n>\n  <Lightbox.Portal>\n    <Lightbox.Backdrop />\n    <Lightbox.Content>\n      {/* 2. Children become a function. It only runs for mounted slides. */}\n      <Lightbox.VirtualSlides>\n        {(index, itemId) => (\n          // 3. Every slide as wide as the scroller.\n          <Lightbox.Slide style={{ flex: '0 0 100%' }}>\n            <Lightbox.Item index={index} itemId={itemId}>\n              <Lightbox.Media>\n                <img src={photos[index]!.src} alt={photos[index]!.alt} />\n              </Lightbox.Media>\n            </Lightbox.Item>\n          </Lightbox.Slide>\n        )}\n      </Lightbox.VirtualSlides>\n    </Lightbox.Content>\n  </Lightbox.Portal>\n</Lightbox.Root>\n",
+    source: "app/_content/lightbox/excerpts/sources/virtual-slides.tsx",
+  },
+  "virtual-slides-load-more": {
+    title: "Load more while open",
+    code: "import * as Lightbox from '@ramka/react/lightbox';\n\n<Lightbox.Root\n  itemIds={photos.map((photo) => photo.id)}\n  onValueChange={(_itemId, { index }) => {\n    // 15 photos from the end? Get the next page.\n    if (index >= photos.length - 15) loadMore();\n  }}\n>\n  {/* grid + viewer with Lightbox.VirtualSlides */}\n</Lightbox.Root>\n",
+    source: "app/_content/lightbox/excerpts/sources/virtual-slides-load-more.tsx",
+  },
   "zoom-bridge": {
     title: "Active-zoom bridge",
     code: "import * as Lightbox from '@ramka/react/lightbox';\n\n<Lightbox.Root>\n  <Lightbox.Portal>\n    <Lightbox.Backdrop />\n    <Lightbox.Content>\n      {/* Toolbar chrome — targets the active slide's Zoom */}\n      <Lightbox.ZoomOut aria-label=\"Zoom out\" />\n      <Lightbox.ZoomIn aria-label=\"Zoom in\" />\n\n      <Lightbox.Slides>\n        <Lightbox.Slide>\n          <Lightbox.Item index={0} itemId=\"photo\">\n            <Lightbox.Zoom>\n              <Lightbox.Media>\n                <img src={src} alt={alt} />\n              </Lightbox.Media>\n            </Lightbox.Zoom>\n          </Lightbox.Item>\n        </Lightbox.Slide>\n      </Lightbox.Slides>\n    </Lightbox.Content>\n  </Lightbox.Portal>\n</Lightbox.Root>\n",

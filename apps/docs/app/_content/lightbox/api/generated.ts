@@ -63,7 +63,7 @@ export const generatedProps: Record<string, PropRow[]> = {
     {
       name: "itemIds",
       type: "readonly string[]",
-      description: "The gallery's `itemId`s in viewer order, for a page that server-renders an open lightbox (a deep link). Items register in effects, which never run during server rendering, so without this the first paint can't know where `value` sits: `Lightbox.Counter`, `Lightbox.Caption`, the Previous/Next boundaries and the slide position stay wrong until hydration. Once items mount the live registry takes over and this prop is ignored, so it can't drift.",
+      description: "The gallery's `itemId`s in viewer order, for a page that server-renders an open lightbox (a deep link). Items register in effects, which never run during server rendering, so without this the first paint can't know where `value` sits: `Lightbox.Counter`, `Lightbox.Caption`, the Previous/Next boundaries and the slide position stay wrong until hydration. Once items mount the live registry takes over, so it can't drift.\n\nRequired with `Lightbox.VirtualSlides`, which only mounts a window of items: the list then stands in for every item that isn't mounted, and its length is the item count.",
     },
     {
       name: "loop",
@@ -266,6 +266,31 @@ export const generatedProps: Record<string, PropRow[]> = {
       type: "boolean",
       default: "false",
       description: "First-paint slide positioning for pages that SERVER-RENDER an open lightbox (deep links rendering `Portal container={null}`). A scroll offset cannot be serialized into HTML, so such pages otherwise paint slide 0 (or a blank past the `preload` window) until hydration. While this is on, the server HTML carries a transform that translates every slide by `activeIndex × (100% + gap)` so the active slide occupies the scrollport at scroll offset 0; the post-hydration commit swaps the real scroll offset in and drops the transform together — no flash, every browser.\n\nONLY for scrollport-wide slides (`flex: 0 0 100%` tracks): the percentage resolves against each slide's own width, so content-sized (snug) slides would shift by unequal distances. If the track has a `gap`, mirror it into `--lightbox-ssr-slide-gap` (see `LightboxSlidesCssVars`). Without the opt-in, the library still marks the active item so engines with `scroll-initial-target` position any layout natively; other engines keep the hydration jump. Client-side opens are unaffected either way — the stand-in only ever renders for server paint + hydration.\n\nDegradation: the transform rule ships as a React 19 hoistable `<style>` tag. On React 18, or under a strict CSP without the nonce wired (see `Lightbox.CSPProvider`), the tag is unavailable and the server paint shows slide 0 with the scroller frozen until the hydration jump — the pre-existing baseline, never anything worse.",
+    },
+    {
+      name: "render",
+      type: "ReactElement | ComponentRenderFn",
+      description: "Replaces the part's default element with another tag or component. Accepts an element to clone, or a function that returns one.",
+    },
+  ],
+  "api-virtual-slides": [
+    {
+      name: "preload",
+      type: "number",
+      default: "1",
+      description: "How many slides on each side of the active one keep their `Lightbox.Item` content mounted. Unlike `Lightbox.Slides`, slide boxes outside this window plus `overscan` aren't mounted at all.",
+    },
+    {
+      name: "overscan",
+      type: "number",
+      default: "2",
+      description: "Slide boxes kept mounted beyond the `preload` window on each side of the active slide.",
+    },
+    {
+      name: "children",
+      type: "(index: number, itemId: string) => ReactNode",
+      required: true,
+      description: "Renders the slide at a collection index: a `Lightbox.Slide` with a `Lightbox.Item` carrying the same `index` and `itemId` inside. Only called for the mounted window.",
     },
     {
       name: "render",
@@ -553,7 +578,7 @@ export const generatedAttributes: Record<string, AttrRow[]> = {
     },
     {
       name: "data-popup-open",
-      description: "Present when the corresponding lightbox is open.",
+      description: "Present while the lightbox is open and this trigger opened it (by click, or as the trigger `handle.open(itemId)` morphed from). Other triggers of the gallery don't get it; use `data-active` for the one showing the current item.",
     },
     {
       name: "data-active",
@@ -702,6 +727,24 @@ export const generatedAttributes: Record<string, AttrRow[]> = {
     {
       name: "data-ssr-shift",
       description: "Present while the `ssrSlideShift` transform stand-in is applied: from the server render of an open lightbox until the mount layout effect swaps the real scroll offset in (same commit — the swap never paints). While set, every slide is translated so the active one occupies the scrollport at scroll offset 0, and the scrollport's `overflow-x` is frozen so a pre-hydration swipe can't reveal the empty positions the translated slides vacated.",
+    },
+  ],
+  "api-virtual-slides": [
+    {
+      name: "data-ramka-slides",
+      description: "Always present on the slides scrollport.",
+    },
+    {
+      name: "data-active-index",
+      description: "Current active index.",
+    },
+    {
+      name: "data-direction",
+      description: "`forward` or `backward`.",
+    },
+    {
+      name: "data-orientation",
+      description: "Always `horizontal`.",
     },
   ],
   "api-slide": [
@@ -892,6 +935,7 @@ export const generatedCssVariables: Record<string, CssVarRow[]> = {
   "api-item": [],
   "api-media": [],
   "api-slides": [],
+  "api-virtual-slides": [],
   "api-slide": [],
   "api-previous": [],
   "api-next": [],
@@ -911,22 +955,6 @@ export const generatedCssVariables: Record<string, CssVarRow[]> = {
   "api-zoom-out": [],
   "api-csp-provider": [],
   "api-view-transition-document": [
-    {
-      name: "--lightbox-morph-radius-trigger",
-      description: "Trigger-side border-radius for the morph group clip (interpolatable px). Written by the library onto `documentElement` during a morph — do not set it yourself.",
-    },
-    {
-      name: "--lightbox-morph-radius-item",
-      description: "Item-side border-radius for the morph group clip. Written by the library onto `documentElement` during a morph — do not set it yourself.",
-    },
-    {
-      name: "--lightbox-morph-border-radius-from",
-      description: "Start border-radius for the morph group clip (interpolatable px). Derived from the trigger/item radius pair by the library's own view-transition rules, keyed on the morph direction.",
-    },
-    {
-      name: "--lightbox-morph-border-radius-to",
-      description: "End border-radius for the morph group clip. Derived from the trigger/item radius pair like `--lightbox-morph-border-radius-from`.",
-    },
     {
       name: "--lightbox-morph-old-opacity",
       description: "Opacity of the old morph snapshot on the hard-cut path (no document crossfade).",

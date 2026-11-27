@@ -2200,8 +2200,6 @@ describe('Lightbox', () => {
       document.documentElement.removeAttribute('data-ramka-crossfade');
       document.documentElement.removeAttribute('data-ramka-vt-preset');
       document.documentElement.removeAttribute('data-ramka-vt-isolate');
-      document.documentElement.style.removeProperty('--lightbox-morph-border-radius-from');
-      document.documentElement.style.removeProperty('--lightbox-morph-border-radius-to');
       document.documentElement.style.removeProperty('--lightbox-morph-old-opacity');
       document.documentElement.style.removeProperty('--lightbox-morph-new-opacity');
       document.documentElement.style.removeProperty('--lightbox-vt-duration');
@@ -2307,8 +2305,6 @@ describe('Lightbox', () => {
 
       await act(async () => resolveFinished());
       const docStyle = document.documentElement.style;
-      expect(docStyle.getPropertyValue('--lightbox-morph-border-radius-from')).toBe('');
-      expect(docStyle.getPropertyValue('--lightbox-morph-border-radius-to')).toBe('');
       expect(docStyle.getPropertyValue('--lightbox-vt-duration')).toBe('');
       expect(docStyle.getPropertyValue('--lightbox-vt-easing')).toBe('');
       expect(docStyle.getPropertyValue('--lightbox-vt-crossfade-close-easing')).toBe('');
@@ -3587,7 +3583,7 @@ describe('Lightbox', () => {
         originalRect = undefined;
       });
 
-      it('writes direction-independent radius vars for the VT group CSS without mutating live radii', () => {
+      it('writes no radius vars on <html> and never mutates live radii', () => {
         mockViewTransitionAPI();
         mockTargetBox();
         render(
@@ -3609,14 +3605,12 @@ describe('Lightbox', () => {
 
         fireEvent.click(screen.getByTestId('trigger-0'));
 
-        // Stored per SIDE (trigger/item), not per direction (from/to): the
-        // same values then serve open and close, so re-morphing skips the
-        // writes entirely (root custom-property writes are full-document
-        // restyles in WebKit). Static phase-keyed rules in the structural
-        // sheet derive --lightbox-morph-border-radius-from/to from this pair.
-        expect(document.documentElement.style.getPropertyValue('--lightbox-morph-radius-trigger')).toBe('32px');
-        expect(document.documentElement.style.getPropertyValue('--lightbox-morph-radius-item')).toBe('8px');
-        // Live elements keep their radii — shape morph is CSS on the VT group.
+        // Every inherited custom-property write on <html> is a full-document
+        // restyle in WebKit; the composited morph gets the radii as values.
+        const docStyle = document.documentElement.style;
+        const rootProps = Array.from({ length: docStyle.length }, (_, i) => docStyle.item(i));
+        expect(rootProps.filter((p) => p.includes('radius'))).toEqual([]);
+        // Live elements keep their radii — shape morph is on the VT group.
         expect(screen.getByTestId('trigger-0').style.borderRadius).toBe('32px');
         expect(screen.getByTestId('item-0').querySelector('img')!.style.borderRadius).toBe('8px');
       });

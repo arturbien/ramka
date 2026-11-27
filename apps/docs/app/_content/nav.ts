@@ -42,6 +42,7 @@ const baseNavSections: NavSection[] = [
       lightboxDocsPages.composition,
       lightboxDocsPages.nextjsImage,
       lightboxDocsPages.viewTransitions,
+      lightboxDocsPages.largeGalleries,
       lightboxDocsPages.gestures,
       lightboxDocsPages.zoom,
       lightboxDocsPages.rtl,
@@ -70,6 +71,4 @@ const debugNavSection: NavSection = {
 
 /** Sidebar sections. Debug links are included only outside production builds. */
 export const navSections: NavSection[] =
-  process.env.NODE_ENV === 'production'
-    ? baseNavSections
-    : [...baseNavSections, debugNavSection];
+  process.env.NODE_ENV === 'production' ? baseNavSections : [...baseNavSections, debugNavSection];

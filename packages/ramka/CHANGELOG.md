@@ -7,7 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `Lightbox.VirtualSlides`, a drop-in for `Lightbox.Slides` in galleries too
+  large to mount a slide per photo. Only the slides around the active one are
+  in the DOM; two empty spacers stand in for the rest, so the native
+  scroll-snap track keeps its full length and every snap position. Its
+  children are a function, `(index, itemId) => <Lightbox.Slide>…`, and it
+  needs `itemIds` on `Lightbox.Root` (the whole gallery in viewer order), which
+  is how a photo whose slide isn't mounted can still be opened, counted and
+  navigated to. Appending to `itemIds` while the viewer is open grows the
+  track at the end. Slides must be scrollport-wide (`flex: 0 0 100%`);
+  `ssrSlideShift` is not supported. Props: `preload` and `overscan`.
+
+### Changed
+
+- `data-popup-open` and the `open` field of `Lightbox.Trigger`'s render
+  state are now set only on the trigger that opened the lightbox, as Base UI's
+  dialog trigger does. Before, every trigger of the open gallery got them. Use
+  `data-active` to style the trigger of the photo being viewed. Opening and
+  closing no longer re-render every trigger on the page, which delayed the
+  view transition's start in large grids.
+
 ### Removed
+
+- The `--lightbox-morph-radius-trigger`, `--lightbox-morph-radius-item`,
+  `--lightbox-morph-border-radius-from` and
+  `--lightbox-morph-border-radius-to` CSS variables, and their
+  `LightboxDocumentCssVars` members. They were written on `<html>` on every
+  open and close, and in Safari each write restyled the whole page before the
+  view transition could start. Rounded corners still animate in the morph. In
+  the rare case the library hands the morph to the browser's own animation
+  (for example a transform it can't read), corners now stay square for that
+  morph.
 
 - `Lightbox.ThumbnailStrip`'s `selectViewTransition` prop and the
   `--lightbox-select-vt-duration` / `--lightbox-select-vt-easing` CSS
@@ -19,6 +51,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Reopening or closing the lightbox soon after a morph no longer freezes the
+  page in Safari before the view transition starts. Each morph used to
+  replace the previous one's keyframes, which restyled the whole page; morphs
+  now get their own keyframe names, and old ones are cleared only after 16
+  morphs.
 - `Lightbox.ThumbnailStrip` no longer jumps and snaps back at the end of a
   zoom-out on the last slide in Safari. WebKit keeps the zoomed media's
   overflow in the scroller's `scrollWidth` for a few frames after zoom rests;

@@ -13,7 +13,6 @@ import type { LightboxViewTransitionPreset } from './vt-timing';
 import { pageNeedsNameIsolation } from './vt-name-isolation';
 import { findDestinationMorphTarget, findItemMorphTarget, findTriggerMorphTarget } from './morph-target';
 import { DEFAULT_DECODE_MAX_WAIT, VIEW_TRANSITION_NAME } from './vt-constants';
-import { LightboxDocumentCssVars } from './lightbox-css-vars';
 import { LightboxDocumentDataAttributes, LightboxSlideDataAttributes } from './lightbox-data-attributes';
 import { resolveScrollTriggerOption, scrollTriggerEl } from './scroll-trigger';
 import type { InitializedRef } from '../react-compat';
@@ -429,19 +428,6 @@ function promoteVtMotionTokens(docEl: HTMLElement, preset: boolean | LightboxVie
   );
 }
 
-/**
- * Write an inline root var only when its value actually changed. EVERY
- * inherited custom-property write on `<html>` — including a same-value
- * rewrite — invalidates computed style for the whole document, which WebKit
- * pays as a full restyle (~75ms at 16k elements) inside the morph's capture
- * flush. Reading the inline declaration back is flush-free, so re-opening the
- * same trigger (radii unchanged — the common case) writes nothing at all.
- */
-function setDocVarIfChanged(docEl: HTMLElement, prop: string, value: string) {
-  if (docEl.style.getPropertyValue(prop) === value) return;
-  docEl.style.setProperty(prop, value);
-}
-
 /** Flush threshold (CSS px) for treating a box edge as viewport-flush. */
 const FULL_BLEED_EPS_PX = 0.5;
 /**
@@ -561,8 +547,10 @@ let morphStateOwner = 0;
 /**
  * Applies the document-level state that drives the morph CSS: the phase
  * attribute, optional `data-ramka-crossfade` (with hard-cut opacity vars when
- * absent), from/to border-radius vars, and the `viewTransition` preset's
- * timing (`data-ramka-vt-preset` + `--lightbox-vt-*` vars).
+ * absent), and the `viewTransition` preset's timing (`data-ramka-vt-preset`).
+ * Nothing per-morph is written inline on `<html>`: every inherited write there
+ * is a full-document restyle in WebKit. The morph radii reach the composited
+ * morph as arguments instead.
  *
  * Returns an ownership token; pass it to {@link clearMorphState} so a stale
  * finalizer can never wipe a newer morph's state (see {@link morphStateOwner}).
@@ -572,8 +560,6 @@ function applyMorphState(
   phase: 'opening' | 'closing',
   opts: {
     useCrossfade: boolean;
-    fromRadius: string | null;
-    toRadius: string | null;
     preset: boolean | LightboxViewTransitionPreset | undefined;
   },
 ): number {
@@ -602,17 +588,6 @@ function applyMorphState(
   // Hard-cut snapshot opacities (old stays opaque as a paint fallback; new is
   // 1 on open / 0 on close) are published by static phase-keyed rules in the
   // structural sheet — see vt-structural-styles.ts for the full rationale.
-  // Only the per-morph radius pair still needs inline writes. They are stored
-  // direction-independently (trigger side / item side; the static phase rules
-  // derive from/to), so closing after opening — and every later re-open of
-  // the same trigger — rewrites identical values, which setDocVarIfChanged
-  // turns into no writes at all. `?? '0px'` (the consuming rules' fallback)
-  // rather than removeProperty, so a stale value from an earlier morph can
-  // never leak into a radius-less one.
-  const triggerRadius = (phase === 'opening' ? opts.fromRadius : opts.toRadius) ?? '0px';
-  const itemRadius = (phase === 'opening' ? opts.toRadius : opts.fromRadius) ?? '0px';
-  setDocVarIfChanged(docEl, LightboxDocumentCssVars.morphRadiusTrigger, triggerRadius);
-  setDocVarIfChanged(docEl, LightboxDocumentCssVars.morphRadiusItem, itemRadius);
   return ++morphStateOwner;
 }
 
@@ -643,13 +618,6 @@ function clearMorphName(el: HTMLElement) {
  * Removes the document-level attributes set by {@link applyMorphState} — but
  * only if `owner` still owns the state. A no-op when a newer morph has
  * promoted its own state since (see {@link morphStateOwner}).
- *
- * The inline radius vars are deliberately NOT removed: every one of their
- * consumers is gated behind the attributes removed here (view-transition
- * pseudo rules), so stale values are inert — and each `removeProperty` of an
- * inherited custom property on `<html>` inflates the teardown restyle the
- * same way a write does. The next morph overwrites them (or writes the '0px'
- * neutral value) via {@link setDocVarIfChanged}.
  */
 function clearMorphState(docEl: HTMLElement, owner: number) {
   if (owner !== morphStateOwner) return;
@@ -975,11 +943,9 @@ function createViewTransitionMorph(getConfig: () => ViewTransitionMorphConfig): 
     const toRadius = canMorph ? resolveMorphBorderRadius(itemTargetPrep!) : null;
 
     // In the fallback we force the root crossfade on (`data-ramka-crossfade`)
-    // and set no morph name/radius, so the transition is a clean fade.
+    // and set no morph name, so the transition is a clean fade.
     const morphStateToken = applyMorphState(docEl, 'opening', {
       useCrossfade: canMorph ? useCrossfade : true,
-      fromRadius: canMorph ? fromRadius : null,
-      toRadius,
       preset: getConfig().transitionPreset,
     });
 
@@ -987,8 +953,8 @@ function createViewTransitionMorph(getConfig: () => ViewTransitionMorphConfig): 
       // Inline `!important` so the document-level isolation rule (which sets
       // `view-transition-name: none !important` on every element during the
       // morph) can't neutralize the one element we actually want captured.
-      // Shape (border-radius) is owned entirely by the VT group CSS + the
-      // from/to vars written above — we never mutate live element radii.
+      // Shape (border-radius) is owned by the composited morph's radius track
+      // on the VT group — we never mutate live element radii.
       setMorphName(triggerTarget!);
     }
 
@@ -1125,12 +1091,10 @@ function createViewTransitionMorph(getConfig: () => ViewTransitionMorphConfig): 
     const fromRadius = canMorph ? resolveMorphBorderRadius(itemTarget!) : null;
     const toRadius = canMorph ? resolveMorphBorderRadius(triggerTarget!) : null;
 
-    // Writes — radii go to CSS vars; the VT group interpolates them (no live
-    // border-radius mutation).
+    // Writes — the radii travel to the composited morph's radius track on the
+    // VT group (no live border-radius mutation).
     const morphStateToken = applyMorphState(docEl, 'closing', {
       useCrossfade,
-      fromRadius,
-      toRadius,
       preset: getConfig().transitionPreset,
     });
 

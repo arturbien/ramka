@@ -32,9 +32,8 @@ export default function LightboxGesturesPage() {
       description={
         <>
           Pull-to-dismiss, zoom/pan, and keyboard ownership. Part of{' '}
-          <DocsLink href={lightboxDocsPages.overview.href}>Lightbox</DocsLink>. For the usual gallery
-          chrome (pull, zoom, keyboard) see the{' '}
-          <DocsLink href="/presets/default">Default preset</DocsLink>.
+          <DocsLink href={lightboxDocsPages.overview.href}>Lightbox</DocsLink>. For the usual gallery chrome (pull,
+          zoom, keyboard) see the <DocsLink href="/presets/default">Default preset</DocsLink>.
         </>
       }
       toc={toc}
@@ -59,8 +58,8 @@ export default function LightboxGesturesPage() {
             start a pull.
           </li>
           <li>
-            Disabled while zoomed above 1×, and while Slides is scrolling until <code className="text-xs">scrollend</code>{' '}
-            (so a gallery swipe that turns vertical cannot pull mid-gesture).
+            Disabled while zoomed above 1×, and while Slides is scrolling until{' '}
+            <code className="text-xs">scrollend</code> (so a gallery swipe that turns vertical cannot pull mid-gesture).
           </li>
           <li>
             Backdrop is optional — when used, nest it inside <DocsLink href={lightboxApiHref.portal}>Portal</DocsLink>{' '}
@@ -76,10 +75,10 @@ export default function LightboxGesturesPage() {
         <p>
           When a pull is released short of the threshold, the surface springs back and the library publishes{' '}
           <code className="text-xs">--lightbox-pull-snap-duration</code> /{' '}
-          <code className="text-xs">--lightbox-pull-snap-easing</code> for the duration of that spring. Reference them in
-          your <code className="text-xs">transition</code> (with your open/close values as the fallbacks, as below) and
-          anything keyed to <code className="text-xs">--lightbox-pull-progress</code> — backdrop opacity, chrome, blur —
-          eases back on the exact same curve and duration as the item, automatically.
+          <code className="text-xs">--lightbox-pull-snap-easing</code> for the duration of that spring. Reference them
+          in your <code className="text-xs">transition</code> (with your open/close values as the fallbacks, as below)
+          and anything keyed to <code className="text-xs">--lightbox-pull-progress</code> — backdrop opacity, chrome,
+          blur — eases back on the exact same curve and duration as the item, automatically.
         </p>
         <CodeBlock
           code={lightboxExcerpts['open-close-css'].code}
@@ -123,31 +122,51 @@ export default function LightboxGesturesPage() {
           </li>
           <li>
             <KbdGroup>
-              <KbdIcon label="Left arrow"><ArrowLeft /></KbdIcon>
-              <KbdIcon label="Right arrow"><ArrowRight /></KbdIcon>
-              <KbdIcon label="Up arrow"><ArrowUp /></KbdIcon>
-              <KbdIcon label="Down arrow"><ArrowDown /></KbdIcon>
+              <KbdIcon label="Left arrow">
+                <ArrowLeft />
+              </KbdIcon>
+              <KbdIcon label="Right arrow">
+                <ArrowRight />
+              </KbdIcon>
+              <KbdIcon label="Up arrow">
+                <ArrowUp />
+              </KbdIcon>
+              <KbdIcon label="Down arrow">
+                <ArrowDown />
+              </KbdIcon>
             </KbdGroup>{' '}
             — pan when zoomed, otherwise previous/next
           </li>
           <li>
-            <KbdIcon label="Plus"><Plus /></KbdIcon> / <KbdIcon label="Minus"><Minus /></KbdIcon> /{' '}
-            <Kbd>0</Kbd> — zoom in / out / reset (active Zoom)
+            <KbdIcon label="Plus">
+              <Plus />
+            </KbdIcon>{' '}
+            /{' '}
+            <KbdIcon label="Minus">
+              <Minus />
+            </KbdIcon>{' '}
+            / <Kbd>0</Kbd> — zoom in / out / reset (active Zoom)
           </li>
         </ul>
         <p>
           Image zoom uses unmodified keys only:{' '}
           <KbdGroup>
-            <KbdIcon label="Command"><Command /></KbdIcon>
-            <KbdIcon label="Plus"><Plus /></KbdIcon>
+            <KbdIcon label="Command">
+              <Command />
+            </KbdIcon>
+            <KbdIcon label="Plus">
+              <Plus />
+            </KbdIcon>
           </KbdGroup>{' '}
           /{' '}
           <KbdGroup>
             <Kbd>Ctrl</Kbd>
-            <KbdIcon label="Plus"><Plus /></KbdIcon>
+            <KbdIcon label="Plus">
+              <Plus />
+            </KbdIcon>
           </KbdGroup>{' '}
-          and the other modified combos are left to the browser, so page zoom (WCAG 1.4.4 text
-          resize) keeps working while the dialog is open.
+          and the other modified combos are left to the browser, so page zoom (WCAG 1.4.4 text resize) keeps working
+          while the dialog is open.
         </p>
         <p>
           Focus is trapped in the dialog; closing restores focus to the opening Trigger. Native page pinch-zoom is
@@ -196,7 +215,7 @@ export default function LightboxGesturesPage() {
         </div>
       </DocsSection>
 
-      <DocsPager prev={lightboxDocsPages.viewTransitions} next={lightboxDocsPages.zoom} />
+      <DocsPager prev={lightboxDocsPages.largeGalleries} next={lightboxDocsPages.zoom} />
     </DocsShell>
   );
 }

@@ -20,11 +20,7 @@ import { Node, Project, SyntaxKind, type CallExpression, type Expression, type S
 
 import { lightboxExamples } from '../app/_components/examples';
 import { lightboxPresets } from '../app/(docs)/presets/presets';
-import {
-  generatedAttributes,
-  generatedCssVariables,
-  generatedProps,
-} from '../app/_content/lightbox/api/generated';
+import { generatedAttributes, generatedCssVariables, generatedProps } from '../app/_content/lightbox/api/generated';
 import {
   documentViewTransitionMeta,
   hooksApiMeta,
@@ -42,15 +38,9 @@ const docsRoot = path.resolve(__dirname, '..');
 const publicDir = path.join(docsRoot, 'public');
 const docsPagesDir = path.join(docsRoot, 'app/(docs)/docs');
 
-const GENERATED_NOTE =
-  'Generated from the HTML docs sources. Do not edit by hand — run `pnpm docs:llms`.';
+const GENERATED_NOTE = 'Generated from the HTML docs sources. Do not edit by hand — run `pnpm docs:llms`.';
 
-const SKIP_COMPONENTS = new Set([
-  'DocsPager',
-  'LightboxHeroDemo',
-  'LightboxCrossfadeDemos',
-  'LightboxMorphToDemos',
-]);
+const SKIP_COMPONENTS = new Set(['DocsPager', 'LightboxHeroDemo', 'LightboxCrossfadeDemos', 'LightboxMorphToDemos']);
 
 type MdValue = string | number | boolean | null | MdValue[] | { [key: string]: MdValue };
 
@@ -124,9 +114,7 @@ function toMdHref(href: string): string {
   if (/^https?:\/\//.test(href) || href.startsWith('mailto:')) return href;
   if (href.startsWith('#')) return href;
   const [pathname, hash] = href.split('#');
-  const isMirrored = mirroredRoutes.some(
-    (route) => pathname === route || pathname.startsWith(`${route}/`),
-  );
+  const isMirrored = mirroredRoutes.some((route) => pathname === route || pathname.startsWith(`${route}/`));
   if (!isMirrored) return `${siteUrl}${href}`;
   const trimmed = pathname.replace(/^\//, '').replace(/\/$/, '');
   const mdPath = trimmed.endsWith('.md') || trimmed.endsWith('.txt') ? trimmed : `${trimmed}.md`;
@@ -483,7 +471,7 @@ function collectMappedRows(node: Node, ctx: Ctx): string[][] {
             if (!Node.isJsxElement(item) && !Node.isJsxSelfClosingElement(item) && !Node.isJsxFragment(item)) {
               return [];
             }
-            const tr = elementName(item) === 'tr' ? item : findElement(item, 'tr') ?? item;
+            const tr = elementName(item) === 'tr' ? item : (findElement(item, 'tr') ?? item);
             const cells = childrenOf(tr)
               .filter((child) => elementName(child) === 'th' || elementName(child) === 'td')
               .map((child) => cell(jsxToInline(child, ctx) || jsxToMarkdown(child, ctx)));
@@ -545,9 +533,7 @@ function eachMapItem<T>(expr: CallExpression, ctx: Ctx, fn: (body: Node) => T): 
   const mapper = expr.getArguments()[0];
   const body = mapper ? mapBodyNode(mapper) : undefined;
   if (!Array.isArray(list)) {
-    throw new Error(
-      `Could not evaluate ${listExpr.getText()}.map(...) in ${ctx.sourceFile.getFilePath()}`,
-    );
+    throw new Error(`Could not evaluate ${listExpr.getText()}.map(...) in ${ctx.sourceFile.getFilePath()}`);
   }
   if (!mapper || !body) return [];
 
@@ -571,9 +557,7 @@ function renderApiPart(part: MdValue): string {
   const description = String(part.description ?? '');
   const props = Array.isArray(part.props) ? (part.props as unknown as PropRow[]) : [];
   const attributes = Array.isArray(part.attributes) ? (part.attributes as unknown as AttrRow[]) : [];
-  const cssVariables = Array.isArray(part.cssVariables)
-    ? (part.cssVariables as unknown as CssVarRow[])
-    : [];
+  const cssVariables = Array.isArray(part.cssVariables) ? (part.cssVariables as unknown as CssVarRow[]) : [];
 
   const blocks = [`### ${name}`, description];
   if (props.length) {
@@ -665,9 +649,7 @@ function jsxToMarkdown(node: Node, ctx: Ctx): string {
     const level = Number(evalAttr(node, 'level', ctx) ?? 2);
     const titleExpr = getAttr(node, 'title');
     const title = titleExpr
-      ? Node.isJsxElement(titleExpr) ||
-        Node.isJsxSelfClosingElement(titleExpr) ||
-        Node.isJsxFragment(titleExpr)
+      ? Node.isJsxElement(titleExpr) || Node.isJsxSelfClosingElement(titleExpr) || Node.isJsxFragment(titleExpr)
         ? jsxToInline(titleExpr, ctx)
         : String(evalExpr(titleExpr, ctx) ?? jsxExprToInline(titleExpr, ctx))
       : '';
@@ -855,9 +837,7 @@ function buildIndex(pages: PageDoc[]): string {
     link(page.href, page.title, byHref.get(page.href)?.description),
   );
   const presets = lightboxPresets.map((page) => link(page.href, page.title, page.description));
-  const examples = lightboxExamples.map((ex) =>
-    link(`/examples/lightbox/${ex.slug}`, ex.title, ex.description),
-  );
+  const examples = lightboxExamples.map((ex) => link(`/examples/lightbox/${ex.slug}`, ex.title, ex.description));
 
   return normalizeMarkdown(
     joinBlocks([
@@ -920,6 +900,11 @@ function collectOutputs(): Map<string, string> {
       href: lightboxDocsPages.viewTransitions.href,
       title: lightboxDocsPages.viewTransitions.title,
       file: path.join(docsPagesDir, 'lightbox/view-transitions/page.tsx'),
+    },
+    {
+      href: lightboxDocsPages.largeGalleries.href,
+      title: lightboxDocsPages.largeGalleries.title,
+      file: path.join(docsPagesDir, 'lightbox/large-galleries/page.tsx'),
     },
     {
       href: lightboxDocsPages.gestures.href,

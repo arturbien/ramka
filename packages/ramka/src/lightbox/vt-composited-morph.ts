@@ -4,11 +4,7 @@ import { LightboxDocumentDataAttributes } from './lightbox-data-attributes';
 import { compensatedMorphRadiusAt, parseMorphRadiusList } from './vt-morph-radius';
 import { morphTiming, VIEW_TRANSITION_PRESETS } from './vt-timing';
 import { LightboxDocumentCssVars } from './lightbox-css-vars';
-import {
-  insertLibrarySheet,
-  supportsConstructedSheets,
-  type LibrarySheet,
-} from './lightbox-style-sheets';
+import { insertLibrarySheet, supportsConstructedSheets, type LibrarySheet } from './lightbox-style-sheets';
 import { ensureLibrarySheet } from './vt-style-sheets';
 
 // ---------------------------------------------------------------------------
@@ -95,12 +91,13 @@ const COMPOSITED_ATTR = 'data-ramka-vt-composited';
 const COMPOSITED_CSS_ATTR = 'data-ramka-vt-composited-css';
 
 /**
- * Fixed @keyframes names for the WebKit CSS-animation path. Fixed on purpose:
- * the rules that reference them (see {@link ensureCompositedCssStaticRules})
- * are injected once and never change — WebKit full-restyles the document on
- * ANY style-rule insertion/removal/content change in an adopted sheet, but
+ * Fixed @keyframes base names for the WebKit CSS-animation path, suffixed
+ * per slot (see {@link CSS_KEYFRAME_SLOTS}). Fixed on purpose: the rules that
+ * reference them (see {@link ensureCompositedCssStaticRules}) are injected
+ * once and never change — WebKit full-restyles the document on ANY
+ * style-rule insertion/removal/content change in an adopted sheet, but
  * scopes `@keyframes` insertions cheaply. So per morph the only sheet
- * mutation is inserting these keyframes with fresh contents.
+ * mutation is inserting one slot's keyframes with fresh contents.
  */
 const CSS_KEYFRAMES = {
   group: 'ramka-vt-cm-group',
@@ -108,6 +105,21 @@ const CSS_KEYFRAMES = {
   old: 'ramka-vt-cm-old',
   new: 'ramka-vt-cm-new',
 } as const;
+
+/**
+ * Keyframe name sets a morph can claim. Each morph takes the next unused
+ * slot (its names suffixed `-<slot>`, picked by the value of
+ * {@link COMPOSITED_CSS_ATTR}), so a morph that starts before the idle
+ * cleanup still inserts undefined names instead of emptying the sheet first.
+ * Only a run of more morphs than slots inside one idle window pays the
+ * clear: browsing open → close → open with under ~1.5s between them never
+ * lets the idle cleanup run, so the count is sized for long runs.
+ */
+const CSS_KEYFRAME_SLOTS = 16;
+
+function keyframeName(base: string, slot: number): string {
+  return `${base}-${slot}`;
+}
 
 /**
  * Constructed sheet holding the CURRENT morph's keyframes for the WebKit
@@ -127,17 +139,25 @@ const CSS_KEYFRAMES = {
  * The catch: the cheap-insert rule only holds for names NOT currently
  * defined in the document — REDEFINING a live name (inserting a duplicate)
  * costs the same full restyle as deleting it. So the whole lifecycle is
- * about guaranteeing the sheet is EMPTY by the time a morph inserts:
+ * about guaranteeing a morph only ever inserts names that aren't defined:
  *
+ * - Each morph claims its own name set ({@link CSS_KEYFRAME_SLOTS}), so
+ *   open → close → reopen in quick succession never redefines a live name.
+ *   Closing within a second or two of opening is the common case, not a rare
+ *   one: emptying the sheet before such a morph cost ~130ms of capture stall
+ *   on a 10k-element page.
  * - {@link scheduleCssPathSheetCleanup} empties it ~1.5s after each
  *   transition finishes — at idle, where a one-off restyle stall is not
- *   tied to any animation or input the user is watching.
- * - If a new morph starts before that (rapid reopen, quick pull-to-dismiss),
- *   the pre-capture prewarm empties it instead; the deleteRule restyle then
- *   partially folds into the capture flush (~+70ms on that open — the rare
- *   worst case, still well under the old per-transition sheet's cost).
+ *   tied to any animation or input the user is watching — which frees every
+ *   slot again.
+ * - Only when every slot is taken does the pre-capture prewarm empty the
+ *   sheet; the deleteRule restyle then partially folds into the capture
+ *   flush.
  */
 let cssPathSheet: CSSStyleSheet | null = null;
+
+/** Slots claimed since the sheet was last emptied (slots `0..n-1`). */
+let usedKeyframeSlots = 0;
 
 /** Pending idle-cleanup timer for {@link cssPathSheet}. */
 let cssPathCleanupTimer: ReturnType<typeof setTimeout> | null = null;
@@ -146,6 +166,7 @@ let cssPathCleanupTimer: ReturnType<typeof setTimeout> | null = null;
 let cssPathStyleEl: LibrarySheet | null = null;
 
 function clearCssPathSheetRules(): void {
+  usedKeyframeSlots = 0;
   if (!cssPathSheet) return;
   while (cssPathSheet.cssRules.length > 0) {
     cssPathSheet.deleteRule(cssPathSheet.cssRules.length - 1);
@@ -153,8 +174,8 @@ function clearCssPathSheetRules(): void {
 }
 
 /**
- * Adopt the keyframes sheet on first use and make sure it is empty —
- * pre-capture only (see cssPathSheet).
+ * Adopt the keyframes sheet on first use, and empty it only when every
+ * keyframe slot is taken — pre-capture only (see cssPathSheet).
  */
 function prewarmCompositedCssSheet(): void {
   if (typeof document === 'undefined' || !supportsConstructedSheets()) return;
@@ -165,9 +186,16 @@ function prewarmCompositedCssSheet(): void {
   if (!cssPathSheet) {
     cssPathSheet = new CSSStyleSheet();
     document.adoptedStyleSheets = [...document.adoptedStyleSheets, cssPathSheet];
+    usedKeyframeSlots = 0;
     return;
   }
-  clearCssPathSheetRules();
+  if (usedKeyframeSlots >= CSS_KEYFRAME_SLOTS) clearCssPathSheetRules();
+}
+
+/** Claim the next free keyframe slot (see {@link CSS_KEYFRAME_SLOTS}). */
+function claimKeyframeSlot(): number {
+  if (usedKeyframeSlots >= CSS_KEYFRAME_SLOTS) clearCssPathSheetRules();
+  return usedKeyframeSlots++;
 }
 
 /**
@@ -238,8 +266,7 @@ const NEW_PSEUDO = `::view-transition-new(${VIEW_TRANSITION_NAME})`;
 
 function isCompositedMorphEnabled(): boolean {
   return (
-    typeof window !== 'undefined' &&
-    (window as unknown as Record<string, unknown>).__RAMKA_VT_COMPOSITED__ !== false
+    typeof window !== 'undefined' && (window as unknown as Record<string, unknown>).__RAMKA_VT_COMPOSITED__ !== false
   );
 }
 
@@ -322,8 +349,9 @@ function ensureStyleInjected() {
 
 /**
  * Static rules for the WebKit CSS-animation path, injected once. They carry
- * everything EXCEPT per-morph values: fixed animation names (whose keyframes
- * are re-inserted per morph — see {@link CSS_KEYFRAMES}), timing from the
+ * everything EXCEPT per-morph values: one fixed set of animation names per
+ * slot, selected by the attribute's value (their keyframes are inserted per
+ * morph — see {@link CSS_KEYFRAMES}), timing from the
  * preset var published on the `::view-transition` pseudo, and the snapshot
  * anchor. Per-morph geometry (captured snapshot width/height) travels inside
  * the keyframes' endpoint frames, so no style RULE ever changes per morph.
@@ -339,23 +367,32 @@ function ensureCompositedCssStaticRules() {
   animation-timing-function: linear !important;
   animation-delay: 0s !important;
   animation-fill-mode: both !important;`;
+  const slotRules = (slot: number) => {
+    const root = `:root[${COMPOSITED_CSS_ATTR}="${slot}"]`;
+    const hardCut = `${root}:not([${LightboxDocumentDataAttributes.crossfade}])`;
+    return `
+${root}${GROUP_PSEUDO} {
+  animation-name: ${keyframeName(CSS_KEYFRAMES.group, slot)}, ${keyframeName(CSS_KEYFRAMES.radius, slot)} !important;
+}
+${hardCut}${OLD_PSEUDO} {
+  animation-name: ${keyframeName(CSS_KEYFRAMES.old, slot)} !important;
+}
+${hardCut}${NEW_PSEUDO} {
+  animation-name: ${keyframeName(CSS_KEYFRAMES.new, slot)} !important;
+}`;
+  };
   ensureLibrarySheet(
     'data-ramka-vt-composited-css-static',
     () => `
 :root[${COMPOSITED_CSS_ATTR}]${GROUP_PSEUDO} {
-  transform-origin: 0 0 !important;
-  animation-name: ${CSS_KEYFRAMES.group}, ${CSS_KEYFRAMES.radius} !important;${timing}
+  transform-origin: 0 0 !important;${timing}
 }
-:root[${COMPOSITED_CSS_ATTR}]:not([${LightboxDocumentDataAttributes.crossfade}])${OLD_PSEUDO} {
-  ${SNAPSHOT_ANCHOR}
-  transform-origin: 0 0 !important;
-  animation-name: ${CSS_KEYFRAMES.old} !important;${timing}
-}
+:root[${COMPOSITED_CSS_ATTR}]:not([${LightboxDocumentDataAttributes.crossfade}])${OLD_PSEUDO},
 :root[${COMPOSITED_CSS_ATTR}]:not([${LightboxDocumentDataAttributes.crossfade}])${NEW_PSEUDO} {
   ${SNAPSHOT_ANCHOR}
-  transform-origin: 0 0 !important;
-  animation-name: ${CSS_KEYFRAMES.new} !important;${timing}
+  transform-origin: 0 0 !important;${timing}
 }
+${Array.from({ length: CSS_KEYFRAME_SLOTS }, (_, slot) => slotRules(slot)).join('\n')}
 `,
   );
 }
@@ -483,10 +520,7 @@ function correctFragmentedEndpoint(
     return null;
   }
   if (!(rect.width > 0 && rect.height > 0)) return null;
-  if (
-    Math.abs(rect.width - w) > ENDPOINT_CORRECTION_EPS_PX ||
-    Math.abs(rect.height - h) > ENDPOINT_CORRECTION_EPS_PX
-  ) {
+  if (Math.abs(rect.width - w) > ENDPOINT_CORRECTION_EPS_PX || Math.abs(rect.height - h) > ENDPOINT_CORRECTION_EPS_PX) {
     return null;
   }
   if (
@@ -815,22 +849,23 @@ function upgrade(
     // The radius track is always emitted (empty when radius-less) so the
     // static rule's fixed animation-name list always resolves.
     ensureCompositedCssStaticRules();
+    const slot = claimKeyframeSlot();
     const keyframeRules = [
-      keyframesCss(CSS_KEYFRAMES.group, groupFrames, 'transform'),
-      keyframesCss(CSS_KEYFRAMES.radius, hasRadius ? radiusFrames : [], 'borderRadius'),
+      keyframesCss(keyframeName(CSS_KEYFRAMES.group, slot), groupFrames, 'transform'),
+      keyframesCss(keyframeName(CSS_KEYFRAMES.radius, slot), hasRadius ? radiusFrames : [], 'borderRadius'),
     ];
     if (!isCrossfade) {
       // Crossfade morphs get group tracks only — the snapshots keep their
       // structural sizing and UA dissolve (see the sampling loop above).
       keyframeRules.push(
         keyframesCss(
-          CSS_KEYFRAMES.old,
+          keyframeName(CSS_KEYFRAMES.old, slot),
           oldFrames,
           'transform',
           `width: ${fmt(w0)}px; height: ${fmt(h0)}px;`,
         ),
         keyframesCss(
-          CSS_KEYFRAMES.new,
+          keyframeName(CSS_KEYFRAMES.new, slot),
           newFrames,
           'transform',
           `width: ${fmt(w1)}px; height: ${fmt(h1)}px;`,
@@ -838,7 +873,7 @@ function upgrade(
       );
     }
     insertCompositedKeyframes(keyframeRules);
-    docEl.setAttribute(COMPOSITED_CSS_ATTR, '');
+    docEl.setAttribute(COMPOSITED_CSS_ATTR, String(slot));
   } else {
     try {
       created.push(docEl.animate(groupFrames, options(GROUP_PSEUDO)));
@@ -910,9 +945,4 @@ function upgrade(
   });
 }
 
-export {
-  maybeUpgradeToCompositedMorph,
-  isCompositedMorphEnabled,
-  parseScaleTranslate,
-  prewarmCompositedCssSheet,
-};
+export { maybeUpgradeToCompositedMorph, isCompositedMorphEnabled, parseScaleTranslate, prewarmCompositedCssSheet };

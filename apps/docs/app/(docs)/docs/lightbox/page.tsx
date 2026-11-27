@@ -41,6 +41,11 @@ const guideLinks: {
     href: lightboxDocsPages.viewTransitions.href,
   },
   {
+    title: 'Large galleries',
+    description: 'VirtualSlides for thousands of photos, virtualized grids, and loading more.',
+    href: lightboxDocsPages.largeGalleries.href,
+  },
+  {
     title: 'Gestures',
     description: 'Pull-to-dismiss, zoom bridge, keyboard, and what wins when.',
     href: lightboxDocsPages.gestures.href,

@@ -8,7 +8,7 @@ Each part accepts native element props for its default host (via Base UI `render
 
 - **State**: [Root](docs/lightbox/api.md#api-root), [createHandle](docs/lightbox/api.md#api-create-handle)
 - **Trigger / Item**: [Trigger](docs/lightbox/api.md#api-trigger), [Item](docs/lightbox/api.md#api-item), [Media](docs/lightbox/api.md#api-media)
-- **Layout**: [Slides](docs/lightbox/api.md#api-slides), [Slide](docs/lightbox/api.md#api-slide)
+- **Layout**: [Slides](docs/lightbox/api.md#api-slides), [VirtualSlides](docs/lightbox/api.md#api-virtual-slides), [Slide](docs/lightbox/api.md#api-slide)
 - **View transitions**: [Root (VT props)](docs/lightbox/api.md#api-root), [Document (VT)](docs/lightbox/api.md#api-view-transition-document)
 - **Shell**: [Portal](docs/lightbox/api.md#api-portal), [Backdrop](docs/lightbox/api.md#api-backdrop), [Content](docs/lightbox/api.md#api-content)
 - **Gestures**: [Content](docs/lightbox/api.md#api-content), [Zoom](docs/lightbox/api.md#api-zoom), [ZoomIn](docs/lightbox/api.md#api-zoom-in), [ZoomOut](docs/lightbox/api.md#api-zoom-out)
@@ -32,7 +32,7 @@ Groups all parts of the lightbox and owns open state, the active item (value, by
 | defaultValue | `string` | `the first item` | Uncontrolled initial active item: its `itemId`. |
 | value | `string` |  | Controlled active item: its `itemId`. |
 | onValueChange | `(value: string, details: { index: number; source: NavigationSource }) => void` |  | Called when the active item changes, with its `itemId` — the stable key to write to a URL. `details.index` is its position in the viewer. |
-| itemIds | `readonly string[]` |  | The gallery's `itemId`s in viewer order, for a page that server-renders an open lightbox (a deep link). Items register in effects, which never run during server rendering, so without this the first paint can't know where `value` sits: `Lightbox.Counter`, `Lightbox.Caption`, the Previous/Next boundaries and the slide position stay wrong until hydration. Once items mount the live registry takes over and this prop is ignored, so it can't drift. |
+| itemIds | `readonly string[]` |  | The gallery's `itemId`s in viewer order, for a page that server-renders an open lightbox (a deep link). Items register in effects, which never run during server rendering, so without this the first paint can't know where `value` sits: `Lightbox.Counter`, `Lightbox.Caption`, the Previous/Next boundaries and the slide position stay wrong until hydration. Once items mount the live registry takes over, so it can't drift. Required with `Lightbox.VirtualSlides`, which only mounts a window of items: the list then stands in for every item that isn't mounted, and its length is the item count. |
 | loop | `boolean` | `false` | Wrap navigation at boundaries. |
 | dir | `TextDirection` | `'ltr' (behavior); no `dir` attribute is written when omitted` | Reading direction. `'rtl'` mirrors slide navigation, thumbnail-strip travel, and the horizontal arrow keys (so `ArrowLeft` advances). Setting this is enough on its own: the direction is written to the `Lightbox.Portal` host as a `dir` attribute, so CSS follows it across the portal boundary even though the host mounts on `document.body`. That also makes it the way to run one RTL lightbox inside an otherwise-LTR page. Pass it whenever the surrounding UI is RTL, including in an app that is already RTL end to end (`dir="rtl"` on `<html>`) — behavior falls back to `'ltr'` without it, and navigation would run against the layout. Omitting it writes no attribute at all, so such an app still *lays out* RTL by inheritance; in development that disagreement logs a warning. |
 | viewTransition | `boolean \| LightboxViewTransitionPreset` | `true` | Morph between trigger and lightbox item via the View Transitions API. On by default: clicking a trigger morphs into the fullscreen item, and close morphs back. The morph engine is loaded on first use — pass `false` to skip that download. Falls back to a plain fade when unsupported, when prefers-reduced-motion is set, or on low-end devices. Pass a preset name to pick the morph's motion (duration + easing): - `"default"` — 360ms, sheet curve with a tamed launch (same as `true`) - `"snappy"` — 340ms, hotter launch; reads quicker - `"relaxed"` — 400ms, softer launch and longer settle - `"spring"` — 450ms, critically damped spring; Photos-style settle Timing is preset-based (not free-form CSS) on purpose: each preset is vetted on-device to stay smooth and skip-safe on iOS Safari (including Low Power Mode) and Android, where arbitrary curves stutter or teleport. The chosen timing drives the morph, the crossfade and the root fade together so they always stay in sync. |
@@ -63,7 +63,7 @@ Opens the lightbox at the Item with the same itemId and is the morph source (vie
 | Name | Description |
 | --- | --- |
 | `data-ramka-trigger` | Always present on the trigger element. |
-| `data-popup-open` | Present when the corresponding lightbox is open. |
+| `data-popup-open` | Present while the lightbox is open and this trigger opened it (by click, or as the trigger `handle.open(itemId)` morphed from). Other triggers of the gallery don't get it; use `data-active` for the one showing the current item. |
 | `data-active` | Present when this trigger’s index is the active item. |
 | `data-morph-target` | Present on the resolved morph element while it is the open/close morph source: the trigger root by default, or the node designated via `morphRef` when attached. Style hide/opacity against this attribute directly — do not assume it lives on the Trigger button. |
 | `data-crossfade` | Reflects the crossfade prop: `open` \| `close` \| `both`. |
@@ -246,6 +246,28 @@ Default layout: horizontal snap carousel wired to the active item. Emits role="g
 | `data-direction` | `forward` or `backward`. |
 | `data-orientation` | Always `horizontal`. |
 | `data-ssr-shift` | Present while the `ssrSlideShift` transform stand-in is applied: from the server render of an open lightbox until the mount layout effect swaps the real scroll offset in (same commit — the swap never paints). While set, every slide is translated so the active one occupies the scrollport at scroll offset 0, and the scrollport's `overflow-x` is frozen so a pre-hydration swipe can't reveal the empty positions the translated slides vacated. |
+
+### VirtualSlides
+
+Slides for very large galleries: only a window of slides around the active one is in the DOM, and two empty spacers stand in for the rest, so the native scroll-snap track keeps its full length, snap positions and scroll offset. Same scroll engine, props and data attributes as Slides. Children is a function `(index, itemId) => <Lightbox.Slide>…</Lightbox.Slide>` called for the mounted window. Requires `itemIds` on Root (the whole gallery in viewer order, which also sets the item count). Slides must be uniform and scrollport-wide (`flex: 0 0 100%`); the track `gap` is read from CSS. `ssrSlideShift` is not supported.
+
+#### Props
+
+| Name | Type | Default | Description |
+| --- | --- | --- | --- |
+| preload | `number` | `1` | How many slides on each side of the active one keep their `Lightbox.Item` content mounted. Unlike `Lightbox.Slides`, slide boxes outside this window plus `overscan` aren't mounted at all. |
+| overscan | `number` | `2` | Slide boxes kept mounted beyond the `preload` window on each side of the active slide. |
+| children | `(index: number, itemId: string) => ReactNode` |  | Renders the slide at a collection index: a `Lightbox.Slide` with a `Lightbox.Item` carrying the same `index` and `itemId` inside. Only called for the mounted window. |
+| render | `ReactElement \| ComponentRenderFn` |  | Replaces the part's default element with another tag or component. Accepts an element to clone, or a function that returns one. |
+
+#### Data attributes
+
+| Name | Description |
+| --- | --- |
+| `data-ramka-slides` | Always present on the slides scrollport. |
+| `data-active-index` | Current active index. |
+| `data-direction` | `forward` or `backward`. |
+| `data-orientation` | Always `horizontal`. |
 
 ### Slide
 
@@ -488,10 +510,6 @@ While a view-transition morph runs, ramka sets attributes and CSS variables on <
 
 | Name | Type | Description |
 | --- | --- | --- |
-| `--lightbox-morph-radius-trigger` |  | Trigger-side border-radius for the morph group clip (interpolatable px). Written by the library onto `documentElement` during a morph — do not set it yourself. |
-| `--lightbox-morph-radius-item` |  | Item-side border-radius for the morph group clip. Written by the library onto `documentElement` during a morph — do not set it yourself. |
-| `--lightbox-morph-border-radius-from` |  | Start border-radius for the morph group clip (interpolatable px). Derived from the trigger/item radius pair by the library's own view-transition rules, keyed on the morph direction. |
-| `--lightbox-morph-border-radius-to` |  | End border-radius for the morph group clip. Derived from the trigger/item radius pair like `--lightbox-morph-border-radius-from`. |
 | `--lightbox-morph-old-opacity` |  | Opacity of the old morph snapshot on the hard-cut path (no document crossfade). |
 | `--lightbox-morph-new-opacity` |  | Opacity of the new morph snapshot on the hard-cut path (1 on open, 0 on close). |
 | `--lightbox-vt-duration` |  | Morph + root-snapshot duration from the Root's `viewTransition` timing preset. WRITTEN BY THE LIBRARY in two places — do not set it yourself: onto `documentElement` during a morph (read it in document-level `::view-transition-*` rules, e.g. `calc(var(--lightbox-vt-duration) * 0.5)` for a derived track), and always onto the Portal host, so skin open/close fades inside the portal can use the preset's clock even when no morph runs (non-VT browsers, reduced motion, low-end fallback), e.g. `transition: opacity var(--lightbox-vt-duration, 360ms) ease-out`. |

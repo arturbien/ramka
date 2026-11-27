@@ -14,8 +14,9 @@ import {
   slideInlinePositionForIndex,
   slidesGeometryEqual,
   SLIDE_SELECTOR,
+  type SlidesGeometry,
 } from './lightbox-slides-geometry';
-import { readInlineScroll, writeInlineScroll } from './lightbox-direction';
+import { readInlineScroll, writeInlineScroll, type TextDirection } from './lightbox-direction';
 import { isFirefox } from './is-firefox';
 import { useDirectionMismatchWarning } from './use-direction-mismatch-warning';
 import { useIsServerPaint } from './use-server-paint';
@@ -133,6 +134,14 @@ interface LightboxSlidesProps extends useRender.ComponentProps<'div', LightboxSl
   ssrSlideShift?: boolean;
 }
 
+/** Engine seams for `Lightbox.VirtualSlides`; never part of the public props. */
+interface LightboxSlidesEngineProps extends LightboxSlidesProps {
+  /** Geometry over the whole collection, not just the slides in the DOM. */
+  measureGeometry?: (viewport: HTMLElement, dir: TextDirection) => SlidesGeometry;
+  /** The slide element at a collection index, or `null` when it isn't mounted. */
+  resolveSlideElement?: (viewport: HTMLElement, index: number) => HTMLElement | null;
+}
+
 /**
  * Quiet gap (ms without a scroll event) after which we treat a user scroll as
  * finished — used only in engines without a *reliable* `scrollend` (Safari
@@ -156,19 +165,30 @@ const REPAINT_IDLE_MS = 120;
 /** Must match the slides viewport React `style.scrollSnapType`. */
 const SLIDES_SCROLL_SNAP_TYPE = 'x mandatory';
 
+function slideElementAt(viewport: HTMLElement, index: number): HTMLElement | null {
+  return viewport.querySelectorAll<HTMLElement>(SLIDE_SELECTOR)[index] ?? null;
+}
+
 function clamp(value: number, min: number, max: number): number {
   return value < min ? min : value > max ? max : value;
 }
-
 
 const slidesStateAttributesMapping = {
   activeIndex: (value: unknown) => ({ 'data-active-index': String(value) }),
   direction: (value: unknown) => ({ 'data-direction': String(value) }),
 };
 
-const LightboxSlides = React.forwardRef<HTMLDivElement, LightboxSlidesProps>(
+const LightboxSlidesEngine = React.forwardRef<HTMLDivElement, LightboxSlidesEngineProps>(
   function LightboxSlides(props, forwardedRef) {
-    const { render, preload = 1, ssrSlideShift = false, style, ...elementProps } = props;
+    const {
+      render,
+      preload = 1,
+      ssrSlideShift = false,
+      style,
+      measureGeometry = measureSlidesGeometry,
+      resolveSlideElement = slideElementAt,
+      ...elementProps
+    } = props;
     const {
       activeIndex,
       direction,
@@ -315,16 +335,19 @@ const LightboxSlides = React.forwardRef<HTMLDivElement, LightboxSlidesProps>(
     // Force WebKit to re-rasterize a slide's tile (a synchronous visibility
     // toggle with a reflow between — no frame ever paints it hidden, so it can't
     // flicker). Fixes the half-decoded image Safari leaves after a long jump.
-    const repaintSlide = React.useCallback((index: number) => {
-      const viewport = viewportRef.current;
-      if (!viewport) return;
-      const slide = viewport.querySelectorAll<HTMLElement>(SLIDE_SELECTOR)[index];
-      if (!slide) return;
-      const previous = slide.style.visibility;
-      slide.style.visibility = 'hidden';
-      void slide.offsetWidth;
-      slide.style.visibility = previous;
-    }, []);
+    const repaintSlide = React.useCallback(
+      (index: number) => {
+        const viewport = viewportRef.current;
+        if (!viewport) return;
+        const slide = resolveSlideElement(viewport, index);
+        if (!slide) return;
+        const previous = slide.style.visibility;
+        slide.style.visibility = 'hidden';
+        void slide.offsetWidth;
+        slide.style.visibility = previous;
+      },
+      [resolveSlideElement],
+    );
 
     // Jump to a slide's exact snap offset. Only ever runs while the scroller is
     // at rest — a user scroll locks discrete navigation upstream (see
@@ -344,11 +367,7 @@ const LightboxSlides = React.forwardRef<HTMLDivElement, LightboxSlidesProps>(
         // the physical range is `[0, max]` in LTR and `[-max, 0]` in RTL, and
         // `writeInlineScroll` handles that.
         const max = viewport.scrollWidth - viewport.clientWidth;
-        const target = clamp(
-          slideInlinePositionForIndex(index, geometryRef.current),
-          0,
-          max > 0 ? max : 0,
-        );
+        const target = clamp(slideInlinePositionForIndex(index, geometryRef.current), 0, max > 0 ? max : 0);
         if (Math.abs(readInlineScroll(viewport, dir) - target) < 1) {
           return;
         }
@@ -396,9 +415,9 @@ const LightboxSlides = React.forwardRef<HTMLDivElement, LightboxSlidesProps>(
     const measure = React.useCallback(
       (viewport: HTMLElement) => {
         measuredSizeRef.current = { width: viewport.clientWidth, height: viewport.clientHeight };
-        geometryRef.current = measureSlidesGeometry(viewport, dir);
+        geometryRef.current = measureGeometry(viewport, dir);
       },
-      [dir],
+      [dir, measureGeometry],
     );
 
     // Re-measure after a viewport resize and, when the slides moved, re-pin
@@ -562,11 +581,7 @@ const LightboxSlides = React.forwardRef<HTMLDivElement, LightboxSlidesProps>(
         // comes) or the last finger already lifted while locked (iOS Safari
         // can drop `scrollend` after an interrupted rubber-band bounce — see
         // `touchLiftedWhileLockedRef`).
-        if (
-          scrollendReliable &&
-          !pinchInterruptedRef.current &&
-          !touchLiftedWhileLockedRef.current
-        ) {
+        if (scrollendReliable && !pinchInterruptedRef.current && !touchLiftedWhileLockedRef.current) {
           return;
         }
         idleTimerRef.current = window.setTimeout(settle, SCROLL_IDLE_MS);
@@ -583,8 +598,7 @@ const LightboxSlides = React.forwardRef<HTMLDivElement, LightboxSlidesProps>(
         armIdleFallback();
       };
 
-      const isParkedOnJumpTarget = () =>
-        Math.abs(readInlineScroll(viewport, dir) - jumpTargetRef.current) < 1;
+      const isParkedOnJumpTarget = () => Math.abs(readInlineScroll(viewport, dir) - jumpTargetRef.current) < 1;
 
       const process = () => {
         frame = 0;
@@ -754,10 +768,7 @@ const LightboxSlides = React.forwardRef<HTMLDivElement, LightboxSlidesProps>(
       };
     }, [indexFromScroll, setActiveIndex, navigationLockedRef, activeZoomRef, refitIfResized, dir]);
 
-    const state = React.useMemo<LightboxSlidesState>(
-      () => ({ activeIndex, direction }),
-      [activeIndex, direction],
-    );
+    const state = React.useMemo<LightboxSlidesState>(() => ({ activeIndex, direction }), [activeIndex, direction]);
 
     return (
       <LightboxSlidesPreloadContext.Provider value={preload}>
@@ -883,7 +894,11 @@ const LightboxSlides = React.forwardRef<HTMLDivElement, LightboxSlidesProps>(
   },
 );
 
-LightboxSlides.displayName = 'LightboxSlides';
+LightboxSlidesEngine.displayName = 'LightboxSlides';
 
-export { LightboxSlides, useSlidesPreload };
+const LightboxSlides: React.ForwardRefExoticComponent<
+  React.PropsWithoutRef<LightboxSlidesProps> & React.RefAttributes<HTMLDivElement>
+> = LightboxSlidesEngine;
+
+export { LightboxSlides, LightboxSlidesEngine, useSlidesPreload };
 export type { LightboxSlidesProps, LightboxSlidesState };

@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import Image, { type StaticImageData } from 'next/image';
+import { useWindowVirtualizer, type Virtualizer } from '@tanstack/react-virtual';
 import * as Lightbox from '@ramka/react/lightbox';
 import { ChevronLeft, ChevronRight, LoaderCircle, X, ZoomIn, ZoomOut } from 'lucide-react';
 
@@ -18,19 +19,21 @@ import { feedImages } from './images.generated';
 /**
  * Infinite scroll — one paginated photo list feeding both surfaces:
  *
- * - The **page feed** loads the next page when a sentinel below the grid
- *   enters the viewport (a hand-rolled IntersectionObserver — no library).
+ * - The **page feed** keeps `LOAD_AHEAD_SCREENS` screens of photos loaded
+ *   below the viewport, so ordinary scrolling never reaches the end.
  * - The **open viewer** loads the next page when the active slide gets within
  *   `LOAD_AHEAD` slides of the end, via Root's `onValueChange` — which fires
  *   for swipes, arrow keys, and the Previous/Next buttons alike.
  *
- * No special lightbox API is involved: appending to the `photos` array renders
- * more `Lightbox.Slide`s at the end of the native CSS scroll-snap track.
- * Appending never moves existing snap offsets, so the slide the user is
- * looking at stays exactly where it is; the library re-measures geometry and
- * the Next button / arrow keys / counter pick up the new count on their own.
- * Slides' `preload` keeps the appended items from fetching media until the
- * user actually approaches them.
+ * Appending a page appends its ids to Root's `itemIds`. The native scroll-snap
+ * track grows at the end, so the slide being viewed never moves, and the Next
+ * button, arrow keys and counter pick up the new count on their own.
+ *
+ * The feed never stops growing, so nothing renders every loaded photo:
+ * `Lightbox.VirtualSlides` mounts only the slides around the active one, and
+ * the grid is virtualized by rows. When the photo being viewed has no mounted
+ * tile, `reveal` scrolls its row into view and Ramka waits for that Trigger
+ * before the close morph.
  *
  * The viewer is deliberately minimal — slides, Previous/Next, the zoom
  * capsule, and Close. No thumbnail strip: without one, each `Lightbox.Item`
@@ -46,16 +49,43 @@ interface FeedPhoto {
 }
 
 /** Photos per simulated API page. */
-const PAGE_SIZE = 12;
+const PAGE_SIZE = 48;
+/**
+ * How many screens of grid must remain below the viewport; any less and the
+ * next page is requested. Pages keep coming until that buffer is full.
+ */
+const LOAD_AHEAD_SCREENS = 3;
 /**
  * How close to the end (in slides) the viewer may get before the next page is
  * requested. Keep it larger than Slides' `preload` so new slides exist before
  * their media would be needed — the user should never swipe into the edge
  * rubber-band while the network is still working.
  */
-const LOAD_AHEAD = 4;
+const LOAD_AHEAD = 15;
 /** Simulated network latency. */
-const FETCH_DELAY_MS = 800;
+const FETCH_DELAY_MS = 500;
+
+const GAP_PX = 2;
+
+// Same breakpoints as Tailwind's `md` and `lg`.
+const COLUMN_QUERIES = [
+  ['(min-width: 1024px)', 5],
+  ['(min-width: 768px)', 4],
+] as const;
+
+function getColumns() {
+  return COLUMN_QUERIES.find(([query]) => window.matchMedia(query).matches)?.[1] ?? 3;
+}
+
+function subscribeColumns(onChange: () => void) {
+  const lists = COLUMN_QUERIES.map(([query]) => window.matchMedia(query));
+  lists.forEach((list) => list.addEventListener('change', onChange));
+  return () => lists.forEach((list) => list.removeEventListener('change', onChange));
+}
+
+function useColumns() {
+  return React.useSyncExternalStore(subscribeColumns, getColumns, () => 3);
+}
 
 /**
  * Deterministic page contents: the demo cycles a fixed pool of local assets,
@@ -111,25 +141,6 @@ export function InfiniteScrollFeed() {
     });
   }, []);
 
-  // Page-feed pagination: fetch when the sentinel under the grid comes within
-  // 800px of the viewport. Re-created whenever the list grows — an observer
-  // only reports intersection *changes*, so after an append that leaves the
-  // sentinel still inside the margin it would otherwise stay silent.
-  const sentinelRef = React.useRef<HTMLDivElement | null>(null);
-  const photoCount = photos.length;
-  React.useEffect(() => {
-    const sentinel = sentinelRef.current;
-    if (!sentinel) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries.some((entry) => entry.isIntersecting)) loadMore();
-      },
-      { rootMargin: '800px 0px' },
-    );
-    observer.observe(sentinel);
-    return () => observer.disconnect();
-  }, [loadMore, photoCount]);
-
   // Viewer pagination: `onValueChange` fires for every navigation source —
   // swipe, arrow keys, the Previous/Next buttons, and the opening trigger —
   // so nearing the end by any route requests the next page. The value is the
@@ -141,15 +152,45 @@ export function InfiniteScrollFeed() {
     [loadMore],
   );
 
+  const itemIds = React.useMemo(() => photos.map((photo) => photo.id), [photos]);
+  const photoIndexRef = React.useRef(new Map<string, number>());
+  React.useLayoutEffect(() => {
+    photoIndexRef.current = new Map(itemIds.map((id, index) => [id, index]));
+  }, [itemIds]);
+
+  const virtualizerRef = React.useRef<Virtualizer<Window, Element> | null>(null);
+  const columnsRef = React.useRef(3);
+
+  // Scrolling into the loaded end mid-fetch would rubber-band the whole page,
+  // sidebar included. Only the root element's value applies to page scroll.
+  React.useEffect(() => {
+    const html = document.documentElement;
+    const previous = html.style.overscrollBehaviorY;
+    html.style.overscrollBehaviorY = 'none';
+    return () => {
+      html.style.overscrollBehaviorY = previous;
+    };
+  }, []);
+
+  // The close morph needs its tile on screen. When the photo being viewed is
+  // in a row the virtualizer has unmounted, bring that row back.
+  const reveal = React.useCallback(({ itemId }: { itemId: string }) => {
+    const index = photoIndexRef.current.get(itemId);
+    if (index === undefined) return;
+    virtualizerRef.current?.scrollToIndex(Math.floor(index / columnsRef.current), { align: 'center' });
+  }, []);
+
   return (
     <div className="min-h-screen select-none">
       <Lightbox.Root
+        itemIds={itemIds}
         onValueChange={handleValueChange}
         // Keep the (possibly far-scrolled-to) trigger tile positioned for the
         // close morph; instant so the covered page never visibly scrolls.
         scrollTriggerIntoView={[
-          { type: 'onChange', behavior: 'instant' },
-          { type: 'onOpenComplete', behavior: 'instant' },
+          { type: 'onChange', behavior: 'instant', reveal },
+          { type: 'onOpenComplete', behavior: 'instant', reveal },
+          { type: 'onClose', behavior: 'instant', reveal },
         ]}
         // Trigger thumb and slide share one source image, so the thumb bridge
         // covers the open — no reason to hold the morph for the decode.
@@ -168,31 +209,10 @@ export function InfiniteScrollFeed() {
 
         {/* Every tile is a Trigger; new pages render new tiles AND new slides
             from the same array, so the viewer and the feed can never drift. */}
-        <div className="grid grid-cols-3 gap-0.5 md:grid-cols-4 lg:grid-cols-5">
-          {photos.map((photo) => (
-            <Lightbox.Trigger
-              key={photo.id}
-              itemId={photo.id}
-              className={`relative block aspect-square cursor-pointer overflow-hidden bg-transparent p-0 md:scroll-mt-16 ${triggerFocusClass}`}
-            >
-              {({ imageRef }) => (
-                <Image
-                  ref={imageRef}
-                  src={photo.image}
-                  alt={photo.alt}
-                  placeholder="blur"
-                  sizes="(min-width: 1024px) 20vw, (min-width: 768px) 25vw, 33vw"
-                  loading="lazy"
-                  className="block size-full object-cover"
-                />
-              )}
-            </Lightbox.Trigger>
-          ))}
-        </div>
+        <FeedGrid photos={photos} virtualizerRef={virtualizerRef} columnsRef={columnsRef} onNearEnd={loadMore} />
 
-        {/* Load-more sentinel + spinner. Observed with an 800px margin, so
-            pages usually land before this scrolls into view. */}
-        <div ref={sentinelRef} className="flex items-center justify-center py-10" aria-hidden>
+        {/* Only reached when scrolling outruns the network. */}
+        <div className="flex items-center justify-center py-10" aria-hidden>
           <LoaderCircle
             className={`h-5 w-5 animate-spin text-neutral-400 transition-opacity ${loading ? 'opacity-100' : 'opacity-0'}`}
           />
@@ -204,42 +224,45 @@ export function InfiniteScrollFeed() {
             aria-label="Feed photos"
             className="lightbox-demo-content lightbox-demo-content-solo fixed inset-0 flex flex-col overscroll-contain outline-none"
           >
-            <Lightbox.Slides
+            <Lightbox.VirtualSlides
               aria-roledescription="carousel"
               aria-label="Full-size photos"
               preload={2}
               className="lightbox-demo-slides flex-1 gap-5 [&::-webkit-scrollbar]:hidden md:gap-0"
             >
-              {photos.map((photo, i) => (
-                <Lightbox.Slide key={photo.id} className="lightbox-demo-slide-pad h-full">
-                  <Lightbox.Item
-                    index={i}
-                    itemId={photo.id}
-                    aria-roledescription="slide"
-                    aria-label={`${i + 1} of ${photos.length}`}
-                  >
-                    <Lightbox.Zoom maxZoom={6}>
-                      <Lightbox.Media
-                        width={photo.image.width}
-                        height={photo.image.height}
-                        className="overflow-hidden rounded-none md:rounded-lg"
-                      >
-                        {/* Destination image: no blur placeholder — every photo
+              {(index, itemId) => {
+                const photo = photos[index]!;
+                return (
+                  <Lightbox.Slide className="lightbox-demo-slide-pad h-full">
+                    <Lightbox.Item
+                      index={index}
+                      itemId={itemId}
+                      aria-roledescription="slide"
+                      aria-label={`${index + 1} of ${photos.length}`}
+                    >
+                      <Lightbox.Zoom maxZoom={6}>
+                        <Lightbox.Media
+                          width={photo.image.width}
+                          height={photo.image.height}
+                          className="overflow-hidden rounded-none md:rounded-lg"
+                        >
+                          {/* Destination image: no blur placeholder — every photo
                             has a trigger thumb, so Ramka bridges the open. */}
-                        <Image
-                          src={photo.image}
-                          alt={photo.alt}
-                          sizes="100vw"
-                          loading="eager"
-                          draggable={false}
-                          className="select-none"
-                        />
-                      </Lightbox.Media>
-                    </Lightbox.Zoom>
-                  </Lightbox.Item>
-                </Lightbox.Slide>
-              ))}
-            </Lightbox.Slides>
+                          <Image
+                            src={photo.image}
+                            alt={photo.alt}
+                            sizes="100vw"
+                            loading="eager"
+                            draggable={false}
+                            className="select-none"
+                          />
+                        </Lightbox.Media>
+                      </Lightbox.Zoom>
+                    </Lightbox.Item>
+                  </Lightbox.Slide>
+                );
+              }}
+            </Lightbox.VirtualSlides>
 
             {/* Previous / Next — desktop only; mobile swipes. Both auto-disable
                 at the loaded frontier and re-enable when the next page lands. */}
@@ -291,3 +314,105 @@ export function InfiniteScrollFeed() {
     </div>
   );
 }
+
+// Its own component so scrolling re-renders only the grid, not the Root.
+function FeedGrid({
+  photos,
+  virtualizerRef,
+  columnsRef,
+  onNearEnd,
+}: {
+  photos: FeedPhoto[];
+  virtualizerRef: React.RefObject<Virtualizer<Window, Element> | null>;
+  columnsRef: React.RefObject<number>;
+  onNearEnd: () => void;
+}) {
+  const columns = useColumns();
+  columnsRef.current = columns;
+
+  const listRef = React.useRef<HTMLDivElement>(null);
+  const [layout, setLayout] = React.useState({ width: 0, top: 0 });
+  React.useLayoutEffect(() => {
+    const list = listRef.current!;
+    // The list's height also changes with every page; keep the same state
+    // object then so that doesn't re-render the grid.
+    const update = () => {
+      const width = list.clientWidth;
+      const top = list.getBoundingClientRect().top + window.scrollY;
+      setLayout((prev) => (prev.width === width && prev.top === top ? prev : { width, top }));
+    };
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(list);
+    return () => observer.disconnect();
+  }, []);
+
+  const rowHeight = layout.width ? (layout.width - GAP_PX * (columns - 1)) / columns + GAP_PX : 160;
+  const virtualizer = useWindowVirtualizer({
+    count: Math.ceil(photos.length / columns),
+    estimateSize: () => rowHeight,
+    overscan: 3,
+    scrollMargin: layout.top,
+  });
+  virtualizerRef.current = virtualizer;
+
+  React.useLayoutEffect(() => {
+    virtualizer.measure();
+  }, [virtualizer, rowHeight]);
+
+  // The grid re-renders as it scrolls and when a page lands, so checking here
+  // also chains requests until the buffer below the viewport is full.
+  const totalSize = virtualizer.getTotalSize();
+  const viewportBottom = (virtualizer.scrollOffset ?? 0) - layout.top + (virtualizer.scrollRect?.height ?? 0);
+  React.useEffect(() => {
+    if (!layout.width) return;
+    if (totalSize - viewportBottom < LOAD_AHEAD_SCREENS * window.innerHeight) onNearEnd();
+  }, [layout.width, totalSize, viewportBottom, onNearEnd]);
+
+  return (
+    <div ref={listRef} className="relative" style={{ height: virtualizer.getTotalSize() }}>
+      {virtualizer.getVirtualItems().map((row) => (
+        <div
+          key={row.key}
+          className="absolute inset-x-0 top-0"
+          style={{ transform: `translateY(${row.start - layout.top}px)` }}
+        >
+          <FeedRow photos={photos.slice(row.index * columns, (row.index + 1) * columns)} columns={columns} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// Memoized so a scroll frame doesn't re-render rows that were already mounted.
+const FeedRow = React.memo(
+  function FeedRow({ photos, columns }: { photos: FeedPhoto[]; columns: number }) {
+    return (
+      <div className="grid gap-0.5" style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}>
+        {photos.map((photo) => (
+          <Lightbox.Trigger
+            key={photo.id}
+            itemId={photo.id}
+            className={`relative block aspect-square cursor-pointer overflow-hidden bg-transparent p-0 md:scroll-mt-16 ${triggerFocusClass}`}
+          >
+            {({ imageRef }) => (
+              <Image
+                ref={imageRef}
+                src={photo.image}
+                alt={photo.alt}
+                placeholder="blur"
+                sizes="(min-width: 1024px) 20vw, (min-width: 768px) 25vw, 33vw"
+                loading="lazy"
+                className="block size-full object-cover"
+              />
+            )}
+          </Lightbox.Trigger>
+        ))}
+      </div>
+    );
+  },
+  (prev, next) =>
+    prev.columns === next.columns &&
+    prev.photos.length === next.photos.length &&
+    prev.photos.every((photo, i) => photo === next.photos[i]),
+);

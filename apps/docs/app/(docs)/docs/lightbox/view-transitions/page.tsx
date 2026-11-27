@@ -132,9 +132,8 @@ export default function LightboxViewTransitionsPage() {
         </ul>
         <p>
           Keep trigger and item images on <code className="text-xs">object-fit: cover</code> (or the same fit) so crops
-          stay coherent. Put border-radius on the morph target itself — the library interpolates{' '}
-          <code className="text-xs">--lightbox-morph-border-radius-from/to</code> on{' '}
-          <code className="text-xs">&lt;html&gt;</code>.
+          stay coherent. Put border-radius on the morph target itself — the library reads it from the trigger and item
+          and animates the morph group&apos;s corners between them.
         </p>
         <DocsDemo code={lightboxExcerpts['crossfade-both'].code} title={lightboxExcerpts['crossfade-both'].title}>
           <LightboxCrossfadeDemos />
@@ -234,6 +233,10 @@ const hidden = photos.filter((photo) => !shown.includes(photo.id));
           code={lightboxExcerpts['scroll-trigger-into-view'].code}
           title={lightboxExcerpts['scroll-trigger-into-view'].title}
         />
+        <p>
+          Grid virtualized, so the trigger may not be mounted? Add <code className="text-xs">reveal</code> — see{' '}
+          <DocsLink href={`${lightboxDocsPages.largeGalleries.href}#virtual-grid`}>Large galleries</DocsLink>.
+        </p>
       </DocsSection>
 
       <DocsSection id="programmatic" title="Programmatic open">
@@ -266,7 +269,6 @@ const hidden = photos.filter((photo) => !shown.includes(photo.id));
             <code className="text-xs">crossfade</code> is active for this phase; absent for hard-cut)
           </li>
           <li>
-            <code className="text-xs">--lightbox-morph-border-radius-from/to</code>,{' '}
             <code className="text-xs">--lightbox-morph-old/new-opacity</code>
           </li>
           <li>
@@ -352,8 +354,7 @@ const hidden = photos.filter((photo) => !shown.includes(photo.id));
           </li>
           <li>
             <strong className="font-medium text-neutral-800 dark:text-neutral-200">Morph group</strong> — clipping +
-            border-radius interpolation (put radius on the morph target element; JS writes{' '}
-            <code className="text-xs">--lightbox-morph-border-radius-from/to</code>), timed by the active preset.
+            border-radius interpolation (put radius on the morph target element), timed by the active preset.
           </li>
           <li>
             <strong className="font-medium text-neutral-800 dark:text-neutral-200">Snapshots</strong> — hard-cut by
@@ -395,7 +396,7 @@ const hidden = photos.filter((photo) => !shown.includes(photo.id));
         </p>
       </DocsSection>
 
-      <DocsPager prev={lightboxDocsPages.nextjsImage} next={lightboxDocsPages.gestures} />
+      <DocsPager prev={lightboxDocsPages.nextjsImage} next={lightboxDocsPages.largeGalleries} />
     </DocsShell>
   );
 }

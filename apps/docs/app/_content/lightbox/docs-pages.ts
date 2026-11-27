@@ -20,6 +20,10 @@ export const lightboxDocsPages = {
     href: '/docs/lightbox/view-transitions',
     title: 'View transitions',
   },
+  largeGalleries: {
+    href: '/docs/lightbox/large-galleries',
+    title: 'Large galleries',
+  },
   gestures: {
     href: '/docs/lightbox/gestures',
     title: 'Gestures',
@@ -49,6 +53,7 @@ export const lightboxDocsPagerOrder = [
   lightboxDocsPages.composition,
   lightboxDocsPages.nextjsImage,
   lightboxDocsPages.viewTransitions,
+  lightboxDocsPages.largeGalleries,
   lightboxDocsPages.gestures,
   lightboxDocsPages.zoom,
   lightboxDocsPages.rtl,
@@ -70,6 +75,7 @@ export const lightboxApiHref = {
   item: `${api}#api-item`,
   media: `${api}#api-media`,
   slides: `${api}#api-slides`,
+  virtualSlides: `${api}#api-virtual-slides`,
   slide: `${api}#api-slide`,
   previous: `${api}#api-previous`,
   next: `${api}#api-next`,

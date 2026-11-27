@@ -105,8 +105,12 @@ interface LightboxRootProps<Payload = unknown> {
    * run during server rendering, so without this the first paint can't know
    * where `value` sits: `Lightbox.Counter`, `Lightbox.Caption`, the
    * Previous/Next boundaries and the slide position stay wrong until
-   * hydration. Once items mount the live registry takes over and this prop
-   * is ignored, so it can't drift.
+   * hydration. Once items mount the live registry takes over, so it can't
+   * drift.
+   *
+   * Required with `Lightbox.VirtualSlides`, which only mounts a window of
+   * items: the list then stands in for every item that isn't mounted, and
+   * its length is the item count.
    */
   itemIds?: readonly string[];
   /** Wrap navigation at boundaries. @default false */
@@ -409,9 +413,26 @@ function LightboxRoot<Payload = unknown>(props: LightboxRootProps<Payload>) {
   // catches up.
   const itemIndexByIdRef = React.useRef(new Map<string, number>());
   const itemIdByIndexRef = React.useRef(new Map<number, string>());
+  // `itemIds` answers for items that aren't mounted (a server render, or the
+  // slides `Lightbox.VirtualSlides` hasn't mounted). The registry always wins.
+  const listedIndexById = React.useMemo(
+    () => (itemIds ? new Map(itemIds.map((id, index) => [id, index])) : null),
+    [itemIds],
+  );
+  const listedItemsRef = React.useRef({ ids: itemIds, indexById: listedIndexById });
+  listedItemsRef.current = { ids: itemIds, indexById: listedIndexById };
+  const indexOfItemId = React.useCallback(
+    (itemId: string): number | undefined =>
+      itemIndexByIdRef.current.get(itemId) ?? listedItemsRef.current.indexById?.get(itemId),
+    [],
+  );
+  const itemIdAt = React.useCallback(
+    (index: number): string | undefined => itemIdByIndexRef.current.get(index) ?? listedItemsRef.current.ids?.[index],
+    [],
+  );
   const resolveItemIndex = (itemId: string | undefined): number => {
     if (itemId === undefined) return -1;
-    return itemIndexByIdRef.current.get(itemId) ?? itemIds?.indexOf(itemId) ?? -1;
+    return indexOfItemId(itemId) ?? -1;
   };
   const isControlledValue = valueProp !== undefined;
   const [position, setPosition] = React.useState(() => ({
@@ -420,9 +441,7 @@ function LightboxRoot<Payload = unknown>(props: LightboxRootProps<Payload>) {
   }));
   const controlledIndex = isControlledValue ? resolveItemIndex(valueProp) : -1;
   const activeIndex = controlledIndex >= 0 ? controlledIndex : position.index;
-  const activeItemId = isControlledValue
-    ? valueProp
-    : (itemIdByIndexRef.current.get(position.index) ?? position.itemId);
+  const activeItemId = isControlledValue ? valueProp : (itemIdAt(position.index) ?? position.itemId);
   const activeItemIdRef = React.useRef(activeItemId);
   activeItemIdRef.current = activeItemId;
 
@@ -447,21 +466,24 @@ function LightboxRoot<Payload = unknown>(props: LightboxRootProps<Payload>) {
   // Set by a scroller while a user scroll/fling is in flight (see context).
   const navigationLockedRef = React.useRef(false);
 
-  const setActiveIndex = React.useCallback((index: number, source: NavigationSource) => {
-    // A user swipe/fling owns the position while it's in flight: a browser
-    // fling can't be cancelled from JS, so discrete navigation that lands
-    // mid-scroll is dropped (not queued) to keep the marker and the actual
-    // scroll position from ever diverging. Swipe-derived (`scroll`) updates
-    // and opening (`trigger`) always pass.
-    if (navigationLockedRef.current && (source === 'keyboard' || source === 'thumbnail' || source === 'button')) {
-      return;
-    }
-    const itemId = itemIdByIndexRef.current.get(index);
-    setPosition((prev) => (prev.index === index && prev.itemId === itemId ? prev : { index, itemId }));
-    if (itemId !== undefined && itemId !== activeItemIdRef.current) {
-      onValueChangeRef.current?.(itemId, { index, source });
-    }
-  }, []);
+  const setActiveIndex = React.useCallback(
+    (index: number, source: NavigationSource) => {
+      // A user swipe/fling owns the position while it's in flight: a browser
+      // fling can't be cancelled from JS, so discrete navigation that lands
+      // mid-scroll is dropped (not queued) to keep the marker and the actual
+      // scroll position from ever diverging. Swipe-derived (`scroll`) updates
+      // and opening (`trigger`) always pass.
+      if (navigationLockedRef.current && (source === 'keyboard' || source === 'thumbnail' || source === 'button')) {
+        return;
+      }
+      const itemId = itemIdAt(index);
+      setPosition((prev) => (prev.index === index && prev.itemId === itemId ? prev : { index, itemId }));
+      if (itemId !== undefined && itemId !== activeItemIdRef.current) {
+        onValueChangeRef.current?.(itemId, { index, source });
+      }
+    },
+    [itemIdAt],
+  );
 
   // Scroll the close-morph trigger into view when the active index changes
   // *while already open* (preemptive, so the destination trigger is on-screen
@@ -546,10 +568,13 @@ function LightboxRoot<Payload = unknown>(props: LightboxRootProps<Payload>) {
   // the `itemIds` prop. This is what lets an SSR-open page paint Counter and
   // Next/Previous with the real total instead of 0. The registry wins the
   // moment it has anything in it, so a stale prop can't outlive hydration.
-  const effectiveItemCount = itemCount > 0 ? itemCount : (itemIds?.length ?? 0);
-  const serverItemIdsRef = React.useRef<ReadonlySet<string> | null>(null);
-  serverItemIdsRef.current = itemIds && itemCount === 0 ? new Set(itemIds) : null;
-
+  const [virtualSlidesCount, setVirtualSlidesCount] = React.useState(0);
+  const registerVirtualSlides = React.useCallback(() => {
+    setVirtualSlidesCount((count) => count + 1);
+    return () => setVirtualSlidesCount((count) => count - 1);
+  }, []);
+  const effectiveItemCount =
+    virtualSlidesCount > 0 && itemIds ? itemIds.length : itemCount > 0 ? itemCount : (itemIds?.length ?? 0);
   // `defaultValue` is only checked against the first items to mount; later
   // galleries (a shared Root's next payload) legitimately don't contain it.
   const requestedValue = valueProp ?? defaultValue;
@@ -563,7 +588,7 @@ function LightboxRoot<Payload = unknown>(props: LightboxRootProps<Payload>) {
       checkedDefaultRef.current = true;
     }
     checkedValueRef.current = requestedValue;
-    if (itemIndexByIdRef.current.has(requestedValue)) return;
+    if (indexOfItemId(requestedValue) !== undefined) return;
     console.warn(
       `[ramka] Lightbox.Root ${valueProp !== undefined ? 'value' : 'defaultValue'} "${requestedValue}" ` +
         'does not match the itemId of any mounted Lightbox.Item.',
@@ -840,10 +865,10 @@ function LightboxRoot<Payload = unknown>(props: LightboxRootProps<Payload>) {
   }, []);
   const triggerAt = React.useCallback(
     (index: number): LightboxTriggerMatch | null => {
-      const itemId = itemIdByIndexRef.current.get(index);
+      const itemId = itemIdAt(index);
       return itemId === undefined ? null : findTrigger(itemId);
     },
-    [findTrigger],
+    [findTrigger, itemIdAt],
   );
   // `itemId` an open is waiting on: resolved to an index when that item mounts.
   const pendingOpenItemIdRef = React.useRef<string | null>(null);
@@ -958,13 +983,13 @@ function LightboxRoot<Payload = unknown>(props: LightboxRootProps<Payload>) {
       signal: AbortSignal,
     ): { wait: Promise<unknown> | null } | null => {
       const index = activeIndexRef.current;
-      const itemId = itemIdByIndexRef.current.get(index);
+      const itemId = itemIdAt(index);
       if (itemId === undefined) return null;
       const result = reveal({ itemId, index, payload: payloadRef.current, reason, signal });
       if (result === false) return null;
       return { wait: result && typeof result.then === 'function' ? result : null };
     },
-    [],
+    [itemIdAt],
   );
 
   // `scrollTriggerIntoView` while open: scroll the close target into view, or
@@ -1180,7 +1205,7 @@ function LightboxRoot<Payload = unknown>(props: LightboxRootProps<Payload>) {
       } else {
         settleOpenTransition();
         notifyBeforeClose();
-        closeFocusItemIdRef.current = itemIdByIndexRef.current.get(resolveCloseTriggerIndex()) ?? null;
+        closeFocusItemIdRef.current = itemIdAt(resolveCloseTriggerIndex()) ?? null;
       }
 
       // Skip the (document-snapshotting) morph on low-end hardware and fall
@@ -1268,6 +1293,7 @@ function LightboxRoot<Payload = unknown>(props: LightboxRootProps<Payload>) {
       focusReturnTarget,
       notifyBeforeClose,
       scrollTriggerForMoment,
+      itemIdAt,
     ],
   );
 
@@ -1416,7 +1442,7 @@ function LightboxRoot<Payload = unknown>(props: LightboxRootProps<Payload>) {
       // the item map once the commit settles (see the layout effect below).
       pendingOpenItemIdRef.current = null;
       if (resolvedIndex === undefined && itemId !== undefined) {
-        const known = payloadChanged ? undefined : itemIndexByIdRef.current.get(itemId);
+        const known = payloadChanged ? undefined : indexOfItemId(itemId);
         if (known !== undefined) {
           resolvedIndex = known;
         } else {
@@ -1454,20 +1480,20 @@ function LightboxRoot<Payload = unknown>(props: LightboxRootProps<Payload>) {
       prefetchZoomRuntime();
       setOpen(true);
     },
-    [setActiveIndex, setOpen, viewTransition, findTrigger, triggerAt, setOpenPayload],
+    [setActiveIndex, setOpen, viewTransition, findTrigger, triggerAt, setOpenPayload, indexOfItemId],
   );
 
   const performClose = React.useCallback(() => setOpen(false), [setOpen]);
   const performGoTo = React.useCallback(
     (itemId: string) => {
-      const index = itemIndexByIdRef.current.get(itemId);
+      const index = indexOfItemId(itemId);
       if (index !== undefined) {
         setActiveIndex(index, 'imperative');
       } else if (process.env.NODE_ENV !== 'production') {
         console.warn(`[ramka] goTo: no mounted Lightbox.Item has itemId "${itemId}".`);
       }
     },
-    [setActiveIndex],
+    [setActiveIndex, indexOfItemId],
   );
 
   const syncTrigger = React.useCallback((reg: LightboxHandleTriggerRegistration) => {
@@ -1535,14 +1561,14 @@ function LightboxRoot<Payload = unknown>(props: LightboxRootProps<Payload>) {
       getOpen: () => openRef.current,
       getViewTransition: () => viewTransitionRef.current !== false,
       getActiveIndex: () => activeIndexRef.current,
-      getItemIndex: (itemId) => itemIndexByIdRef.current.get(itemId) ?? -1,
+      getItemIndex: (itemId) => indexOfItemId(itemId) ?? -1,
       getOpeningElement: () => openingTriggerElementRef.current,
       getMorphTargetElement: () => (openRef.current ? resolveCloseTriggerElement() : null),
       getContentId: () => `${baseId}-content`,
       syncTrigger,
       unsyncTrigger,
     }),
-    [baseId, syncTrigger, unsyncTrigger, resolveCloseTriggerElement],
+    [baseId, syncTrigger, unsyncTrigger, resolveCloseTriggerElement, indexOfItemId],
   );
 
   // Bind createHandle() host for the lifetime of this Root.
@@ -1584,14 +1610,17 @@ function LightboxRoot<Payload = unknown>(props: LightboxRootProps<Payload>) {
   // Registered from Item's layout effect, so during an open's pre-mount every
   // item is known before the flush returns, and a pending `itemId` open
   // resolves to its index (and re-renders at it) inside that same flush.
-  const resolveOpenIndex = React.useCallback((index: number) => {
-    openingTriggerIndexRef.current = index;
-    // Another gallery's item can sit at the active index: same index, new item.
-    if (activeIndexRef.current !== index || activeItemIdRef.current !== itemIdByIndexRef.current.get(index)) {
-      setActiveIndexActionRef.current(index, pendingOpenSourceRef.current);
-    }
-    setResolvingOpen(false);
-  }, []);
+  const resolveOpenIndex = React.useCallback(
+    (index: number) => {
+      openingTriggerIndexRef.current = index;
+      // Another gallery's item can sit at the active index: same index, new item.
+      if (activeIndexRef.current !== index || activeItemIdRef.current !== itemIdAt(index)) {
+        setActiveIndexActionRef.current(index, pendingOpenSourceRef.current);
+      }
+      setResolvingOpen(false);
+    },
+    [itemIdAt],
+  );
   const registerItemId = React.useCallback(
     (itemId: string, index: number) => {
       const prevIndex = itemIndexByIdRef.current.get(itemId);
@@ -1630,7 +1659,7 @@ function LightboxRoot<Payload = unknown>(props: LightboxRootProps<Payload>) {
     const pending = pendingOpenItemIdRef.current;
     if (pending !== null && mounted) {
       pendingOpenItemIdRef.current = null;
-      const index = itemIndexByIdRef.current.get(pending);
+      const index = indexOfItemId(pending);
       if (index !== undefined) {
         resolveOpenIndex(index);
       } else if (process.env.NODE_ENV !== 'production') {
@@ -1716,7 +1745,6 @@ function LightboxRoot<Payload = unknown>(props: LightboxRootProps<Payload>) {
       registerKeyedTrigger,
       touchKeyedTrigger,
       keyedHost: host,
-      serverItemIdsRef,
       registerCaption,
       subscribeOpenComplete,
       openTransitionPendingRef,
@@ -1759,6 +1787,8 @@ function LightboxRoot<Payload = unknown>(props: LightboxRootProps<Payload>) {
       navigationLockedRef,
       itemCount: effectiveItemCount,
       registerItem,
+      itemIds,
+      registerVirtualSlides,
       loop,
       baseId,
       hasTablist,
@@ -1783,6 +1813,8 @@ function LightboxRoot<Payload = unknown>(props: LightboxRootProps<Payload>) {
       setActiveIndex,
       effectiveItemCount,
       registerItem,
+      itemIds,
+      registerVirtualSlides,
       loop,
       baseId,
       hasTablist,

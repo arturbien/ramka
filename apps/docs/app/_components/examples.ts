@@ -40,7 +40,7 @@ export const lightboxExamples: ExampleLink[] = [
     slug: 'infinite-scroll',
     title: 'Infinite scroll',
     description:
-      'An endless feed where the lightbox paginates too — one photo array drives grid tiles and slides; the grid loads pages via an IntersectionObserver sentinel, and onValueChange fetches ahead inside the open viewer, appending slides to the native scroll-snap track with a minimal Previous/Next chrome (no thumbnails).',
+      'An endless feed where the lightbox paginates too — one photo array drives grid tiles and slides; the grid keeps a few screens of photos loaded below the viewport, and onValueChange fetches ahead inside the open viewer, appending to Root itemIds. Lightbox.VirtualSlides and a virtualized grid keep only nearby slides and tiles mounted however long the feed gets; a reveal callback brings the viewed photo’s row back for the close morph.',
   },
   {
     slug: 'intercepted-routes',

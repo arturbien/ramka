@@ -187,8 +187,7 @@ async function runUpgrade(
 
 const compositedStyleEl = () => document.head.querySelector('[data-ramka-vt-composited-style]');
 const cssPathStyleEl = () => document.head.querySelector(`style[${COMPOSITED_CSS_ATTR}]`);
-const cssPathStaticStyleEl = () =>
-  document.head.querySelector('style[data-ramka-vt-composited-css-static]');
+const cssPathStaticStyleEl = () => document.head.querySelector('style[data-ramka-vt-composited-css-static]');
 
 /** Nothing was touched: no replacements, no attributes, UA animation intact. */
 function expectStockMorphLeftAlone(ua: FakeAnimation) {
@@ -720,6 +719,42 @@ describe('composited morph — WebKit CSS path', () => {
     } finally {
       stub.restore();
       vi.useRealTimers();
+    }
+  });
+
+  it('gives a morph started before the idle cleanup its own keyframe names instead of emptying the sheet', async () => {
+    const stub = stubConstructedSheets();
+    try {
+      const upgrade = await loadUpgrade();
+      const { prewarmCompositedCssSheet } = await import('./vt-composited-morph');
+      const deleteRule = vi.spyOn(CSSStyleSheet.prototype, 'deleteRule');
+      const settle = async () => {
+        await Promise.resolve();
+        await Promise.resolve();
+        await Promise.resolve();
+      };
+
+      const first = fakeTransition();
+      prewarmCompositedCssSheet();
+      upgrade(first.transition);
+      await settle();
+      expect(document.documentElement.getAttribute(COMPOSITED_CSS_ATTR)).toBe('0');
+      await first.finish();
+
+      installAnimations([uaGroupAnimation()]);
+      const second = fakeTransition();
+      prewarmCompositedCssSheet();
+      upgrade(second.transition);
+      await settle();
+      expect(document.documentElement.getAttribute(COMPOSITED_CSS_ATTR)).toBe('1');
+      const css = stub.adoptedCss().join('');
+      expect(css).toContain('@keyframes ramka-vt-cm-group-0');
+      expect(css).toContain('@keyframes ramka-vt-cm-group-1');
+      expect(deleteRule).not.toHaveBeenCalled();
+      expect(css).toContain(`:root[${COMPOSITED_CSS_ATTR}="1"]${GROUP_PSEUDO}`);
+      await second.finish();
+    } finally {
+      stub.restore();
     }
   });
 

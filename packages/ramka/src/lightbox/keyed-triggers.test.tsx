@@ -427,10 +427,13 @@ describe('keyed triggers (one Root, many galleries)', () => {
     fireEvent.click(screen.getByTestId('t-m7-1'));
     act(() => handle.goTo('m7-2'));
 
-    // Only the open message's tiles flip state; the other 57 never render.
-    expect([...renderCounts.keys()].sort()).toEqual(['m7-0', 'm7-1', 'm7-2']);
-    expect(screen.getByTestId('t-m7-0')).toHaveAttribute('data-popup-open');
-    expect(screen.getByTestId('t-m6-0')).not.toHaveAttribute('data-popup-open');
+    // Only the opener and the newly active tile flip state; the other 58,
+    // including the rest of the open message, never render.
+    expect([...renderCounts.keys()].sort()).toEqual(['m7-1', 'm7-2']);
+    expect(screen.getByTestId('t-m7-1')).toHaveAttribute('data-popup-open');
+    expect(screen.getByTestId('t-m7-2')).toHaveAttribute('data-active');
+    expect(screen.getByTestId('t-m7-2')).not.toHaveAttribute('data-popup-open');
+    expect(screen.getByTestId('t-m7-0')).not.toHaveAttribute('data-popup-open');
   });
 
   it('asks to reveal an unmounted trigger before closing, then morphs onto it', async () => {
