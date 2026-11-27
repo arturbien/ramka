@@ -7,8 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-11-27
+
+Items are now addressed by a stable `itemId` instead of their position, and
+one `Lightbox.Root` can serve many galleries. This changes the public API; see
+the **Changed** and **Removed** sections to migrate.
+
 ### Added
 
+- One `Lightbox.Root` for many galleries (a chat, a feed). Each
+  `Lightbox.Trigger` can pass a `payload`, for example the message whose photos
+  it opens, and the viewer reads it with `useLightboxPayload()`.
 - `Lightbox.VirtualSlides`, a drop-in for `Lightbox.Slides` in galleries too
   large to mount a slide per photo. Only the slides around the active one are
   in the DOM; two empty spacers stand in for the rest, so the native
@@ -22,6 +31,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Breaking:** items are identified by `itemId`, a stable string, not by
+  their index. Map Triggers and Items from the same array and use your data's
+  id, so prepending photos (infinite scroll, a live feed) no longer shifts the
+  open one, and URL state can carry the photo id directly.
+  - `Lightbox.Trigger` requires `itemId`.
+  - `Lightbox.Item` requires `itemId` alongside `index`.
+  - `Lightbox.Root`'s `value` / `defaultValue` are the active item's `itemId`.
+    `onValueChange(itemId, { index, source })` replaces
+    `onValueChange(index, { source })`, and fires only when the active item
+    changes.
+  - The handle's `open(itemId?, { payload })` and `goTo(itemId)` replace the
+    index forms. `open(itemId)` morphs from that item's mounted Trigger.
+  - `Lightbox.Thumbnail` keeps `index`.
+- `aria-controls` is set only on the Trigger that opened the lightbox.
 - `data-popup-open` and the `open` field of `Lightbox.Trigger`'s render
   state are now set only on the trigger that opened the lightbox, as Base UI's
   dialog trigger does. Before, every trigger of the open gallery got them. Use
@@ -31,6 +54,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+- **Breaking:** `Lightbox.Trigger`'s `index` prop (use `itemId`), the
+  handle's `triggerId` open option (`open(itemId)` finds the Trigger), and
+  `Lightbox.Root`'s `count` prop. `itemIds`, the gallery's ids in viewer order,
+  replaces `count`; it's only needed to server-render an open lightbox and for
+  `Lightbox.VirtualSlides`.
 - The `--lightbox-morph-radius-trigger`, `--lightbox-morph-radius-item`,
   `--lightbox-morph-border-radius-from` and
   `--lightbox-morph-border-radius-to` CSS variables, and their
@@ -271,5 +299,7 @@ Initial public release. The API is early (`0.0.x`) and may still change.
 - Dual license: GPL-3.0-only, or a paid proprietary license ([ramka.dev/license](https://ramka.dev/license)). Declare the one in use on `Lightbox.Root` with `license="gpl"` or `license="commercial"`.
 - CycloneDX SBOM shipped as `sbom.cdx.json`. Releases are published from GitHub Actions with npm provenance.
 
+[Unreleased]: https://github.com/arturbien/ramka/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/arturbien/ramka/compare/v0.0.2...v0.1.0
 [0.0.2]: https://github.com/arturbien/ramka/compare/v0.0.1...v0.0.2
 [0.0.1]: https://github.com/arturbien/ramka/releases/tag/v0.0.1
