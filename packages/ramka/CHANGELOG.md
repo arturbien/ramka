@@ -51,6 +51,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A trackpad pull-to-dismiss that turns sideways no longer scrolls
+  `Lightbox.Slides` in Safari and Firefox. The pull reads wheel events without
+  cancelling them, and unlike Chrome those browsers route the sideways part to
+  the slides. The slides scroller is now `overflow-x: hidden` from the start of
+  the pull until its momentum stops; programmatic navigation still works.
 - Reopening or closing the lightbox soon after a morph no longer freezes the
   page in Safari before the view transition starts. Each morph used to
   replace the previous one's keyframes, which restyled the whole page; morphs
