@@ -632,11 +632,12 @@ function usePullToDismiss({
 
       if (shouldDismiss) {
         // Latch: swallow the trackpad's momentum tail so it can't restart a
-        // pull and reset the item mid-close. The page underneath needs no
-        // guard: the wheel path never preventDefaults, so the browser latched
-        // this gesture to Content's contained scroll chain at its first event
-        // and keeps the whole stream — momentum included — off the page even
-        // as the lightbox closes.
+        // pull and reset the item mid-close. The wheel path never
+        // preventDefaults, so the browser latched this gesture to Content's
+        // contained scroll chain at its first event, which keeps the stream
+        // off the page while Content is mounted. Safari drops that latch
+        // when the lightbox unmounts; the close morph's input guard
+        // swallows the rest (see vt-input-guard.ts).
         wheelDismissedRef.current = true;
         // Keep chrome hidden through the close animation (see touch path).
         el.setAttribute('data-pull-dismissing', '');
@@ -819,10 +820,9 @@ function usePullToDismiss({
     // protected by the browser itself: at a wheel gesture's first event the
     // browser latches the gesture (momentum tail included) to the scroll
     // chain under the cursor, and Content's `overscroll-behavior: contain`
-    // stops that chain cold. The latch outlives even a dismiss that unmounts
-    // this listener mid-stream. Cancelling events would forfeit exactly that
+    // stops that chain cold. Cancelling events would forfeit exactly that
     // latch — the browser would re-target the leftover momentum at the bare
-    // page and scroll it behind the closing lightbox.
+    // page and scroll it behind the lightbox.
     el.addEventListener('wheel', handleWheel, { passive: true });
 
     return () => {

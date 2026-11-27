@@ -51,6 +51,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Safari: the momentum of a trackpad flick that pulls the lightbox shut no
+  longer scrolls the page once the close view transition ends. A new scroll
+  gesture on the page works straight away.
 - Trackpad: a sideways swipe while the lightbox's open or close view
   transition is still running no longer triggers the browser's back/forward
   navigation gesture. The transition's overlay sends every wheel event to
